@@ -121,9 +121,12 @@ echo "✅ OAI creada: $OAI_ID"
 echo "🔨 Compilando frontend..."
 cd ../../frontend/frontend-app
 
-# Instalar dependencias y compilar
+# Instalar dependencias
 npm install --legacy-peer-deps
-npm run build
+
+# Compilar con la URL del backend dinámico
+echo "📝 Configurando frontend para usar backend: $BACKEND_URL"
+VITE_API_URL="$BACKEND_URL/api" npm run build
 
 echo "📤 Subiendo archivos del frontend..."
 aws s3 sync dist/ "s3://$FRONTEND_BUCKET_NAME" --delete
