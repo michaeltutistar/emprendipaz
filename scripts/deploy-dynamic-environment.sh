@@ -250,6 +250,10 @@ aws lambda update-function-configuration \
     --function-name "$BACKEND_STACK_NAME-dev-app" \
     --environment file:///tmp/lambda-env.json
 
+# Esperar a que Lambda procese la actualización
+echo "⏳ Esperando a que Lambda procese la actualización..."
+aws lambda wait function-updated --function-name "$BACKEND_STACK_NAME-dev-app"
+
 # Reiniciar la función Lambda para que tome las nuevas variables
 echo "🔄 Reiniciando función Lambda..."
 # Crear un payload válido para el health check
