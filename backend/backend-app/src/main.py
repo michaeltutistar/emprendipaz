@@ -51,22 +51,26 @@ app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'sta
 app.config.from_object(app_config)
 
 # Configurar CORS para permitir comunicación con el frontend
-# Usar variable de entorno FRONTEND_URL si está disponible, sino permitir todos los orígenes
+# Usar variable de entorno FRONTEND_URL si está disponible, sino usar dominio de producción
 frontend_url = os.getenv('FRONTEND_URL')
 if frontend_url:
-    print(f"Configurando CORS para frontend específico: {frontend_url}")
-    CORS(app, 
-         supports_credentials=True,
-         origins=[frontend_url],
-         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'])
+    print(f"✅ Configurando CORS para frontend dinámico: {frontend_url}")
+    allowed_origins = [frontend_url]
 else:
-    print("Configurando CORS para todos los orígenes")
-    CORS(app, 
-         supports_credentials=True,
-         origins='*',
-         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'])
+    print("✅ Configurando CORS para producción")
+    allowed_origins = [
+        'https://emprendimiento-narino.com',
+        'https://www.emprendimiento-narino.com',
+        'http://localhost:5173',  # Para desarrollo local
+        'http://localhost:3000'
+    ]
+
+print(f"🔒 Orígenes permitidos: {allowed_origins}")
+CORS(app, 
+     supports_credentials=True,
+     origins=allowed_origins,
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'])
 
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
