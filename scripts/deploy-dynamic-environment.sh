@@ -212,9 +212,25 @@ echo "✅ CloudFront creado: $FRONTEND_URL"
 
 # Actualizar variable de entorno del backend con la URL del frontend
 echo "🔄 Actualizando configuración CORS del backend..."
+# Obtener la configuración actual del backend para mantener DATABASE_URL
+echo "📋 Obteniendo configuración actual del backend..."
+CURRENT_ENV=$(aws lambda get-function-configuration \
+    --function-name "$BACKEND_STACK_NAME-dev-app" \
+    --query 'Environment.Variables' \
+    --output json)
+
+# Extraer DATABASE_URL actual (si existe)
+DATABASE_URL_CURRENT=$(echo "$CURRENT_ENV" | grep -o '"DATABASE_URL":"[^"]*"' | cut -d'"' -f4)
+
+if [ -z "$DATABASE_URL_CURRENT" ]; then
+    echo "⚠️  No se encontró DATABASE_URL, usando valor por defecto"
+    DATABASE_URL_CURRENT="postgresql://user:password@localhost:5432/elearning_test"
+fi
+
+echo "📝 Actualizando solo FRONTEND_URL: $FRONTEND_URL"
 aws lambda update-function-configuration \
     --function-name "$BACKEND_STACK_NAME-dev-app" \
-    --environment Variables="{\"PR_NUMBER\":\"$PR_NUMBER\",\"ENV_SUFFIX\":\"$ENV_SUFFIX\",\"DATABASE_URL\":\"postgresql://user:password@localhost:5432/elearning_test\",\"FRONTEND_URL\":\"$FRONTEND_URL\"}"
+    --environment Variables="{\"FRONTEND_URL\":\"$FRONTEND_URL\",\"DATABASE_URL\":\"$DATABASE_URL_CURRENT\"}"
 
 # Reiniciar la función Lambda para que tome las nuevas variables
 echo "🔄 Reiniciando función Lambda..."
@@ -242,26 +258,9 @@ else
     echo "✅ Backend actualizado con CORS para: $FRONTEND_URL"
 fi
 
-# Verificar logs de Lambda para debugging
+# Verificar logs de Lambda para debugging (opcional)
 echo "🔍 Verificando logs de Lambda..."
-aws logs describe-log-streams \
-    --log-group-name "/aws/lambda/$BACKEND_STACK_NAME-dev-app" \
-    --order-by LastEventTime \
-    --descending \
-    --max-items 1 \
-    --query 'logStreams[0].logStreamName' \
-    --output text > /tmp/latest-log-stream.txt 2>/dev/null
-
-if [ -s /tmp/latest-log-stream.txt ]; then
-    LATEST_LOG_STREAM=$(cat /tmp/latest-log-stream.txt)
-    echo "📋 Últimos logs de Lambda:"
-    aws logs get-log-events \
-        --log-group-name "/aws/lambda/$BACKEND_STACK_NAME-dev-app" \
-        --log-stream-name "$LATEST_LOG_STREAM" \
-        --start-time $(date -d '5 minutes ago' +%s)000 \
-        --query 'events[*].message' \
-        --output text | tail -10
-fi
+aws logs tail "/aws/lambda/$BACKEND_STACK_NAME-dev-app" --since 5m --format short || echo "⚠️  No se pudieron obtener logs (esto es normal si la función no se ha ejecutado aún)"
 
 # 5. Guardar información del ambiente
 echo "💾 Guardando información del ambiente..."
