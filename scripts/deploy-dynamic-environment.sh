@@ -48,6 +48,7 @@ provider:
     PR_NUMBER: $PR_NUMBER
     ENV_SUFFIX: $ENV_SUFFIX
     DATABASE_URL: "postgresql://user:password@localhost:5432/elearning_test"
+    FRONTEND_URL: "TEMP_FRONTEND_URL"
   iam:
     role:
       statements:
@@ -93,6 +94,9 @@ BACKEND_URL=$(aws cloudformation describe-stacks \
     --output text)
 
 echo "✅ Backend desplegado: $BACKEND_URL"
+
+# Guardar BACKEND_URL para usar en el frontend
+export BACKEND_URL
 
 # 2. Crear bucket S3 para frontend
 echo "📦 Creando bucket S3 para frontend..."
@@ -205,6 +209,12 @@ CLOUDFRONT_DOMAIN=$(aws cloudfront get-distribution \
 FRONTEND_URL="https://$CLOUDFRONT_DOMAIN"
 
 echo "✅ CloudFront creado: $FRONTEND_URL"
+
+# Actualizar variable de entorno del backend con la URL del frontend
+echo "🔄 Actualizando configuración CORS del backend..."
+aws lambda update-function-configuration \
+    --function-name "$BACKEND_STACK_NAME-dev-app" \
+    --environment Variables="{PR_NUMBER=$PR_NUMBER,ENV_SUFFIX=$ENV_SUFFIX,DATABASE_URL=postgresql://user:password@localhost:5432/elearning_test,FRONTEND_URL=$FRONTEND_URL}"
 
 # 5. Guardar información del ambiente
 echo "💾 Guardando información del ambiente..."
