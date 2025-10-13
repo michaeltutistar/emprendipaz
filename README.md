@@ -1,5 +1,8 @@
 # Plataforma E-Learning - Gobernación de Nariño
 
+## 🚀 Dynamic Environments
+This project now supports dynamic environments for collaborative development!
+
 ## Descripción del Proyecto
 
 La Plataforma E-Learning de la Gobernación de Nariño es una solución educativa digital completa diseñada específicamente para fortalecer los conocimientos y habilidades de los ciudadanos del departamento de Nariño. Esta plataforma web moderna combina una interfaz atractiva que sigue estrictamente los lineamientos de identidad visual oficial de la Gobernación con un sistema robusto de registro y autenticación de usuarios.
