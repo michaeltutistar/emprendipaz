@@ -14,9 +14,6 @@ jobs:
   deploy-environment:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
-    environment: 
-      name: pr-${{ github.event.number }}
-      url: ${{ steps.deploy.outputs.frontend_url }}
     
     steps:
     - name: Checkout code
