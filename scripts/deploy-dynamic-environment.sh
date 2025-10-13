@@ -103,10 +103,15 @@ aws s3 mb "s3://$FRONTEND_BUCKET_NAME" --region us-east-1
 # Configurar bucket para CloudFront (sin políticas públicas)
 echo "🔒 Configurando bucket para CloudFront (sin políticas públicas)..."
 
-# 3. Subir archivos del frontend
-echo "📤 Subiendo archivos del frontend..."
+# 3. Compilar y subir archivos del frontend
+echo "🔨 Compilando frontend..."
 cd ../../frontend/frontend-app
 
+# Instalar dependencias y compilar
+npm install
+npm run build
+
+echo "📤 Subiendo archivos del frontend..."
 aws s3 sync dist/ "s3://$FRONTEND_BUCKET_NAME" --delete
 
 # 4. Crear distribución CloudFront
