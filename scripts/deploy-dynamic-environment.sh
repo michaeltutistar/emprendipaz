@@ -84,8 +84,13 @@ custom:
     strip: false
 EOF
 
+# Eliminar despliegue anterior si existe (para forzar actualización del código)
+echo "🗑️  Verificando si existe despliegue anterior..."
+npx serverless@3 remove --config serverless-dynamic.yml --stage dev 2>/dev/null || echo "No hay despliegue anterior, continuando..."
+
 # Desplegar con serverless (usando versión 3.x que no requiere login)
-npx serverless@3 deploy --config serverless-dynamic.yml --stage dev
+echo "🚀 Desplegando backend con código actualizado..."
+npx serverless@3 deploy --config serverless-dynamic.yml --stage dev --force
 
 # Obtener URL del API Gateway
 BACKEND_URL=$(aws cloudformation describe-stacks \
