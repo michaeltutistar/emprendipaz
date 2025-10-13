@@ -261,9 +261,8 @@ else
     echo "✅ Backend actualizado con CORS para: $FRONTEND_URL"
 fi
 
-# Verificar logs de Lambda para debugging (opcional)
-echo "🔍 Verificando logs de Lambda..."
-aws logs tail "/aws/lambda/$BACKEND_STACK_NAME-dev-app" --since 5m --format short || echo "⚠️  No se pudieron obtener logs (esto es normal si la función no se ha ejecutado aún)"
+# Skip logs verification to avoid errors
+echo "✅ Configuración completada exitosamente"
 
 # 5. Guardar información del ambiente
 echo "💾 Guardando información del ambiente..."
