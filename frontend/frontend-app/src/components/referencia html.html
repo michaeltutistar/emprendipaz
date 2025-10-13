@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jóvenes Emprendedores Nariño — Página Interactiva</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --primary:#2A9B35; /* verde base */
+      --primary-700:#1f7d29;
+      --bg:#ffffff;
+      --text:#0f172a;
+      --muted:#6b7280;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --shadow:0 12px 30px rgba(0,0,0,.08);
+      --radius:18px;
+      --accent:#0ea5e9;
+    }
+    html[data-theme="dark"]{
+      --bg:#0b1020;
+      --text:#f5f7fb;
+      --muted:#9aa3b2;
+      --card:#121832;
+      --border:#1f2a4a;
+      --shadow:0 12px 30px rgba(0,0,0,.35);
+      --accent:#38bdf8;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;font-family:Roboto,system-ui,-apple-system,Segoe UI,Ubuntu,Cantarell,Noto Sans,sans-serif;background:var(--bg);color:var(--text)}
+    a{color:inherit}
+    /* NAV */
+    .nav{
+      position:sticky;top:0;z-index:40;backdrop-filter:saturate(180%) blur(10px);
+      background:linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.6));
+      border-bottom:1px solid var(--border);
+    }
+    html[data-theme="dark"] .nav{background:linear-gradient(180deg, rgba(18,24,50,.8), rgba(18,24,50,.6))}
+    .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;gap:12px;padding:10px 16px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800}
+    .brand .logo{width:36px;height:36px;border-radius:10px;background:conic-gradient(from 180deg at 50% 50%, var(--primary), var(--primary-700));display:grid;place-items:center;color:white;box-shadow:var(--shadow)}
+    .spacer{flex:1}
+    .nav a.btn{padding:8px 14px;border:1px solid var(--border);border-radius:999px;text-decoration:none}
+    .toggle{display:flex;align-items:center;gap:8px}
+    .toggle input{appearance:none;width:46px;height:26px;background:var(--border);border-radius:999px;position:relative;cursor:pointer;outline:none;transition:.25s}
+    .toggle input::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.25s;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+    .toggle input:checked{background:linear-gradient(90deg,var(--primary),var(--primary-700))}
+    .toggle input:checked::after{transform:translateX(20px)}
+
+    /* HERO */
+    .hero{position:relative;isolation:isolate;overflow:hidden}
+    .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(1000px 400px at 20% -10%, rgba(42,155,53,.25), transparent),radial-gradient(800px 400px at 120% 10%, rgba(14,165,233,.25), transparent);z-index:-1}
+    .hero-inner{max-width:1200px;margin:auto;padding:64px 16px 28px;display:grid;grid-template-columns:1.2fr .8fr;gap:22px}
+    @media (max-width: 900px){.hero-inner{grid-template-columns:1fr}}
+    .hero-card{background:linear-gradient(180deg,rgba(255,255,255,.7),rgba(255,255,255,.45));border:1px solid var(--border);border-radius:24px;padding:22px;box-shadow:var(--shadow)}
+    html[data-theme="dark"] .hero-card{background:linear-gradient(180deg,rgba(18,24,50,.65),rgba(18,24,50,.45))}
+    .hero h1{font-size:clamp(28px,4.5vw,46px);margin:4px 0 6px}
+    .hero p{color:var(--muted);margin:0 0 12px}
+    .tags{display:flex;flex-wrap:wrap;gap:8px}
+    .tag{padding:6px 10px;border:1px solid var(--border);border-radius:999px;font-size:.85rem;background:rgba(42,155,53,.06)}
+
+    /* STATS */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+    @media (max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
+    .stat{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+    .stat h3{margin:6px 0 2px;font-size:clamp(22px,3.5vw,30px)}
+    .stat p{margin:0;color:var(--muted);font-size:.9rem}
+
+    /* LAYOUT */
+    .container{max-width:1200px;margin:auto;padding:22px 16px;display:grid;grid-template-columns:260px 1fr;gap:16px}
+    @media (max-width:1100px){.container{grid-template-columns:1fr}}
+
+    /* SIDEBAR */
+    .side{position:sticky;top:70px;height:calc(100svh - 80px);overflow:auto;border:1px solid var(--border);border-radius:18px;background:var(--card);box-shadow:var(--shadow)}
+    .side h4{margin:12px 14px}
+    .toc{display:flex;flex-direction:column;padding:0 8px 10px}
+    .toc a{padding:10px 12px;border-radius:12px;text-decoration:none;color:inherit;border:1px solid transparent}
+    .toc a.active{background:linear-gradient(180deg, rgba(42,155,53,.12), rgba(42,155,53,.06));border-color:#d9f0dc}
+
+    /* MAIN */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+    h2.section{display:flex;align-items:center;gap:10px;margin:4px 0 12px;font-size:clamp(20px,2.5vw,28px)}
+
+    /* PHASE TABS */
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+    .tab{padding:8px 12px;border:1px solid var(--border);border-radius:999px;cursor:pointer;user-select:none}
+    .tab.active{background:linear-gradient(90deg,var(--primary),var(--primary-700));color:white;border-color:transparent}
+    .tabpanes > div{display:none}
+    .tabpanes > div.active{display:block}
+
+    /* TIMELINE */
+    .timeline{display:grid;gap:10px}
+    .step{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
+    .dot{width:14px;height:14px;border-radius:50%;background:var(--primary)}
+    .step .content{border:1px dashed #cde8d4;background:linear-gradient(180deg,#fbfffc,#ffffff);padding:10px 12px;border-radius:14px}
+
+    /* NODES TABLE */
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+    .input{flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:transparent;color:inherit}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+    thead th{background:linear-gradient(180deg,#f1fbf3,#e8f7ea)}
+    html[data-theme="dark"] thead th{background:linear-gradient(180deg,#12251a,#0f1f16)}
+    tbody tr:hover{background:rgba(42,155,53,.05)}
+
+    /* ACCORDION */
+    details{border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin:10px 0;background:var(--card)}
+    details[open]{border-color:#d9f0dc}
+    details summary{cursor:pointer;font-weight:700;list-style:none}
+    details summary::marker,details summary::-webkit-details-marker{display:none}
+
+    /* PROGRESS */
+    .progress{height:10px;border-radius:999px;background:#e5efe7;overflow:hidden;border:1px solid #d9f0dc}
+    .bar{height:100%;width:0;background:linear-gradient(90deg,var(--primary),var(--accent))}
+
+    /* FLOAT */
+    .fab{position:fixed;right:18px;bottom:18px;z-index:50;display:grid;gap:10px}
+    .fab button{border:none;border-radius:999px;padding:12px 14px;background:linear-gradient(90deg,var(--primary),var(--primary-700));color:#fff;box-shadow:var(--shadow);cursor:pointer}
+
+    /* MODAL */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;place-items:center;z-index:60}
+    .modal .box{width:min(680px,92%);border:1px solid var(--border);border-radius:18px;background:var(--card);box-shadow:var(--shadow);padding:18px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media (max-width:700px){.row{grid-template-columns:1fr}}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--card);cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,var(--primary),var(--primary-700));color:white;border:none}
+    .note{font-size:.9rem;color:var(--muted)}
+
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="brand"><div class="logo">★</div> Jóvenes Emprendedores Nariño</div>
+      <div class="spacer"></div>
+      <a class="btn" href="#indicadores">Indicadores</a>
+      <a class="btn" href="#nodos">Nodos</a>
+      <a class="btn" id="openApply" href="javascript:void(0)">Postularse</a>
+      <div class="toggle" title="Modo oscuro">
+        <span class="muted" aria-hidden>☀️</span>
+        <input id="themeToggle" type="checkbox"/>
+        <span class="muted" aria-hidden>🌙</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO + STATS -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-card">
+        <h1>Fortalecimiento de la competitividad de jóvenes emprendedores</h1>
+        <p>Departamento de Nariño · 18 meses de ejecución · 64 municipios · 11 subregiones</p>
+        <div class="tags">
+          <span class="tag">Agroindustria</span>
+          <span class="tag">Servicios & Turismo</span>
+          <span class="tag">Industria & Comercio</span>
+        </div>
+        <div class="stats">
+          <div class="stat"><h3 data-count="728">0</h3><p>Unidades productivas a formar</p></div>
+          <div class="stat"><h3 data-count="436">0</h3><p>Unidades con activos productivos</p></div>
+          <div class="stat"><h3>10 días</h3><p>80 horas de formación</p></div>
+          <div class="stat"><h3>11</h3><p>Eventos de entrega por nodo</p></div>
+        </div>
+      </div>
+      <div class="hero-card">
+        <h3 style="margin:0 0 8px">Ruta del proyecto</h3>
+        <div class="timeline">
+          <div class="step"><div class="dot"></div><div class="content"><b>Fase 1:</b> Evaluación, selección (728) y caracterización en campo.</div></div>
+          <div class="step"><div class="dot"></div><div class="content"><b>Fase 2:</b> Formación integral (campus itinerante + E‑learning) y acompañamiento.</div></div>
+          <div class="step"><div class="dot"></div><div class="content"><b>Fase 3:</b> Entrega de activos productivos a 436 emprendimientos.</div></div>
+        </div>
+        <div style="margin:12px 0 6px" class="progress" aria-label="Avance ilustrativo"><div class="bar" style="width:66%"></div></div>
+        <p class="muted" style="margin:6px 0 0">* Avance referencial solo para demo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAYOUT -->
+  <div class="container">
+    <!-- SIDEBAR -->
+    <aside class="side" id="side">
+      <h4>Contenido</h4>
+      <nav class="toc" id="spy">
+        <a href="#resumen" class="active">Resumen ejecutivo</a>
+        <a href="#fases">Fases</a>
+        <a href="#analisis">Análisis técnico</a>
+        <a href="#formacion">Módulos de formación</a>
+        <a href="#logistica">Logística</a>
+        <a href="#indicadores">Indicadores / Metas</a>
+        <a href="#nodos">Nodos & Municipios</a>
+        <a href="#transversales">Actividades transversales</a>
+      </nav>
+    </aside>
+
+    <!-- MAIN -->
+    <main>
+      <section id="resumen" class="card">
+        <h2 class="section">Resumen ejecutivo</h2>
+        <p>El proyecto impulsa el desarrollo económico y social en Nariño fortaleciendo el tejido productivo local mediante el apoyo a <b>728</b> emprendimientos liderados por jóvenes de sectores como agroindustria, industria y comercio, servicios y turismo. Se estructura en tres fases: selección y caracterización; formación integral (campus itinerante + plataforma E‑learning) y acompañamiento; y entrega de activos productivos a <b>436</b> unidades, promoviendo impacto económico sostenible y liderazgo juvenil para la paz.</p>
+      </section>
+
+      <section id="fases" class="card">
+        <h2 class="section">Fases del proyecto</h2>
+        <div class="tabs" id="phaseTabs">
+          <div class="tab active" data-tab="t1">Fase 1 · Selección</div>
+          <div class="tab" data-tab="t2">Fase 2 · Formación</div>
+          <div class="tab" data-tab="t3">Fase 3 · Activos</div>
+        </div>
+        <div class="tabpanes">
+          <div id="t1" class="active">
+            <details open><summary>Evaluación y selección (728)</summary><p>Convocatoria con TDR, evaluación y lista de elegibles.</p></details>
+            <details><summary>Caracterización y diagnóstico</summary><p>Visitas a cada unidad productiva para diagnóstico contextualizado.</p></details>
+            <details><summary>Divulgación e inscripción</summary><p>Landing Page para postulación y soporte a interesados.</p></details>
+          </div>
+          <div id="t2">
+            <details open><summary>Formación empresarial y psicosocial</summary><p>Gestión financiera, marketing/ventas, liderazgo, resolución de conflictos y más.</p></details>
+            <details><summary>Metodología</summary><p>Campus itinerante (10 días · 80 horas) + plataforma E‑learning.</p></details>
+            <details><summary>Acompañamiento</summary><p>Planeación, ejecución y administración de recursos; tablet para formación.</p></details>
+          </div>
+          <div id="t3">
+            <details open><summary>Asistencia técnica</summary><p>Acompañamiento para uso eficiente de recursos y escalamiento.</p></details>
+            <details><summary>Dotación de activos</summary><p>Equipos/herramientas/insumos adecuados a cada sector y plan de inversión.</p></details>
+            <details><summary>Entrega por nodo</summary><p>11 eventos subregionales de entrega a los beneficiarios seleccionados.</p></details>
+          </div>
+        </div>
+      </section>
+
+      <section id="analisis" class="card">
+        <h2 class="section">Análisis técnico</h2>
+        <p>Metodología por fases que asegura diagnóstico preciso, formación aplicada y capitalización productiva, conforme a necesidades y potencialidades de cada emprendimiento.</p>
+        <details>
+          <summary>Magnitud del problema</summary>
+          <p>Nariño ocupa el <b>puesto 27/32</b> en densidad empresarial (IDC 2024), con puntaje <b>1,07/10</b>, lo cual demanda estrategias robustas para impulsar emprendimiento, empleo y economías lícitas.</p>
+        </details>
+      </section>
+
+      <section id="formacion" class="card">
+        <h2 class="section">Módulos de formación</h2>
+        <div class="row">
+          <ul>
+            <li>Liderazgo</li>
+            <li>Marketing y Comercialización</li>
+            <li>Proyecto de Vida</li>
+            <li>Finanzas y Gestión Empresarial</li>
+            <li>Descubrimiento de Oportunidades</li>
+            <li>Marketing Digital y Estrategias Comerciales</li>
+          </ul>
+          <ul>
+            <li>Modelos de Negocio y Análisis Financiero</li>
+            <li>Resolución de Conflictos</li>
+            <li>Trabajo en Equipo y Asociatividad</li>
+            <li>Plan de Negocio</li>
+            <li>Plan de Inversión</li>
+          </ul>
+        </div>
+        <p class="note">Duración referencial: <b>10 días</b> (80 horas). Modalidades: <b>campus itinerante</b> y <b>E‑learning</b>.</p>
+      </section>
+
+      <section id="logistica" class="card">
+        <h2 class="section">Logística</h2>
+        <ul>
+          <li>Aulas virtuales itinerantes por subregión; transporte y hospedaje incluidos.</li>
+          <li>Refrigerios y alimentación durante sesiones de formación.</li>
+          <li>Entrega de <b>Tablet</b> y kit de bienvenida (papelería y elementos de identidad).</li>
+        </ul>
+      </section>
+
+      <section id="indicadores" class="card">
+        <h2 class="section">Indicadores / Metas</h2>
+        <div class="row">
+          <div>
+            <div class="card" style="margin:0 0 10px">
+              <b>Unidades productivas fortalecidas</b>
+              <div class="progress" style="margin:10px 0"><div class="bar" id="bar728" style="width:0"></div></div>
+              <p><span id="val728">0</span> / 728</p>
+            </div>
+            <div class="card" style="margin:0">
+              <b>Empresas beneficiadas con activos</b>
+              <div class="progress" style="margin:10px 0"><div class="bar" id="bar436" style="width:0"></div></div>
+              <p><span id="val436">0</span> / 436</p>
+            </div>
+          </div>
+          <div>
+            <details open>
+              <summary>Consideraciones</summary>
+              <ul>
+                <li>Seguimiento a metas por nodo subregional.</li>
+                <li>Tablero con avance por fase y por sector.</li>
+                <li>Series históricas para evaluación de impacto.</li>
+              </ul>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section id="nodos" class="card">
+        <h2 class="section">Nodos & Municipios</h2>
+        <div class="toolbar" style="margin:0 0 10px">
+          <input id="q" class="input" placeholder="Buscar por municipio, nodo o central…" />
+          <button class="btn" id="reset">Limpiar</button>
+        </div>
+        <div style="overflow:auto">
+          <table>
+            <thead><tr><th>Nodo</th><th>Municipio central</th><th>Municipios</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="transversales" class="card">
+        <h2 class="section">Actividades transversales</h2>
+        <details open><summary>Documentos de investigación y seguimiento</summary><p>Sistematización cualitativa y cuantitativa del impacto del proyecto.</p></details>
+        <details><summary>Estrategia de comunicaciones</summary><p>Alineada a la identidad visual institucional; naming, mensajes y categorías de contenido.</p></details>
+        <details><summary>Asistencia técnica (política pública de juventud)</summary><p>19 jóvenes dinamizadores: difusión, formación, encuentros y diagnóstico territorial.</p></details>
+      </section>
+    </main>
+  </div>
+
+  <!-- FLOATING ACTIONS -->
+  <div class="fab">
+    <button id="backTop" title="Volver arriba">↑</button>
+    <button id="openApply2" title="Postularse">Postularse</button>
+  </div>
+
+  <!-- MODAL POSTULARSE -->
+  <div class="modal" id="applyModal" role="dialog" aria-modal="true" aria-labelledby="applyTitle">
+    <div class="box">
+      <h3 id="applyTitle" style="margin:0 0 8px">Pre‑inscripción</h3>
+      <p class="muted" style="margin:0 0 12px">Completa los campos para iniciar el proceso de postulación.</p>
+      <div class="row" style="margin:0 0 10px">
+        <input class="input" id="nombre" placeholder="Nombre completo"/>
+        <input class="input" id="correo" placeholder="Correo electrónico"/>
+      </div>
+      <div class="row" style="margin:0 0 10px">
+        <input class="input" id="municipio" placeholder="Municipio"/>
+        <select class="input" id="sector">
+          <option value="">Sector</option>
+          <option>Agroindustria</option>
+          <option>Industria y Comercio</option>
+          <option>Servicios y Turismo</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn" id="closeApply">Cancelar</button>
+        <button class="btn primary" id="sendApply">Enviar</button>
+      </div>
+      <p id="applyMsg" class="muted" style="margin:10px 0 0"></p>
+    </div>
+  </div>
+
+  <script>
+    /* THEME */
+    const themeToggle=document.getElementById('themeToggle');
+    const theme=localStorage.getItem('theme')||'light';
+    document.documentElement.setAttribute('data-theme',theme);
+    themeToggle.checked = theme==='dark';
+    themeToggle.addEventListener('change',()=>{
+      const t=themeToggle.checked?'dark':'light';
+      document.documentElement.setAttribute('data-theme',t);
+      localStorage.setItem('theme',t);
+    });
+
+    /* COUNTERS */
+    const inView=(el)=>{
+      const r=el.getBoundingClientRect();
+      return r.top<window.innerHeight && r.bottom>0;
+    };
+    const ease=(t)=>1- Math.pow(1-t,3);
+    function animateNumber(el, target, dur=1200){
+      const start=performance.now();
+      function tick(now){
+        const p=Math.min(1,(now-start)/dur);
+        el.textContent=Math.floor(ease(p)*target);
+        if(p<1)requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+    let counted=false;
+    function onScrollCounters(){
+      if(counted) return;
+      const h3s=document.querySelectorAll('[data-count]');
+      if(h3s.length && inView(h3s[0])){
+        h3s.forEach(h=>animateNumber(h, parseInt(h.dataset.count,10)));
+        counted=true; window.removeEventListener('scroll',onScrollCounters);
+      }
+    }
+    window.addEventListener('scroll',onScrollCounters);
+    onScrollCounters();
+
+    /* SPY */
+    const spy=document.getElementById('spy');
+    const links=[...spy.querySelectorAll('a')];
+    const ids=links.map(a=>document.querySelector(a.getAttribute('href')));
+    const spyHandler=()=>{
+      let idx=0; const y=window.scrollY+90;
+      ids.forEach((el,i)=>{ if(el.offsetTop<=y) idx=i; });
+      links.forEach((a,i)=>a.classList.toggle('active',i===idx));
+    };
+    window.addEventListener('scroll',spyHandler);
+
+    /* TABS */
+    document.getElementById('phaseTabs').addEventListener('click',(e)=>{
+      const tab=e.target.closest('.tab'); if(!tab) return;
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      const id=tab.dataset.tab;
+      document.querySelectorAll('.tabpanes>div').forEach(p=>p.classList.toggle('active',p.id===id));
+    });
+
+    /* INDICATOR BARS */
+    function animateBar(idSpan,idBar,target){
+      let v=0; const bar=document.getElementById(idBar), val=document.getElementById(idSpan);
+      const timer=setInterval(()=>{
+        v+=Math.ceil(target/40); if(v>target) v=target;
+        const pct=(v/target*100).toFixed(0);
+        val.textContent=v; bar.style.width=pct+'%';
+        if(v>=target) clearInterval(timer);
+      },30);
+    }
+    const obsBars=new IntersectionObserver((entries)=>{
+      entries.forEach(en=>{ if(en.isIntersecting){
+        animateBar('val728','bar728',728);
+        animateBar('val436','bar436',436);
+        obsBars.disconnect();
+      }});
+    },{threshold:.3});
+    obsBars.observe(document.getElementById('indicadores'));
+
+    /* NODES TABLE (filter) */
+    const data=[
+      {nodo:'Centro', central:'Pasto', municipios:'Pasto, Chachagüí, La Florida, Nariño, Tangua, Yacuanquer'},
+      {nodo:'Abades', central:'Samaniego', municipios:'Providencia, Samaniego, Santacruz'},
+      {nodo:'Cordillera', central:'Taminango', municipios:'Cumbitara, El Rosario, Leiva, Policarpa, Taminango'},
+      {nodo:'Exprovincia de Obando', central:'Ipiales', municipios:'Aldana, Contadero, Córdoba, Cuaspud, Cumbal, Funes, Guachucal, Gualmatán, Iles, Ipiales, Potosí, Puerres, Pupiales'},
+      {nodo:'Guambuyaco', central:'El Tambo', municipios:'El Peñol, El Tambo, La Llanada, Los Andes'},
+      {nodo:'Juanambú', central:'La Unión', municipios:'Arboleda, Buesaco, La Unión, San Lorenzo, San Pedro de Cartago'},
+      {nodo:'Occidental', central:'Sandoná', municipios:'Ancuya, Consacá, Linares, Sandoná'},
+      {nodo:'Río Mayo', central:'La Cruz', municipios:'Albán, Belén, Colón, El Tablón de Gómez, La Cruz, San Bernardo, San Pablo'},
+      {nodo:'Costa', central:'Tumaco', municipios:'Francisco Pizarro, Tumaco, El Charco, La Tola, Mosquera, Olaya Herrera, Santa Bárbara'},
+      {nodo:'Sabana', central:'Túquerres', municipios:'Guaitarilla, Imués, Ospina, Sapuyes, Túquerres, Ricaurte'},
+      {nodo:'Telembí', central:'Barbacoas', municipios:'Barbacoas, Magüí, Roberto Payán'}
+    ];
+    const tbody=document.getElementById('tbody');
+    function render(rows){
+      tbody.innerHTML=rows.map(r=>`<tr><td>${r.nodo}</td><td>${r.central}</td><td>${r.municipios}</td></tr>`).join('');
+    }
+    render(data);
+    const q=document.getElementById('q');
+    q.addEventListener('input',()=>{
+      const s=q.value.toLowerCase();
+      const rows=data.filter(r=>`${r.nodo} ${r.central} ${r.municipios}`.toLowerCase().includes(s));
+      render(rows);
+    });
+    document.getElementById('reset').addEventListener('click',()=>{q.value='';render(data);});
+
+    /* FABs */
+    document.getElementById('backTop').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+
+    /* MODAL */
+    const modal=document.getElementById('applyModal');
+    const openers=[document.getElementById('openApply'),document.getElementById('openApply2')];
+    const closeBtn=document.getElementById('closeApply');
+    openers.forEach(b=>b.addEventListener('click',()=>modal.style.display='grid'));
+    closeBtn.addEventListener('click',()=>modal.style.display='none');
+    modal.addEventListener('click',(e)=>{ if(e.target===modal) modal.style.display='none';});
+
+    document.getElementById('sendApply').addEventListener('click',()=>{
+      const nombre=document.getElementById('nombre').value.trim();
+      const correo=document.getElementById('correo').value.trim();
+      const municipio=document.getElementById('municipio').value.trim();
+      const sector=document.getElementById('sector').value;
+      const msg=document.getElementById('applyMsg');
+      if(!nombre||!correo||!municipio||!sector){
+        msg.textContent='Completa todos los campos por favor.'; return;
+      }
+      msg.textContent='¡Gracias! Tu pre‑inscripción ha sido registrada (demo).';
+      setTimeout(()=>{document.getElementById('closeApply').click();},900);
+    });
+  </script>
+</body>
+</html>

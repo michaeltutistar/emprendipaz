@@ -1,0 +1,39 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:us-east-1:491074939576:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::codepipeline-artifacts-elearning",
+                "arn:aws:s3:::codepipeline-artifacts-elearning/*",
+                "arn:aws:s3:::codebuild-cache-elearning",
+                "arn:aws:s3:::codebuild-cache-elearning/*",
+                "arn:aws:s3:::elearning-frontend-prod-v2",
+                "arn:aws:s3:::elearning-frontend-prod-v2/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudfront:CreateInvalidation"
+            ],
+            "Resource": "arn:aws:cloudfront::491074939576:distribution/E3QN9WFZXCI4DS"
+        }
+    ]
+}

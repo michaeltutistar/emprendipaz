@@ -1,0 +1,7 @@
+functions:
+  api:
+    handler: lambda_function.lambda_handler
+    description: "Función API de E-Learning (diagnóstico BBDD v2 2025-09-25)"
+    events:
+      - http:
+          path: /{proxy+}

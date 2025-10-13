@@ -1,0 +1,42 @@
+﻿{
+    "CallerReference": "elearning-frontend",
+    "Comment": "E-Learning Platform Frontend",
+    "DefaultRootObject": "index.html",
+    "Aliases": {
+      "Quantity": 1,
+      "Items": [
+        "emprendimiento-narino.com"
+      ]
+    },
+    "Origins": {
+      "Quantity": 1,
+      "Items": [
+        {
+          "Id": "S3-elearning-frontend",
+          "DomainName": "elearning-frontend-prod-v2.s3.amazonaws.com",
+          "S3OriginConfig": {
+            "OriginAccessIdentity": "origin-access-identity/cloudfront/E3881AXZGW5JV3"
+          }
+        }
+      ]
+    },
+    "DefaultCacheBehavior": {
+      "TargetOriginId": "S3-elearning-frontend",
+      "ViewerProtocolPolicy": "redirect-to-https",
+      "TrustedSigners": {
+        "Enabled": false,
+        "Quantity": 0
+      },
+      "ForwardedValues": {
+        "QueryString": false,
+        "Cookies": {
+          "Forward": "none"
+        }
+      },
+      "MinTTL": 0,
+      "DefaultTTL": 86400,
+      "MaxTTL": 31536000
+    },
+    "Enabled": true,
+    "PriceClass": "PriceClass_100"
+  }

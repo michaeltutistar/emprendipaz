@@ -1,0 +1,101 @@
+
+<!-- ====== Tabla de Gestores Sociales (para insertar al final de 'Distribución por Nodos') ====== -->
+<section id="tabla-gestores-sociales" class="gh-section">
+  <div class="gh-container">
+    <h2 class="gh-title">Gestores sociales por nodo</h2>
+    <p class="gh-subtitle"><em></em></p>
+
+    <div class="gh-toolbar" role="group" aria-label="Herramientas de tabla">
+      <input id="gh-search" type="search" placeholder="Buscar" aria-label="Buscar en la tabla" />
+      <span class="gh-count" id="gh-count"></span>
+    </div>
+
+    <div class="gh-table-wrapper">
+      
+<table class="gh-table w-full" role="table">
+  <thead>
+    <tr><th scope='col'>DATOS GESTORES SOCIALES.</th><th scope='col'></th><th scope='col'></th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Nombre</td><td>Celular</td><td>SUBREGION</td></tr>
+<tr><td>ANGELLY YURLEDY CABRERA GUERRERO</td><td>3225269083</td><td>EX PROVINCIA</td></tr>
+<tr><td>ANGIE YISELT LANDAZURY MOSQUERA</td><td>3103634868</td><td>PACIFICO SUR</td></tr>
+<tr><td>CARLOS DANIEL GUSTIN BARCO</td><td>3156975261</td><td>CENTRO</td></tr>
+<tr><td>LUIS MANUEL VELASCO MORAN</td><td>3204180199</td><td>EX PROVINCIA</td></tr>
+<tr><td>ANDRES FELIPE ORDOÑEZ ORDOÑEZ</td><td>3155581385</td><td>CORDILERRA</td></tr>
+<tr><td>YORLAN ROSELBER MORALES JANAMEJOY</td><td>3226419705</td><td>RIO MAYO</td></tr>
+<tr><td>LISSA MARIA CHAVEZ MARTINEZ</td><td>3116770837</td><td>JUANAMBU</td></tr>
+<tr><td>HERNAN ELOY CARTILLO ORTIZ</td><td>3175968490</td><td>TELEMBI</td></tr>
+<tr><td>LUISA DANIELA MAYORGA IBARRA</td><td>3122013468</td><td>SABANA</td></tr>
+<tr><td>CARLOS EDUARDO ORTEGA GOMEZ</td><td>3122938081</td><td>RIO MAYO</td></tr>
+<tr><td>SUSANA DEL MAR MOSQUERA</td><td>3172605732</td><td>PASTO</td></tr>
+<tr><td>EDISON MIGUEL MONTECE LINARES</td><td>3114239907</td><td>ABADES</td></tr>
+<tr><td>CRISTIAN DAVID PINEDA ESMERALDA</td><td>3154307430</td><td>SANQUIANGA</td></tr>
+<tr><td>DIEGO FERNANDO BOLAÑOS BASANTE</td><td>3127544165</td><td>OCCIDENTE</td></tr>
+<tr><td>WEIMAR FERNANDO ARIAS FIGUEROA</td><td>3234849953</td><td>EX PROVINCIA</td></tr>
+<tr><td>JULIETHA BEATRIZ PERAFAN MORA</td><td>3174926019</td><td>GUAMBUYACO</td></tr>
+<tr><td>DAVID CAMILO ORTIZ JURADO</td><td>3187802761</td><td>PIE DE MONTE COSTERO</td></tr>
+<tr><td>CARLOS ADOLFO VALENCIA ESTACIO</td><td>3043387051</td><td>PACIFICO SUR</td></tr>
+<tr><td>DARLY ELINABETH VILLOTA CHAVES</td><td>3136476615</td><td>CENTRO</td></tr>
+  </tbody>
+</table>
+
+    </div>
+
+    <p class="gh-footnote">* Desliza horizontalmente en pantallas pequeñas. Usa el buscador para filtrar por términos.</p>
+  </div>
+</section>
+
+<style>
+  /* Contenedor */
+  .gh-section { padding: 2rem 1rem; background: #fff; }
+  .gh-container { max-width: 1200px; margin: 0 auto; }
+
+  /* Títulos */
+  .gh-title { font-size: clamp(1.4rem, 2vw, 1.8rem); margin: 0 0 .25rem; font-weight: 700; }
+  .gh-subtitle { margin: 0 0 1rem; color: #555; }
+
+  /* Toolbar */
+  .gh-toolbar { display: flex; gap: .75rem; align-items: center; justify-content: space-between; margin: 1rem 0; flex-wrap: wrap; }
+  #gh-search { flex: 1 1 260px; padding: .6rem .8rem; border: 1px solid #e2e8f0; border-radius: .6rem; outline: none; }
+  #gh-search:focus { border-color: #2A9B35; box-shadow: 0 0 0 4px rgba(42,155,53,.15); }
+  .gh-count { font-size: .95rem; color: #666; }
+
+  /* Envoltura tabla */
+  .gh-table-wrapper { overflow-x: auto; border: 1px solid #eef2f7; border-radius: .8rem; box-shadow: 0 6px 18px rgba(2, 8, 20, 0.04); }
+
+  /* Tabla */
+  .gh-table { border-collapse: separate; border-spacing: 0; min-width: 900px; background: #fff; }
+  .gh-table thead th { position: sticky; top: 0; background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%); text-align: left; padding: .9rem .9rem; font-weight: 600; font-size: .95rem; color: #334155; border-bottom: 1px solid #e5e7eb; }
+  .gh-table tbody td { padding: .8rem .9rem; font-size: .95rem; color: #111827; border-bottom: 1px solid #f1f5f9; }
+  .gh-table tbody tr:hover td { background: #fbfefb; }
+  .gh-table tbody tr:nth-child(even) td { background: #fcfcff; }
+
+  /* Footnote */
+  .gh-footnote { margin-top: .75rem; color: #6b7280; font-size: .9rem; }
+</style>
+
+<script>
+  // Filtro simple por texto
+  (function() {
+    const input = document.getElementById('gh-search');
+    const table = document.querySelector('#tabla-gestores-sociales table');
+    const rows = () => Array.from(table.querySelectorAll('tbody tr'));
+    const count = document.getElementById('gh-count');
+    function updateCount() {
+      const visible = rows().filter(r => r.style.display !== 'none').length;
+      const total = rows().length;
+      count.textContent = visible === total ? `${total} registros` : `${visible} de ${total} registros`;
+    }
+    input.addEventListener('input', function(e) {
+      const q = e.target.value.toLowerCase().trim();
+      rows().forEach(tr => {
+        const text = tr.textContent.toLowerCase();
+        tr.style.display = text.indexOf(q) > -1 ? '' : 'none';
+      });
+      updateCount();
+    });
+    // Inicial
+    updateCount();
+  })();
+</script>

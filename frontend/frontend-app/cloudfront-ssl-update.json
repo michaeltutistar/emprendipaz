@@ -1,0 +1,94 @@
+{
+    "CallerReference": "elearning-frontend",
+    "Comment": "E-Learning Platform Frontend",
+    "DefaultRootObject": "index.html",
+    "Aliases": {
+      "Quantity": 1,
+      "Items": [
+        "emprendimiento-narino.com"
+      ]
+    },
+    "Origins": {
+      "Quantity": 1,
+      "Items": [
+        {
+          "Id": "S3-elearning-frontend",
+          "DomainName": "elearning-frontend-prod-v2.s3.amazonaws.com",
+          "OriginPath": "",
+          "CustomHeaders": {
+            "Quantity": 0
+          },
+          "S3OriginConfig": {
+            "OriginAccessIdentity": "origin-access-identity/cloudfront/E3881AXZGW5JV3"
+          }
+        }
+      ]
+    },
+    "DefaultCacheBehavior": {
+      "TargetOriginId": "S3-elearning-frontend",
+      "ViewerProtocolPolicy": "redirect-to-https",
+      "TrustedSigners": {
+        "Enabled": false,
+        "Quantity": 0
+      },
+      "ForwardedValues": {
+        "QueryString": false,
+        "QueryStringCacheKeys": {
+          "Quantity": 0
+        },
+        "Cookies": {
+          "Forward": "none"
+        },
+        "Headers": {
+          "Quantity": 0
+        }
+      },
+      "MinTTL": 0,
+      "DefaultTTL": 86400,
+      "MaxTTL": 31536000,
+      "SmoothStreaming": false,
+      "Compress": true,
+      "FieldLevelEncryptionId": "",
+      "AllowedMethods": {
+        "Quantity": 2,
+        "Items": [
+          "GET",
+          "HEAD"
+        ],
+        "CachedMethods": {
+          "Quantity": 2,
+          "Items": [
+            "GET",
+            "HEAD"
+          ]
+        }
+      },
+      "LambdaFunctionAssociations": {
+        "Quantity": 0
+      }
+    },
+    "CacheBehaviors": {
+      "Quantity": 0
+    },
+    "CustomErrorResponses": {
+      "Quantity": 0
+    },
+    "ViewerCertificate": {
+      "ACMCertificateArn": "arn:aws:acm:us-east-1:491074939576:certificate/0c89540c-7674-469b-b9e7-f0bd9fd37a6b",
+      "SSLSupportMethod": "sni-only",
+      "MinimumProtocolVersion": "TLSv1.2_2021"
+    },
+    "Restrictions": {
+      "GeoRestriction": {
+        "RestrictionType": "none",
+        "Quantity": 0
+      }
+    },
+    "Logging": {
+      "Enabled": false
+    },
+    "WebACLId": "",
+    "HttpVersion": "http2",
+    "Enabled": true,
+    "PriceClass": "PriceClass_100"
+  }

@@ -1,0 +1,23 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd frontend/frontend-app
+        - pnpm install
+    build:
+      commands:
+        - pnpm run build
+  artifacts:
+    baseDirectory: frontend/frontend-app/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - frontend/frontend-app/node_modules/**/*
+
+# Si usas variables de entorno en Amplify Console, defínelas en la sección Environment variables
+# Ejemplo de variables que puedes añadir en Amplify Console:
+# VITE_API_URL: https://tu-api-url.amazonaws.com/dev
+# NODE_ENV: production
+# Más info: https://docs.aws.amazon.com/amplify/latest/userguide/build-settings.html

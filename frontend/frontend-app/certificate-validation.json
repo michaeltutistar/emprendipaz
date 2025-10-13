@@ -1,0 +1,17 @@
+{
+    "Changes": [
+      {
+        "Action": "CREATE",
+        "ResourceRecordSet": {
+          "Name": "_f9f5fc5bc7fddb4b736a8425e6d89158.emprendimiento-narino.com.",
+          "Type": "CNAME",
+          "TTL": 300,
+          "ResourceRecords": [
+            {
+              "Value": "_6290f74f0ce01e0ab9ed868e3a98518d.xlfgrmvvlj.acm-validations.aws."
+            }
+          ]
+        }
+      }
+    ]
+  }

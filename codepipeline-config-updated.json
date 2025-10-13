@@ -1,0 +1,64 @@
+{
+  "pipeline": {
+    "name": "elearning-frontend-pipeline",
+    "roleArn": "arn:aws:iam::491074939576:role/service-role/codepipeline-elearning-service-role",
+    "artifactStore": {
+      "type": "S3",
+      "location": "codepipeline-artifacts-elearning"
+    },
+    "stages": [
+      {
+        "name": "Source",
+        "actions": [
+          {
+            "name": "SourceAction",
+            "actionTypeId": {
+              "category": "Source",
+              "owner": "ThirdParty",
+              "provider": "GitHub",
+              "version": "1"
+            },
+            "configuration": {
+              "Owner": "michaeltutistar",
+              "Repo": "e-learning-platform",
+              "Branch": "main",
+              "OAuthToken": "{{resolve:secretsmanager:github-token:SecretString:token}}"
+            },
+            "outputArtifacts": [
+              {
+                "name": "SourceOutput"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Build",
+        "actions": [
+          {
+            "name": "BuildAction",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "elearning-frontend-build"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "BuildOutput"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

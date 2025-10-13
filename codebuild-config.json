@@ -1,0 +1,53 @@
+{
+  "name": "elearning-frontend-build",
+  "description": "Build project for EmprendiPaz frontend application",
+  "source": {
+    "type": "CODEPIPELINE",
+    "buildspec": "frontend/frontend-app/buildspec.yml"
+  },
+  "artifacts": {
+    "type": "CODEPIPELINE"
+  },
+  "environment": {
+    "type": "LINUX_CONTAINER",
+    "image": "aws/codebuild/amazonlinux2-x86_64-standard:5.0",
+    "computeType": "BUILD_GENERAL1_SMALL",
+    "privilegedMode": false,
+    "environmentVariables": [
+      {
+        "name": "AWS_DEFAULT_REGION",
+        "value": "us-east-1",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "AWS_491074939576",
+        "value": "491074939576",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "S3_BUCKET",
+        "value": "elearning-frontend-prod-v2",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "CLOUDFRONT_DISTRIBUTION_ID",
+        "value": "E3QN9WFZXCI4DS",
+        "type": "PLAINTEXT"
+      }
+    ]
+  },
+  "serviceRole": "arn:aws:iam::491074939576:role/service-role/codebuild-elearning-service-role",
+  "timeoutInMinutes": 15,
+  "queuedTimeoutInMinutes": 480,
+  "badgeEnabled": true,
+  "logsConfig": {
+    "cloudWatchLogs": {
+      "status": "ENABLED",
+      "groupName": "/aws/codebuild/elearning-frontend-build"
+    }
+  },
+  "cache": {
+    "type": "S3",
+    "location": "codebuild-cache-elearning/frontend"
+  }
+}

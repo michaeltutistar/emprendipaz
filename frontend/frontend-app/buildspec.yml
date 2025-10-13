@@ -1,0 +1,51 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - npm install -g pnpm@10.4.1
+      - echo "pnpm version:" && pnpm --version
+
+  pre_build:
+    commands:
+      - echo "Node version:" && node --version
+      - echo "NPM version:" && npm --version
+      - echo "=== DEBUG Repository structure ==="
+      - pwd
+      - ls -la
+      - echo "=== Looking for package.json ==="
+      - find . -name "package.json" -type f
+      - echo "=== Looking for buildspec.yml ==="
+      - find . -name "buildspec.yml" -type f
+      - echo "Navigating to frontend directory..."
+      - cd frontend/frontend-app && pwd && ls -la
+      - cd frontend/frontend-app && echo "Installing dependencies..." && pnpm install
+      - echo "Dependencies installed successfully"
+
+  build:
+    commands:
+      - echo "Building the project..."
+      - cd frontend/frontend-app && pnpm run build
+      - echo "Build completed successfully"
+      - cd frontend/frontend-app && ls -la dist/
+
+  post_build:
+    commands:
+      - echo "Syncing files to S3..."
+      - cd frontend/frontend-app && aws s3 sync dist/ s3://elearning-frontend-prod-v2 --delete
+      - echo "Invalidating CloudFront cache..."
+      - aws cloudfront create-invalidation --distribution-id E3QN9WFZXCI4DS --paths "/*"
+      - echo "Deployment completed successfully!"
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: 'frontend/frontend-app/dist'
+  name: frontend-build-$(date +%Y-%m-%d)
+
+cache:
+  paths:
+    - 'frontend/frontend-app/node_modules/**/*'
+    - 'frontend/frontend-app/.pnpm-store/**/*'

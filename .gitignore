@@ -1,0 +1,366 @@
+# Dependencies
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Production builds
+dist/
+build/
+*/dist/
+*/build/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Serverless directories
+.serverless/
+*/serverless/
+
+# AWS
+.aws/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+
+# Test files
+test_*.py
+*_test.py
+test_*.js
+*_test.js
+
+# Migration files (keep only the final ones)
+migrate_*.py
+*_migration.py
+add_*.py
+create_*.py
+fix_*.py
+restore_*.py
+revert_*.py
+search_*.py
+find_*.py
+list_*.py
+verify_*.py
+investigate_*.py
+debug_*.py
+check_*.py
+test_*.py
+execute_*.py
+run_*.py
+direct_*.py
+simple_*.py
+temp_*.py
+*.sql
+*.bat
+*.ps1
+
+# Environment info files
+environment-info-pr-*.json
+
+# Keep important documentation
+!README.md
+!*.md
+!docs/
+!documentation/
+
+# Keep important config files
+!package.json
+!package-lock.json
+!pnpm-lock.yaml
+!requirements.txt
+!serverless.yml
+!vite.config.js
+!components.json
+!jsconfig.json
+!eslint.config.js
+
+# Keep important scripts
+!scripts/
+!.github/
+
+# Keep important database files
+!database/
+!amplify/
+
+# Keep important backend structure
+!backend/backend-app/src/
+!backend/backend-app/requirements.txt
+!backend/backend-app/serverless.yml
+
+# Keep important frontend structure  
+!frontend/frontend-app/src/
+!frontend/frontend-app/public/
+!frontend/frontend-app/package.json
+!frontend/frontend-app/vite.config.js
+!frontend/frontend-app/components.json
+!frontend/frontend-app/jsconfig.json
+!frontend/frontend-app/eslint.config.js
+
+# Exclude large files
+*.zip
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.wmv
+*.flv
+*.webm
+*.m4v
+*.3gp
+*.ogv
+*.ts
+*.mts
+*.m2ts
+*.vob
+*.asf
+*.rm
+*.rmvb
+*.divx
+*.xvid
+*.mpg
+*.mpeg
+*.mpe
+*.m1v
+*.m2v
+*.m4p
+*.m4b
+*.m4r
+*.3g2
+*.3gp2
+*.3gpp
+*.3gpp2
+*.amv
+*.bik
+*.d2v
+*.drc
+*.dsa
+*.dsm
+*.dss
+*.dsv
+*.evo
+*.f4v
+*.flc
+*.fli
+*.flic
+*.gxf
+*.m1s
+*.m2p
+*.m2t
+*.m2ts
+*.m2v
+*.m4s
+*.m4v
+*.mjpg
+*.mjpeg
+*.mk3d
+*.mkv
+*.mod
+*.moov
+*.mov
+*.mp2
+*.mp2v
+*.mp4
+*.mp4v
+*.mpe
+*.mpeg
+*.mpeg1video
+*.mpeg2video
+*.mpeg4
+*.mpg
+*.mpg2
+*.mpg4
+*.mpl
+*.mpls
+*.mts
+*.mxf
+*.mxg
+*.nsv
+*.nuv
+*.ogg
+*.ogm
+*.ogv
+*.ogx
+*.ps
+*.rec
+*.rm
+*.rmvb
+*.rpl
+*.thp
+*.tod
+*.tp
+*.tpr
+*.ts
+*.tts
+*.txd
+*.vob
+*.vro
+*.webm
+*.wm
+*.wmv
+*.wtv
+*.yuv
+
+# Exclude specific large files
+backend/backend-app/lambda-deployment/.serverless/elearning-api.zip
+frontend/frontend-app/public/Terminos/video_terminos.mp4
+frontend/frontend-app/public/Terminos/Video_instructivo.mp4
+
+# Exclude serverless deployment files
+backend/backend-app/lambda-deployment/.serverless/
+
+# Exclude Python cache files
+__pycache__/
+*/__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Exclude test and debug files
+backend/backend-app/test_certificado.pdf
+backend/backend-app/test_small.txt
+backend/backend-app/temp_keep.txt
+frontend/frontend-app/temp_keep.txt
+frontend/frontend-app/test_redes.txt
+lambda_payload.json
+
+# Exclude temporary configuration files
+backend/backend-app/package-lock.json
+backend/backend-app/package.json
+backend/backend-app/s3-bucket-policy.json
+backend/backend-app/s3-cors-config.json
+pgadmin_servers.json
+
+# Exclude debug and migration scripts
+backend/backend-app/EJECUTAR_MIGRACION.txt
+backend/backend-app/cloudshell_fix_admin.sh
+backend/backend-app/configure_s3_bucket.py
+backend/backend-app/connect_and_fix.py
+backend/backend-app/diagnose_admin.py
+backend/backend-app/folder_structure.txt
+backend/backend-app/scripts/reset_admin_password.py
+
+# Exclude temporary documents
+documentos/plan de actualización de plataforma.rtf
+
+# Exclude git status files
+tatus --porcelain

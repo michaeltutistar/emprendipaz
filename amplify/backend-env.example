@@ -1,0 +1,16 @@
+# Ejemplo de variables de entorno que debes configurar en Amplify Console (App settings > Environment variables)
+# No guardes secrets en el repositorio. Usa Amplify Console Environment variables o AWS Secrets Manager.
+
+# Frontend
+VITE_API_URL=https://tu-api-url.amazonaws.com/dev
+
+# Backend (si tu backend se despliega en Elastic Beanstalk o Lambda, agrega estas en el servicio correspondiente)
+DATABASE_URL=postgresql://USER:PASS@HOST:5432/elearning_narino
+SECRET_KEY=clave_super_secreta_de_64_caracteres
+MAIL_SERVER=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=noreply@example.com
+MAIL_PASSWORD=********
+
+# Recomendación: en Amplify Console solamente define las variables __necesarias para la build y para el runtime del frontend.
+# Para el backend usa Parameter Store o Secrets Manager y referencia esas variables desde tu entorno de ejecución.

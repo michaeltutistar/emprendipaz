@@ -1,0 +1,33 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetBucketVersioning",
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::codepipeline-artifacts-elearning",
+                "arn:aws:s3:::codepipeline-artifacts-elearning/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "codebuild:BatchGetBuilds",
+                "codebuild:StartBuild"
+            ],
+            "Resource": "arn:aws:codebuild:us-east-1:491074939576:project/elearning-frontend-build"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "secretsmanager:GetSecretValue"
+            ],
+            "Resource": "arn:aws:secretsmanager:us-east-1:491074939576:secret:github-token*"
+        }
+    ]
+}
