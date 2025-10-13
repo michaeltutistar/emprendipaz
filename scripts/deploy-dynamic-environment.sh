@@ -214,7 +214,7 @@ echo "✅ CloudFront creado: $FRONTEND_URL"
 echo "🔄 Actualizando configuración CORS del backend..."
 aws lambda update-function-configuration \
     --function-name "$BACKEND_STACK_NAME-dev-app" \
-    --environment Variables="{PR_NUMBER=$PR_NUMBER,ENV_SUFFIX=$ENV_SUFFIX,DATABASE_URL=postgresql://user:password@localhost:5432/elearning_test,FRONTEND_URL=$FRONTEND_URL}"
+    --environment Variables="{\"PR_NUMBER\":\"$PR_NUMBER\",\"ENV_SUFFIX\":\"$ENV_SUFFIX\",\"DATABASE_URL\":\"postgresql://user:password@localhost:5432/elearning_test\",\"FRONTEND_URL\":\"$FRONTEND_URL\"}"
 
 # Reiniciar la función Lambda para que tome las nuevas variables
 echo "🔄 Reiniciando función Lambda..."
@@ -240,6 +240,27 @@ if aws lambda invoke \
 else
     echo "⚠️  Error al reiniciar Lambda, pero la configuración se aplicó"
     echo "✅ Backend actualizado con CORS para: $FRONTEND_URL"
+fi
+
+# Verificar logs de Lambda para debugging
+echo "🔍 Verificando logs de Lambda..."
+aws logs describe-log-streams \
+    --log-group-name "/aws/lambda/$BACKEND_STACK_NAME-dev-app" \
+    --order-by LastEventTime \
+    --descending \
+    --max-items 1 \
+    --query 'logStreams[0].logStreamName' \
+    --output text > /tmp/latest-log-stream.txt 2>/dev/null
+
+if [ -s /tmp/latest-log-stream.txt ]; then
+    LATEST_LOG_STREAM=$(cat /tmp/latest-log-stream.txt)
+    echo "📋 Últimos logs de Lambda:"
+    aws logs get-log-events \
+        --log-group-name "/aws/lambda/$BACKEND_STACK_NAME-dev-app" \
+        --log-stream-name "$LATEST_LOG_STREAM" \
+        --start-time $(date -d '5 minutes ago' +%s)000 \
+        --query 'events[*].message' \
+        --output text | tail -10
 fi
 
 # 5. Guardar información del ambiente
