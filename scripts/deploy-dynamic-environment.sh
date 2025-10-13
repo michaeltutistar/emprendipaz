@@ -108,7 +108,7 @@ echo "🔨 Compilando frontend..."
 cd ../../frontend/frontend-app
 
 # Instalar dependencias y compilar
-npm install
+npm install --legacy-peer-deps
 npm run build
 
 echo "📤 Subiendo archivos del frontend..."
