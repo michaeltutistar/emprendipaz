@@ -79,8 +79,8 @@ custom:
     strip: false
 EOF
 
-# Desplegar con serverless
-npx serverless deploy --config serverless-dynamic.yml --stage dev
+# Desplegar con serverless (usando versión 3.x que no requiere login)
+npx serverless@3 deploy --config serverless-dynamic.yml --stage dev
 
 # Obtener URL del API Gateway
 BACKEND_URL=$(aws cloudformation describe-stacks \
