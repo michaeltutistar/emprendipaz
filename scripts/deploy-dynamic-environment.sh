@@ -100,30 +100,8 @@ FRONTEND_BUCKET_NAME=$(generate_unique_name "$FRONTEND_BUCKET")
 
 aws s3 mb "s3://$FRONTEND_BUCKET_NAME" --region us-east-1
 
-# Configurar bucket para hosting web
-aws s3 website "s3://$FRONTEND_BUCKET_NAME" \
-    --index-document index.html \
-    --error-document index.html
-
-# Configurar política del bucket
-cat > bucket-policy.json << EOF
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "PublicReadGetObject",
-            "Effect": "Allow",
-            "Principal": "*",
-            "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::$FRONTEND_BUCKET_NAME/*"
-        }
-    ]
-}
-EOF
-
-aws s3api put-bucket-policy \
-    --bucket "$FRONTEND_BUCKET_NAME" \
-    --policy file://bucket-policy.json
+# Configurar bucket para CloudFront (sin políticas públicas)
+echo "🔒 Configurando bucket para CloudFront (sin políticas públicas)..."
 
 # 3. Subir archivos del frontend
 echo "📤 Subiendo archivos del frontend..."
@@ -145,11 +123,9 @@ cat > cloudfront-config.json << EOF
         "Items": [
             {
                 "Id": "S3-$FRONTEND_BUCKET_NAME",
-                "DomainName": "$FRONTEND_BUCKET_NAME.s3-website-us-east-1.amazonaws.com",
-                "CustomOriginConfig": {
-                    "HTTPPort": 80,
-                    "HTTPSPort": 443,
-                    "OriginProtocolPolicy": "http-only"
+                "DomainName": "$FRONTEND_BUCKET_NAME.s3.amazonaws.com",
+                "S3OriginConfig": {
+                    "OriginAccessIdentity": ""
                 }
             }
         ]
