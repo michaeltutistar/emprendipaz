@@ -43,7 +43,7 @@ provider:
   environment:
     PR_NUMBER: $PR_NUMBER
     ENV_SUFFIX: $ENV_SUFFIX
-    DATABASE_URL: \${env:DATABASE_URL}
+    DATABASE_URL: "postgresql://user:password@localhost:5432/elearning_test"
   iam:
     role:
       statements:
