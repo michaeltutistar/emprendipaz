@@ -31,6 +31,10 @@ generate_unique_name() {
 echo "📦 Desplegando backend..."
 cd backend/backend-app
 
+# Instalar plugin requerido
+echo "🔧 Instalando plugin serverless-python-requirements..."
+npx serverless@3 plugin install -n serverless-python-requirements
+
 # Crear serverless.yml dinámico
 cat > serverless-dynamic.yml << EOF
 service: elearning-backend-$ENV_SUFFIX
