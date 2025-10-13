@@ -216,6 +216,15 @@ aws lambda update-function-configuration \
     --function-name "$BACKEND_STACK_NAME-dev-app" \
     --environment Variables="{PR_NUMBER=$PR_NUMBER,ENV_SUFFIX=$ENV_SUFFIX,DATABASE_URL=postgresql://user:password@localhost:5432/elearning_test,FRONTEND_URL=$FRONTEND_URL}"
 
+# Reiniciar la función Lambda para que tome las nuevas variables
+echo "🔄 Reiniciando función Lambda..."
+aws lambda invoke \
+    --function-name "$BACKEND_STACK_NAME-dev-app" \
+    --payload '{"httpMethod": "GET", "path": "/health"}' \
+    /tmp/lambda-response.json > /dev/null 2>&1
+
+echo "✅ Backend actualizado con CORS para: $FRONTEND_URL"
+
 # 5. Guardar información del ambiente
 echo "💾 Guardando información del ambiente..."
 cd ../..
