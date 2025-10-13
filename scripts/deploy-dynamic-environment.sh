@@ -218,12 +218,29 @@ aws lambda update-function-configuration \
 
 # Reiniciar la función Lambda para que tome las nuevas variables
 echo "🔄 Reiniciando función Lambda..."
-aws lambda invoke \
-    --function-name "$BACKEND_STACK_NAME-dev-app" \
-    --payload '{"httpMethod": "GET", "path": "/health"}' \
-    /tmp/lambda-response.json > /dev/null 2>&1
+# Crear un payload válido para el health check
+cat > /tmp/lambda-payload.json << EOF
+{
+    "httpMethod": "GET",
+    "path": "/api/health",
+    "headers": {},
+    "queryStringParameters": null,
+    "body": null
+}
+EOF
 
-echo "✅ Backend actualizado con CORS para: $FRONTEND_URL"
+# Invocar la función Lambda con manejo de errores
+if aws lambda invoke \
+    --function-name "$BACKEND_STACK_NAME-dev-app" \
+    --payload file:///tmp/lambda-payload.json \
+    --cli-read-timeout 30 \
+    --cli-connect-timeout 10 \
+    /tmp/lambda-response.json; then
+    echo "✅ Backend actualizado con CORS para: $FRONTEND_URL"
+else
+    echo "⚠️  Error al reiniciar Lambda, pero la configuración se aplicó"
+    echo "✅ Backend actualizado con CORS para: $FRONTEND_URL"
+fi
 
 # 5. Guardar información del ambiente
 echo "💾 Guardando información del ambiente..."
