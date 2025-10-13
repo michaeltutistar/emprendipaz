@@ -103,6 +103,16 @@ aws s3 mb "s3://$FRONTEND_BUCKET_NAME" --region us-east-1
 # Configurar bucket para CloudFront (sin políticas públicas)
 echo "🔒 Configurando bucket para CloudFront (sin políticas públicas)..."
 
+# Crear Origin Access Identity para CloudFront
+echo "🔑 Creando Origin Access Identity..."
+OAI_ID=$(aws cloudfront create-cloud-front-origin-access-identity \
+    --cloud-front-origin-access-identity-config \
+    CallerReference="pr-$PR_NUMBER-$(date +%s)",Comment="OAI for PR $PR_NUMBER" \
+    --query 'CloudFrontOriginAccessIdentity.Id' \
+    --output text)
+
+echo "✅ OAI creada: $OAI_ID"
+
 # 3. Compilar y subir archivos del frontend
 echo "🔨 Compilando frontend..."
 cd ../../frontend/frontend-app
@@ -113,6 +123,29 @@ npm run build
 
 echo "📤 Subiendo archivos del frontend..."
 aws s3 sync dist/ "s3://$FRONTEND_BUCKET_NAME" --delete
+
+# Configurar política del bucket para la OAI
+echo "🔐 Configurando política del bucket para OAI..."
+cat > bucket-policy-oai.json << EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowCloudFrontServicePrincipal",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity $OAI_ID"
+            },
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::$FRONTEND_BUCKET_NAME/*"
+        }
+    ]
+}
+EOF
+
+aws s3api put-bucket-policy \
+    --bucket "$FRONTEND_BUCKET_NAME" \
+    --policy file://bucket-policy-oai.json
 
 # 4. Crear distribución CloudFront
 echo "🌐 Creando distribución CloudFront..."
@@ -130,7 +163,7 @@ cat > cloudfront-config.json << EOF
                 "Id": "S3-$FRONTEND_BUCKET_NAME",
                 "DomainName": "$FRONTEND_BUCKET_NAME.s3.amazonaws.com",
                 "S3OriginConfig": {
-                    "OriginAccessIdentity": ""
+                    "OriginAccessIdentity": "origin-access-identity/cloudfront/$OAI_ID"
                 }
             }
         ]
