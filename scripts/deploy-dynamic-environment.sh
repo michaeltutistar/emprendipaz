@@ -231,9 +231,19 @@ if [ -z "$DATABASE_URL_CURRENT" ]; then
 fi
 
 echo "📝 Actualizando solo FRONTEND_URL: $FRONTEND_URL"
+# Crear archivo JSON para las variables de entorno
+cat > /tmp/lambda-env.json << EOF
+{
+  "Variables": {
+    "FRONTEND_URL": "$FRONTEND_URL",
+    "DATABASE_URL": "$DATABASE_URL_CURRENT"
+  }
+}
+EOF
+
 aws lambda update-function-configuration \
     --function-name "$BACKEND_STACK_NAME-dev-app" \
-    --environment Variables="{\"FRONTEND_URL\":\"$FRONTEND_URL\",\"DATABASE_URL\":\"$DATABASE_URL_CURRENT\"}"
+    --environment file:///tmp/lambda-env.json
 
 # Reiniciar la función Lambda para que tome las nuevas variables
 echo "🔄 Reiniciando función Lambda..."
