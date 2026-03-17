@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Badge } from '../ui/badge';
+
 import { Progress } from '../ui/progress';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+
 import { 
   BookOpen, 
   Plus, 
@@ -17,8 +22,11 @@ import {
   Eye
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 import { toast } from 'sonner';
+
 import StudentHeader from './StudentHeader';
+import API_BASE_URL from '@/config/api'
 
 const CourseManager = () => {
   const [cursosDisponibles, setCursosDisponibles] = useState([]);
@@ -38,7 +46,7 @@ const CourseManager = () => {
       setLoading(true);
       
       // Cargar cursos disponibles (activos)
-      const disponiblesResponse = await fetch('/api/student/cursos/disponibles', {
+      const disponiblesResponse = await fetch(`${API_BASE_URL}/student/cursos/disponibles`, {
         credentials: 'include'
       });
       
@@ -50,7 +58,7 @@ const CourseManager = () => {
       }
       
       // Cargar cursos del estudiante
-      const misCursosResponse = await fetch('/api/student/cursos', {
+      const misCursosResponse = await fetch(`${API_BASE_URL}/student/cursos`, {
         credentials: 'include'
       });
       
@@ -71,7 +79,7 @@ const CourseManager = () => {
 
   const handleInscribirse = async (cursoId) => {
     try {
-      const response = await fetch('/api/student/inscribirse', {
+      const response = await fetch(`${API_BASE_URL}/student/inscribirse`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

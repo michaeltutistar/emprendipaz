@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import SearchInput from '../common/SearchInput'
-
+import API_BASE_URL from '@/config/api'
 const ResourceManagement = () => {
   const [resources, setResources] = useState([])
   const [courses, setCourses] = useState([])
@@ -52,7 +52,7 @@ const ResourceManagement = () => {
     try {
       setLoading(true)
       const params = new URLSearchParams(filters)
-      const response = await fetch(`/api/resources/resources?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/resources/resources?${params}`, {
         credentials: 'include'
       })
       
@@ -72,7 +72,7 @@ const ResourceManagement = () => {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('/api/admin/courses', {
+      const response = await fetch(`${API_BASE_URL}/admin/courses`, {
         credentials: 'include'
       })
       
@@ -87,7 +87,7 @@ const ResourceManagement = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/resources/resources/stats', {
+      const response = await fetch(`${API_BASE_URL}/resources/resources/stats`, {
         credentials: 'include'
       })
       
@@ -158,7 +158,7 @@ const ResourceManagement = () => {
       formData.append('acceso_publico', uploadForm.acceso_publico)
       formData.append('requiere_autenticacion', uploadForm.requiere_autenticacion)
 
-      const response = await fetch('/api/resources/resources', {
+      const response = await fetch(`${API_BASE_URL}/resources/resources`, {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -189,7 +189,7 @@ const ResourceManagement = () => {
 
   const handleUpdateResource = async () => {
     try {
-      const response = await fetch(`/api/resources/resources/${selectedResource.id}`, {
+      const response = await fetch(`${API_BASE_URL}/resources/resources/${selectedResource.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -217,7 +217,7 @@ const ResourceManagement = () => {
     }
 
     try {
-      const response = await fetch(`/api/resources/resources/${resourceId}`, {
+      const response = await fetch(`${API_BASE_URL}/resources/resources/${resourceId}`, {
         method: 'DELETE',
         credentials: 'include'
       })

@@ -9,8 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Edit, Trash2, Save, X, Settings } from 'lucide-react';
-import API_BASE_URL from '@/config/api';
-
+import API_BASE_URL from '@/config/api'
 const ConfiguracionDinamica = () => {
   const [campos, setCampos] = useState([]);
   const [criterios, setCriterios] = useState([]);

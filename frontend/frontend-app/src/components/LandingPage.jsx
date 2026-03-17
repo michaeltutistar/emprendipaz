@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BookOpen, Users, Award, Clock, CheckCircle, Star, Search, MapPin, Target, TrendingUp, ChevronDown } from 'lucide-react'
+import { BookOpen, Users, Award, Clock, CheckCircle, Star, Search, MapPin, Target, TrendingUp, ChevronDown, Trophy } from 'lucide-react'
 import logoGobernacion from '../assets/logo-gobernacion.png'
 import logoGov from '../assets/logo-gov.png'
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel'
@@ -558,9 +558,57 @@ const LandingPage = () => {
   const [secretClickCount, setSecretClickCount] = useState(0);
   const [secretAccess, setSecretAccess] = useState(false);
   
+  // Posiciones fijas para las partículas decorativas (generadas una vez)
+  const [particlePositions] = useState(() => {
+    const positions = [];
+    for (let i = 0; i < 19; i++) {
+      positions.push({
+        left: Math.random() * 120 - 10,
+        top: Math.random() * 120 - 10,
+        rotation: Math.random() * 360,
+        delay: Math.random() * 2,
+        duration: 1 + Math.random()
+      });
+    }
+    return positions;
+  });
+
+  // Posiciones fijas para las estrellas de fondo (generadas una vez)
+  const [starPositions] = useState(() => {
+    const positions = [];
+    for (let i = 0; i < 20; i++) {
+      positions.push({
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        delay: Math.random() * 2,
+        duration: 1 + Math.random() * 2
+      });
+    }
+    return positions;
+  });
+  
   // Función para navegar a términos de referencia en la misma pestaña
   const handleOpenTDR = () => {
     navigate('/terminos-referencia');
+  };
+
+  // Función para descargar el PDF de ganadores
+  const handleDownloadGanadores = async () => {
+    try {
+      // URL del PDF
+      const pdfUrl = '/Terminos/RESULTADOS DEFINITIVOS.pdf';
+      
+      // Crear un elemento <a> temporal para descargar
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = 'RESULTADOS DEFINITIVOS.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error al descargar el PDF:', error);
+      alert('Error al descargar el PDF. Por favor, inténtalo más tarde.');
+    }
   };
 
   // Función para verificar si el registro está habilitado
@@ -569,20 +617,34 @@ const LandingPage = () => {
     return true;
   };
 
-  // Función para manejar el triple clic/tap secreto - DESHABILITADO
+  // Función para manejar el triple clic/tap secreto
   const handleSecretClick = (e) => {
-    // Demo deshabilitado - no hacer nada
     e.preventDefault();
     e.stopPropagation();
-    return;
+    
+    setSecretClickCount(prev => {
+      const newCount = prev + 1;
+      
+      // Si alcanza 3 clicks, redirigir a registro con modo admin
+      if (newCount >= 3) {
+        navigate('/register?admin=true');
+        return 0; // Resetear contador
+      }
+      
+      // Resetear contador después de 1 segundo si no se completan los 3 clicks
+      setTimeout(() => {
+        setSecretClickCount(0);
+      }, 1000);
+      
+      return newCount;
+    });
   };
 
-  // Función específica para eventos táctiles en móvil - DESHABILITADO
+  // Función específica para eventos táctiles en móvil
   const handleSecretTouch = (e) => {
-    // Demo deshabilitado - no hacer nada
     e.preventDefault();
     e.stopPropagation();
-    return;
+    handleSecretClick(e);
   };
 
   useEffect(() => {
@@ -603,12 +665,9 @@ const LandingPage = () => {
       .header-logos {
         align-items: center !important;
         display: flex !important;
-      }
-      
-      /* Corrección específica para el logo del consorcio */
-      .header-logos img[alt="Consorcio"] {
-        transform: translateY(-3px) !important;
-        margin-top: -3px !important;
+        flex-wrap: wrap !important;
+        gap: 1rem !important;
+        justify-content: center !important;
       }
       
       @keyframes border-glow {
@@ -727,12 +786,13 @@ const LandingPage = () => {
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center py-4 space-y-4 lg:space-y-0">
-            <div className="flex items-center space-x-2 sm:space-x-4 flex-wrap justify-center lg:justify-start min-h-[3rem] header-logos">
-              <img src="/emprendipaz.png" alt="EmprendiPaz" className="h-10 sm:h-12 object-contain" />
-              <img src="/logo-gobernacion.png" alt="Gobernación de Nariño" className="h-10 sm:h-12 object-contain" />
-              <img src="/fundacion.png" alt="Fundación" className="h-10 sm:h-12 object-contain" />
-              <img src="/consorcio.png" alt="Consorcio" className="h-10 sm:h-12 object-contain" />
+          <div className="flex flex-col xl:flex-row justify-between items-center py-4 space-y-4 xl:space-y-0 xl:space-x-6">
+            <div className="flex items-center space-x-2 sm:space-x-4 lg:space-x-6 flex-nowrap justify-center lg:justify-start min-h-[3rem] header-logos">
+              <img src="/emprendipaz.png" alt="EmprendiPaz" className="h-9 sm:h-10 lg:h-11 object-contain" />
+              <img src="/logo-gobernacion.png" alt="Gobernación de Nariño" className="h-9 sm:h-10 lg:h-11 object-contain" />
+              <img src="/fundacion.png" alt="Fundación" className="h-9 sm:h-10 lg:h-11 object-contain" />
+              <img src="/consorcio.png" alt="Consorcio" className="h-8 sm:h-9 lg:h-10 object-contain" />
+              <img src="/sgr.png" alt="SGR" className="h-9 sm:h-10 lg:h-11 object-contain" />
             </div>
             <nav className="hidden md:flex space-x-4 lg:space-x-6 items-center">
               <a href="#inicio" className="nav-3d text-sm lg:text-base" data-label="Inicio">
@@ -744,34 +804,27 @@ const LandingPage = () => {
               <a href="#beneficios" className="nav-3d text-sm lg:text-base" data-label="Cobertura">
                 <span>Cobertura</span><span>Cobertura</span><span>Cobertura</span><span>Cobertura</span>
               </a>
-              <a href="#contacto" className="nav-3d text-sm lg:text-base" data-label="Contacto">
+              <Link to="/participacion-ciudadana" className="nav-3d text-sm lg:text-base" data-label="Contacto">
                 <span>Contacto</span><span>Contacto</span><span>Contacto</span><span>Contacto</span>
-              </a>
+              </Link>
             </nav>
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-4 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-3 w-full sm:w-auto md:ml-4">
+              <a href="#contacto" className="w-full sm:w-auto">
+                <Button className="border border-yellow-500 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-semibold w-full sm:w-auto text-sm px-4">
+                  Participación ciudadana
+                </Button>
+              </a>
               <Link to="/login" className="w-full sm:w-auto">
                 <Button variant="outline" className="border-green-600 text-green-600 hover:bg-green-50 w-full sm:w-auto text-sm">
                   Iniciar Sesión
                 </Button>
               </Link>
-              {(() => {
-                const registrationEnabled = isRegistrationEnabled();
-                return registrationEnabled ? (
-                  <Link to="/register" className="w-full sm:w-auto">
-                    <Button className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto text-sm">
-                      Registrarse
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button 
-                    className="bg-gray-400 text-white cursor-not-allowed w-full sm:w-auto text-sm"
-                    disabled={true}
-                    title="Registro temporalmente deshabilitado. Contacta al administrador para más información."
-                  >
-                    Registro Cerrado
-                  </Button>
-                );
-              })()}
+              {/* Botón de Subsanación deshabilitado por solicitud del usuario */}
+              {/* <Link to="/register" className="w-full sm:w-auto">
+                <Button className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto text-sm">
+                  Subsanación
+                </Button>
+              </Link> */}
             </div>
           </div>
         </div>
@@ -784,6 +837,118 @@ const LandingPage = () => {
         <div className="diag diag3"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative z-10">
+          {/* Anuncio de Resultados */}
+          <div className="mb-8 max-w-4xl mx-auto">
+            <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-teal-900 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+              {/* Estrellas de fondo */}
+              <div className="absolute inset-0 opacity-30">
+                {starPositions.map((star, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
+                    style={{
+                      left: `${star.left}%`,
+                      top: `${star.top}%`,
+                      animationDelay: `${star.delay}s`,
+                      animationDuration: `${star.duration}s`
+                    }}
+                  />
+                ))}
+              </div>
+              
+              {/* Contenido */}
+              <div className="relative z-10 text-center">
+                <div className="space-y-4 text-white text-base md:text-lg leading-relaxed max-w-3xl mx-auto">
+                  <p>
+                    Gracias a todos los emprendedores por su postulación para hacer parte de <strong>EMPRENDIPAZ</strong>. 
+                    Ha finalizado el proceso de evaluación de las <strong>1166 inscripciones</strong>.
+                  </p>
+                  <p>
+                    Si quieres conocer si has sido <strong>seleccionado para la siguiente fase</strong>, da click en el siguiente botón 
+                    y busca el <strong>ID que fue enviado a través del correo electrónico</strong>.
+                  </p>
+                  <p className="text-sm md:text-base text-white/90 bg-white/10 rounded-lg p-4 border border-white/20">
+                    <strong>¿No sabes cuál es tu ID?</strong> Puedes solicitarlo a través del correo electrónico{' '}
+                    <a 
+                      href="mailto:consorcioprimeronarino@gmail.com" 
+                      className="text-yellow-300 hover:text-yellow-200 underline font-semibold"
+                    >
+                      consorcioprimeronarino@gmail.com
+                    </a>
+                    {' '}adjuntando copia de tu cédula.
+                  </p>
+                </div>
+                
+                {/* Botón de Descubrir Ganadores */}
+                <div className="relative inline-block mt-8">
+                  {/* Partículas decorativas alrededor del botón */}
+                  <div className="absolute inset-0 pointer-events-none overflow-visible">
+                    {/* Confeti amarillo */}
+                    {particlePositions.slice(0, 8).map((pos, i) => (
+                      <div
+                        key={`yellow-${i}`}
+                        className="absolute w-3 h-3 bg-yellow-400 rounded-sm opacity-60 animate-pulse"
+                        style={{
+                          left: `${pos.left}%`,
+                          top: `${pos.top}%`,
+                          transform: `rotate(${pos.rotation}deg)`,
+                          animationDelay: `${pos.delay}s`,
+                          animationDuration: `${pos.duration}s`
+                        }}
+                      />
+                    ))}
+                    {/* Confeti morado */}
+                    {particlePositions.slice(8, 13).map((pos, i) => (
+                      <div
+                        key={`purple-${i}`}
+                        className="absolute w-2 h-2 bg-purple-400 rounded-full opacity-60 animate-pulse"
+                        style={{
+                          left: `${pos.left}%`,
+                          top: `${pos.top}%`,
+                          animationDelay: `${pos.delay}s`,
+                          animationDuration: `${pos.duration}s`
+                        }}
+                      />
+                    ))}
+                    {/* Estrellas */}
+                    {particlePositions.slice(13, 19).map((pos, i) => (
+                      <div
+                        key={`star-${i}`}
+                        className="absolute text-yellow-300 opacity-50 animate-pulse"
+                        style={{
+                          left: `${pos.left}%`,
+                          top: `${pos.top}%`,
+                          fontSize: `${8 + (i * 1.2)}px`,
+                          animationDelay: `${pos.delay}s`,
+                          animationDuration: `${pos.duration}s`
+                        }}
+                      >
+                        ✨
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={handleDownloadGanadores}
+                    className="relative inline-flex flex-col items-center justify-center px-10 py-5 bg-[#7CFC00] text-gray-900 font-bold rounded-full shadow-xl transform transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95 overflow-visible border-2 border-yellow-300 hover:border-yellow-200"
+                    style={{
+                      boxShadow: '0 10px 40px rgba(124, 252, 0, 0.4), 0 0 30px rgba(124, 252, 0, 0.2), inset 0 2px 10px rgba(255, 255, 255, 0.3)'
+                    }}
+                  >
+                    {/* Contenido del botón */}
+                    <span className="relative z-10 flex flex-col items-center gap-1">
+                      <span className="text-lg md:text-xl leading-tight">DESCUBRE LOS</span>
+                      <span className="flex items-center gap-2 text-xl md:text-2xl leading-tight">
+                        <span>GANADORES</span>
+                        <Trophy className="h-7 w-7 md:h-9 md:w-9 text-yellow-200 drop-shadow-lg transition-transform duration-300 hover:rotate-12" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <Carousel className="max-w-4xl mx-auto" autoPlay={true} autoPlayInterval={6000}>
             <CarouselContent>
               <CarouselItem>
@@ -797,30 +962,6 @@ const LandingPage = () => {
                       Una estrategia de fortalecimiento y apoyo para 728 emprendimientos en 64 municipios de Nariño, 
                       con acompañamiento en formación y entrega de activos productivos.
                     </p>
-                    <div className="flex flex-col items-center gap-6">
-                      <CountdownTimer />
-                      
-                      {/* Comunicado importante */}
-                      <div className="bg-gradient-to-r from-orange-400 to-amber-500 text-white p-4 rounded-lg shadow-lg max-w-2xl mx-auto border-2 border-orange-300 animate-pulse">
-                        <div className="flex items-center justify-center mb-2">
-                          <span className="text-2xl mr-2">🎉</span>
-                          <span className="font-bold text-lg">¡Buenas noticias!</span>
-                        </div>
-                        <p className="text-center text-sm leading-relaxed">
-                          En respuesta a sus peticiones, hemos simplificado el trámite de requisitos para el certificado de vecindad. 
-                          Encuentra los detalles actualizados haciendo clic en "Conocer Términos de Referencia".
-                        </p>
-                      </div>
-                      
-                      <Button 
-                        size="lg" 
-                        variant="outline" 
-                        className="border-gray-700 text-gray-700 hover:bg-gray-50 px-8 py-3 text-lg"
-                        onClick={handleOpenTDR}
-                      >
-                        Conocer Términos de Referencia
-                      </Button>
-                    </div>
                   </div>
                   <div className="w-full max-w-6xl">
                     <img src="/Banner2.png" alt="EmprendiPaz - Jóvenes emprendedores" className="rounded-lg shadow w-full h-auto" />
@@ -839,30 +980,6 @@ const LandingPage = () => {
                       Únete a la iniciativa que impulsa el emprendimiento juvenil en Nariño. 
                       Formación, acompañamiento y activos productivos para tu proyecto.
                     </p>
-                    <div className="flex flex-col items-center gap-6">
-                      <CountdownTimer />
-                      
-                      {/* Comunicado importante */}
-                      <div className="bg-gradient-to-r from-orange-400 to-amber-500 text-white p-4 rounded-lg shadow-lg max-w-2xl mx-auto border-2 border-orange-300 animate-pulse">
-                        <div className="flex items-center justify-center mb-2">
-                          <span className="text-2xl mr-2">🎉</span>
-                          <span className="font-bold text-lg">¡Buenas noticias!</span>
-                        </div>
-                        <p className="text-center text-sm leading-relaxed">
-                          En respuesta a sus peticiones, hemos simplificado el trámite de requisitos para el certificado de vecindad. 
-                          Encuentra los detalles actualizados haciendo clic en "Conocer Términos de Referencia".
-                        </p>
-                      </div>
-                      
-                      <Button 
-                        size="lg" 
-                        variant="outline" 
-                        className="border-gray-700 text-gray-700 hover:bg-gray-50 px-8 py-3 text-lg"
-                        onClick={handleOpenTDR}
-                      >
-                        Conocer Términos de Referencia
-                      </Button>
-                    </div>
                   </div>
                   <div className="w-full max-w-6xl">
                     <img src="/Banner1.png" alt="EmprendiPaz - Jóvenes emprendedores" className="rounded-lg shadow w-full h-auto" />
@@ -876,30 +993,6 @@ const LandingPage = () => {
                       EmprendiPaz
                       <span className="block text-white">Para jóvenes que transforman territorios</span>
                     </h2>
-                    <div className="flex flex-col items-center gap-6">
-                      <CountdownTimer />
-                      
-                      {/* Comunicado importante */}
-                      <div className="bg-gradient-to-r from-orange-400 to-amber-500 text-white p-4 rounded-lg shadow-lg max-w-2xl mx-auto border-2 border-orange-300 animate-pulse">
-                        <div className="flex items-center justify-center mb-2">
-                          <span className="text-2xl mr-2">🎉</span>
-                          <span className="font-bold text-lg">¡Buenas noticias!</span>
-                        </div>
-                        <p className="text-center text-sm leading-relaxed">
-                          En respuesta a sus peticiones, hemos simplificado el trámite de requisitos para el certificado de vecindad. 
-                          Encuentra los detalles actualizados haciendo clic en "Conocer Términos de Referencia".
-                        </p>
-                      </div>
-                      
-                      <Button 
-                        size="lg" 
-                        variant="outline" 
-                        className="border-gray-700 text-gray-700 hover:bg-gray-50 px-8 py-3 text-lg"
-                        onClick={handleOpenTDR}
-                      >
-                        Conocer Términos de Referencia
-                      </Button>
-                    </div>
                   </div>
                   <div className="w-full max-w-6xl">
                     <img src="/Banner3.png" alt="EmprendiPaz - Jóvenes emprendedores" className="rounded-lg shadow w-full h-auto" />
@@ -1053,36 +1146,6 @@ const LandingPage = () => {
                   <small className="text-gray-500 text-[9px]">(Alcance departamental)</small>
                 </div>
               </div>
-              <div className="text-center">
-                {(() => {
-                  const registrationEnabled = isRegistrationEnabled();
-                  return registrationEnabled ? (
-                    <Link to="/register">
-                      <Button
-                        size="lg"
-                        className="bg-green-600 hover:bg-green-700 text-white px-8 py-3"
-                      >
-                        Postúlate aquí
-                      </Button>
-                    </Link>
-                  ) : (
-                    <div className="text-center">
-                      <Button
-                        size="lg"
-                        className="bg-gray-400 text-white cursor-not-allowed px-8 py-3"
-                        disabled={true}
-                        title="Registro temporalmente cerrado. Contacta al administrador para más información."
-                      >
-                        Registro Temporalmente Cerrado
-                      </Button>
-                      <p className="text-gray-600 text-sm mt-2">
-                        El proceso de inscripciones se encuentra temporalmente cerrado.<br/>
-                        Para más información, contacta al administrador.
-                      </p>
-                    </div>
-                  );
-                })()}
-              </div>
             </div>
           </div>
         </div>
@@ -1102,6 +1165,21 @@ const LandingPage = () => {
           </div>
           
           <NodesTable />
+        </div>
+      </section>
+
+      {/* Imagen adicional */}
+      <section className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="w-full">
+            <a href="https://fundacionunivalle.com/" target="_blank" rel="noopener noreferrer" className="block cursor-pointer">
+              <img 
+                src="/2.png" 
+                alt="Fundación Universidad del Valle" 
+                className="w-full h-auto rounded-lg shadow-md object-contain"
+              />
+            </a>
+          </div>
         </div>
       </section>
 
@@ -1126,23 +1204,12 @@ const LandingPage = () => {
                 <li><a href="#caracteristicas" className="text-gray-300 hover:text-white transition-colors">Fases</a></li>
                 <li><a href="#beneficios" className="text-gray-300 hover:text-white transition-colors">Cobertura</a></li>
                 <li><Link to="/login" className="text-gray-300 hover:text-white transition-colors">Iniciar Sesión</Link></li>
-                <li>
-                  {(() => {
-                    const registrationEnabled = isRegistrationEnabled();
-                    return registrationEnabled ? (
-                      <Link to="/register" className="text-gray-300 hover:text-white transition-colors">
-                        Registrarse
-                      </Link>
-                    ) : (
-                      <span 
-                        className="text-gray-500 cursor-not-allowed"
-                        title="Registro temporalmente cerrado"
-                      >
-                        Registro Cerrado
-                      </span>
-                    );
-                  })()}
-                </li>
+                {/* Link de Subsanación deshabilitado por solicitud del usuario */}
+                {/* <li>
+                  <Link to="/register" className="text-gray-300 hover:text-white transition-colors">
+                    Subsanación
+                  </Link>
+                </li> */}
               </ul>
             </div>
             
@@ -1161,7 +1228,7 @@ const LandingPage = () => {
               © <span 
                 onClick={handleSecretClick}
                 onTouchEnd={handleSecretTouch}
-                className="cursor-pointer hover:text-white transition-colors duration-200 select-none"
+                className="select-none"
                 style={{ 
                   userSelect: 'none',
                   WebkitUserSelect: 'none',
@@ -1170,7 +1237,7 @@ const LandingPage = () => {
                 }}
                 title=""
               >
-                2025
+                2026
               </span> Gobernación de Nariño. Todos los derechos reservados.
             </p>
           </div>

@@ -8,8 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FileText, Upload, Check, AlertCircle } from 'lucide-react';
-import API_BASE_URL from '@/config/api';
-
+import API_BASE_URL from '@/config/api'
 const FormularioDinamico = ({ onSubmit, initialData = {} }) => {
   const [campos, setCampos] = useState([]);
   const [documentos, setDocumentos] = useState([]);

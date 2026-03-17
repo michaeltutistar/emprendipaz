@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -20,6 +20,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import StudentHeader from './StudentHeader';
+import API_BASE_URL from '@/config/api'
 
 const CourseContent = () => {
   const { cursoId } = useParams();
@@ -41,7 +42,7 @@ const CourseContent = () => {
       setLoading(true);
       
       // Cargar información del curso
-      const cursoResponse = await fetch(`/api/student/curso/${cursoId}`, {
+      const cursoResponse = await fetch(`${API_BASE_URL}/student/curso/${cursoId}`, {
         credentials: 'include'
       });
       
@@ -52,8 +53,8 @@ const CourseContent = () => {
         }
       }
       
-      // Cargar módulos del curso
-      const modulosResponse = await fetch(`/api/student/curso/${cursoId}/modulos`, {
+      // Cargar modulos del curso
+      const modulosResponse = await fetch(`${API_BASE_URL}/student/curso/${cursoId}/modulos`, {
         credentials: 'include'
       });
       
@@ -65,7 +66,7 @@ const CourseContent = () => {
       }
       
       // Cargar progreso del estudiante
-      const progresoResponse = await fetch(`/api/student/curso/${cursoId}/progreso`, {
+      const progresoResponse = await fetch(`${API_BASE_URL}/student/curso/${cursoId}/progreso`, {
         credentials: 'include'
       });
       
@@ -86,7 +87,7 @@ const CourseContent = () => {
 
   const marcarLeccionCompletada = async (leccionId) => {
     try {
-      const response = await fetch(`/api/student/leccion/${leccionId}/completar`, {
+      const response = await fetch(`${API_BASE_URL}/student/leccion/${leccionId}/completar`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -175,13 +176,13 @@ const CourseContent = () => {
 
       <div className="max-w-7xl mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar con módulos */}
+          {/* Sidebar con modulos */}
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Módulos del Curso</CardTitle>
+                <CardTitle className="text-lg">Modulos del Curso</CardTitle>
                 <CardDescription>
-                  {modulos.length} módulos • {modulos.reduce((total, mod) => total + mod.lecciones.length, 0)} lecciones
+                  {modulos.length} modulos • {modulos.reduce((total, mod) => total + mod.lecciones.length, 0)} lecciones
                 </CardDescription>
               </CardHeader>
               <CardContent>

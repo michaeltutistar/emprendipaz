@@ -6,6 +6,7 @@ import ModuleManager from './ModuleManager';
 import ContentScheduler from './ContentScheduler';
 import CourseManager from './CourseManager';
 import StudentProgress from './StudentProgress';
+import InstructorNodeForumPage from './InstructorNodeForumPage';
 
 const InstructorRoutes = () => {
   return (
@@ -32,6 +33,9 @@ const InstructorRoutes = () => {
       
       {/* Progreso de estudiantes */}
       <Route path="/estudiantes/:cursoId" element={<StudentProgress />} />
+
+      {/* Foro por nodos */}
+      <Route path="/foro" element={<InstructorNodeForumPage />} />
       
       {/* Ruta por defecto */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

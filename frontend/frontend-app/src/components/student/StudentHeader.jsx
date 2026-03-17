@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
+
 import { Badge } from '../ui/badge';
+
 import { 
   BookOpen, 
   User, 
@@ -12,7 +14,10 @@ import {
   X
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+
 import { toast } from 'sonner';
+import API_BASE_URL from '@/config/api'
+import { clearLocalSession } from '@/utils/auth-storage';
 
 const StudentHeader = ({ title, subtitle, showBackButton = false, backUrl = '/student/dashboard' }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -27,7 +32,7 @@ const StudentHeader = ({ title, subtitle, showBackButton = false, backUrl = '/st
 
   const cargarInformacionUsuario = async () => {
     try {
-      const response = await fetch('/api/student/perfil', {
+      const response = await fetch(`${API_BASE_URL}/student/perfil`, {
         credentials: 'include'
       });
       
@@ -46,20 +51,23 @@ const StudentHeader = ({ title, subtitle, showBackButton = false, backUrl = '/st
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/logout', {
+      const response = await fetch(`${API_BASE_URL}/logout`, {
         method: 'POST',
         credentials: 'include'
       });
 
       if (response.ok) {
         toast.success('Sesión cerrada exitosamente');
-        navigate('/login');
       } else {
-        toast.error('Error al cerrar sesión');
+        toast.error('No se pudo cerrar sesión en el servidor. Se cerrará localmente.');
       }
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
-      toast.error('Error al cerrar sesión');
+      toast.error('Sin conexión. Se cerrará la sesión localmente.');
+    } finally {
+      // Siempre permitir "cambiar usuario" sin reinstalar, incluso offline/401.
+      clearLocalSession();
+      navigate('/login');
     }
   };
 

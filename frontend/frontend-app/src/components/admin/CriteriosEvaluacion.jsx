@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
+
 import { Input } from '@/components/ui/input';
+
 import { Label } from '@/components/ui/label';
+
 import { Textarea } from '@/components/ui/textarea';
+
 import { Badge } from '@/components/ui/badge';
+
 import { Progress } from '@/components/ui/progress';
+
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 import { toast } from 'sonner';
+
 import { Plus, Edit, Trash2, Upload, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import API_BASE_URL from '@/config/api'
 
 const CriteriosEvaluacion = () => {
   const [criterios, setCriterios] = useState([]);
@@ -29,7 +40,7 @@ const CriteriosEvaluacion = () => {
   // Cargar criterios
   const cargarCriterios = async () => {
     try {
-      const response = await fetch('/api/admin/criterios', {
+      const response = await fetch(`${API_BASE_URL}/admin/criterios`, {
         credentials: 'include'
       });
       
@@ -58,7 +69,7 @@ const CriteriosEvaluacion = () => {
     try {
       const url = editingCriterio 
         ? `/api/admin/criterios/${editingCriterio.id}`
-        : '/api/admin/criterios';
+        : `${API_BASE_URL}/admin/criterios`;
       
       const method = editingCriterio ? 'PUT' : 'POST';
       
@@ -106,7 +117,7 @@ const CriteriosEvaluacion = () => {
   // Eliminar criterio
   const eliminarCriterio = async (id) => {
     try {
-      const response = await fetch(`/api/admin/criterios/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/criterios/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -131,7 +142,7 @@ const CriteriosEvaluacion = () => {
     formData.append('file', file);
     
     try {
-      const response = await fetch('/api/admin/criterios/importar', {
+      const response = await fetch(`${API_BASE_URL}/admin/criterios/importar`, {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -153,7 +164,7 @@ const CriteriosEvaluacion = () => {
   // Validar pesos
   const validarPesos = async () => {
     try {
-      const response = await fetch('/api/admin/criterios/validar-pesos', {
+      const response = await fetch(`${API_BASE_URL}/admin/criterios/validar-pesos`, {
         credentials: 'include'
       });
       

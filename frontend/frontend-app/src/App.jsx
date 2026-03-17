@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import LandingPage from './components/LandingPage'
 import TerminosReferencia from './components/TerminosReferencia'
+import ParticipacionCiudadana from './components/ParticipacionCiudadana'
 import LoginPage from './components/LoginPage'
 import RegisterPage from './components/RegisterPage'
 import RegisterPageMultiStep from './components/RegisterPageMultiStep'
@@ -11,12 +12,14 @@ import ResetPasswordPage from './components/ResetPasswordPage'
 import AdminDashboard from './components/AdminDashboard'
 import InstructorRoutes from './components/instructor/InstructorRoutes'
 import StudentRoutes from './components/student/StudentRoutes'
+import OfflineIndicator from './components/OfflineIndicator'
 import './App.css'
 
 function App() {
   return (
     <Router>
       <div className="App">
+        <OfflineIndicator />
         <header className="gov-co-banner">
           <a href="https://www.gov.co/" target="_blank" rel="noopener noreferrer">
             <img src="/escudocol.PNG" alt="Escudo de Colombia" className="gov-co-logo" />
@@ -26,6 +29,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/terminos-referencia" element={<TerminosReferencia />} />
+          <Route path="/participacion-ciudadana" element={<ParticipacionCiudadana />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPageMultiStep />} />
           <Route path="/register-simple" element={<RegisterPageMultiStepSimple />} />

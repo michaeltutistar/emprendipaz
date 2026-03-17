@@ -1,13 +1,35 @@
 from flask import Blueprint, jsonify, request, session  # pyright: ignore[reportMissingImports]
-from src.models import db, User
-from src.models import CuposConfig, MunicipioCupo
-from src.models import LogActividad, Notificacion
+from src.models import db, User, RespuestasPlanNegocio
+from src.models import CuposConfig, MunicipioCupo, LogActividad, Notificacion
 from src.constants.municipios import LISTA_MUNICIPIOS
 from src.services.auth_service import generate_token, token_required
+from werkzeug.exceptions import BadRequest
 from werkzeug.security import generate_password_hash  # pyright: ignore[reportMissingImports]
+import json
+import binascii
 import re
 from datetime import datetime
 import base64
+try:
+    from zoneinfo import ZoneInfo
+    def get_colombia_time():
+        """Obtener la hora actual en zona horaria de Colombia (UTC-5)"""
+        return datetime.now(ZoneInfo('America/Bogota'))
+except ImportError:
+    # Fallback para Python < 3.9 usando pytz
+    try:
+        import pytz
+        def get_colombia_time():
+            """Obtener la hora actual en zona horaria de Colombia (UTC-5)"""
+            tz_colombia = pytz.timezone('America/Bogota')
+            return datetime.now(tz_colombia)
+    except ImportError:
+        # Último fallback: usar UTC-5 manualmente
+        from datetime import timedelta, timezone
+        def get_colombia_time():
+            """Obtener la hora actual en zona horaria de Colombia (UTC-5)"""
+            tz_colombia = timezone(timedelta(hours=-5))
+            return datetime.now(tz_colombia)
 
 user_bp = Blueprint('user', __name__)
 
@@ -378,17 +400,15 @@ def register():
                         except Exception as e:
                             print(f"Error al procesar archivo {campo}: {str(e)}")
                             # Continuar con otros archivos aunque uno falle
-                return jsonify({'error': 'Los antecedentes disciplinarios no pueden superar 20MB'}), 400
-        except Exception as e:
-            return jsonify({'error': 'Error al procesar los antecedentes disciplinarios'}), 400
-        
-        try:
-            antecedentes_judiciales_pdf = base64.b64decode(data['antecedentes_judiciales_pdf'])
-            antecedentes_judiciales_pdf_nombre = data.get('antecedentes_judiciales_pdf_nombre', 'antecedentes_judiciales.pdf')
-            if len(antecedentes_judiciales_pdf) > 20 * 1024 * 1024:
-                return jsonify({'error': 'Los antecedentes judiciales no pueden superar 20MB'}), 400
-        except Exception as e:
-            return jsonify({'error': 'Error al procesar los antecedentes judiciales'}), 400
+                            # (No se retorna aquí, para continuar con otros archivos y no cortar el flujo.)
+                        # NOTA: Fin del bloque except interno de procesamiento de archivos disciplinarios
+
+            except Exception as e:
+                # Los documentos diferenciales/control pueden venir opcionalmente y no deben tumbar el registro
+                # (si algún archivo falla se omite y el usuario podrá subsanar).
+                print(f"Error al procesar documentos diferenciales/control (ruv_pdf): {str(e)}")
+                # No interrumpir el flujo del registro por fallas en este bloque.
+                pass
         
         try:
             redam_pdf = base64.b64decode(data['redam_pdf'])
@@ -938,16 +958,48 @@ def get_partial(user_id):
 @user_bp.route('/login', methods=['POST'])
 def login():
     try:
-        data = request.json
+        # request.json lanza BadRequest si el body no es JSON válido.
+        # En producción (API Gateway + PWA/proxies), a veces el body llega como texto/base64.
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            raw = request.get_data(cache=False) or b""
+            raw_text = ""
+            if raw:
+                try:
+                    raw_text = raw.decode("utf-8", errors="strict")
+                except Exception:
+                    raw_text = raw.decode("latin-1", errors="ignore")
+                raw_text = (raw_text or "").strip()
+
+            parsed = None
+            if raw_text:
+                # Intento 1: JSON directo
+                try:
+                    parsed = json.loads(raw_text)
+                except Exception:
+                    parsed = None
+
+                # Intento 2: base64 JSON (caso isBase64Encoded)
+                if parsed is None:
+                    try:
+                        decoded = base64.b64decode(raw_text, validate=True)
+                        parsed = json.loads(decoded.decode("utf-8", errors="strict"))
+                    except (binascii.Error, ValueError, json.JSONDecodeError, UnicodeDecodeError):
+                        parsed = None
+
+            data = parsed if isinstance(parsed, dict) else {}
         
         # Validar campos obligatorios
         if not data.get('email') or not data.get('password'):
             return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
         
+        email = (data.get('email') or '').strip()
+        password = data.get('password') or ''
+
         # Buscar usuario por email
-        user = User.query.filter_by(email=data['email']).first()
+        user = User.query.filter_by(email=email).first()
         
-        if not user or not user.check_password(data['password']):
+        if not user or not user.check_password(password):
             return jsonify({'error': 'Credenciales inválidas'}), 401
         
         # Verificar estado de la cuenta
@@ -967,6 +1019,9 @@ def login():
             'token': token
         }), 200
         
+    except BadRequest:
+        # JSON inválido o body malformado
+        return jsonify({'error': 'JSON inválido en la solicitud'}), 400
     except Exception as e:
         print(f"❌ Error en login: {str(e)}")
         import traceback
@@ -1047,7 +1102,32 @@ def reset_password():
 @user_bp.route('/profile', methods=['GET'])
 @token_required
 def get_profile(current_user):
-    return jsonify(current_user.to_dict()), 200
+    data = current_user.to_dict()
+    try:
+        from src.services.s3_service import S3Service
+        import os
+
+        s3 = S3Service()
+        def latest_url(folder: str):
+            prefix = f"usuarios/{current_user.id}/{folder}/"
+            resp = s3.s3_client.list_objects_v2(Bucket=s3.bucket_name, Prefix=prefix)
+            contents = resp.get('Contents') or []
+            images = [o for o in contents if os.path.splitext((o.get('Key') or ''))[1].lower() in ['.jpg', '.jpeg', '.png', '.webp']]
+            if not images:
+                return None
+            latest = max(images, key=lambda o: o.get('LastModified'))
+            key = latest.get('Key')
+            if not key:
+                return None
+            return s3.s3_client.generate_presigned_url('get_object', Params={'Bucket': s3.bucket_name, 'Key': key}, ExpiresIn=3600)
+
+        data['foto_perfil_url'] = latest_url('perfil')
+        data['foto_emprendimiento_url'] = latest_url('emprendimiento')
+    except Exception:
+        # No bloquear /profile si falla S3
+        pass
+
+    return jsonify(data), 200
 
 @user_bp.route('/users', methods=['GET'])
 def get_users():
@@ -1341,3 +1421,446 @@ def get_phase_history():
         
     except Exception as e:
         return jsonify({'error': f'Error al obtener historial: {str(e)}'}), 500
+
+
+# ------------------------------------------------------------
+# PROGRESO / EVALUACIONES (usado por student dashboard + unlock)
+# ------------------------------------------------------------
+
+@user_bp.route('/registrar-progreso-modulo', methods=['POST'])
+@token_required
+def registrar_progreso_modulo(current_user):
+    """
+    Registrar un "paso completado" del estudiante.
+    El sistema de desbloqueo y cálculo de progreso se basa en LogActividad.accion = 'Completó: ...'
+    y busca el nombre del módulo en (detalles + paso).
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Formato de solicitud inválido'}), 400
+
+        modulo_nombre_raw = (data.get('modulo_nombre') or '').strip()
+        paso_nombre = (data.get('paso_nombre') or '').strip()
+        curso_nombre = (data.get('curso_nombre') or '').strip()
+
+        if not modulo_nombre_raw or not paso_nombre:
+            return jsonify({'success': False, 'error': 'Faltan datos requeridos'}), 400
+
+        # Normalizar nombre del módulo: convertir nombres largos del frontend a nombres estándar del backend
+        mapeo_normalizacion = {
+            'Finanzas y Gestión Empresarial': 'Finanzas',
+            'Atención al Cliente y Resolución de Conflictos': 'Atención al Cliente',
+            'Descubrimiento de Oportunidades': 'Descubrimiento de Oportunidades',
+            'Modelo de Negocios': 'Modelo de Negocios',
+            'Marketing Digital': 'Marketing Digital',
+            'Marketing y Comercialización': 'Marketing y Comercialización',
+            'Proyecto de vida': 'Proyecto de vida',
+            'Trabajo en Equipo': 'Trabajo en Equipo',
+            'Liderazgo': 'Liderazgo',
+            'Plan de Inversión': 'Plan de Inversión'
+        }
+        modulo_nombre = mapeo_normalizacion.get(modulo_nombre_raw, modulo_nombre_raw)
+
+        detalles_parts = [f"Módulo: {modulo_nombre}", f"Paso: {paso_nombre}"]
+        if curso_nombre:
+            detalles_parts.append(f"Curso: {curso_nombre}")
+        detalles = " | ".join(detalles_parts)
+
+        db.session.add(LogActividad(
+            usuario_id=current_user.id,
+            accion=f"Completó: {paso_nombre}",
+            detalles=detalles,
+            fecha=get_colombia_time()
+        ))
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Progreso registrado exitosamente'
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error en registrar_progreso_modulo: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+
+@user_bp.route('/registrar-puntos-plan-negocio', methods=['POST'])
+@token_required
+def registrar_puntos_plan_negocio(current_user):
+    """
+    Registrar puntos del plan de negocio basados en las estrategias seleccionadas.
+    """
+    try:
+        from src.models import PuntosPlanNegocio
+        from sqlalchemy import inspect, text
+        
+        # Asegurar que la tabla existe
+        try:
+            inspector = inspect(db.engine)
+            existing_tables = inspector.get_table_names()
+            
+            if 'puntos_plan_negocio' not in existing_tables:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info("Creando tabla puntos_plan_negocio...")
+                
+                create_table_sql = text("""
+                    CREATE TABLE puntos_plan_negocio (
+                        id SERIAL PRIMARY KEY,
+                        usuario_id INTEGER NOT NULL,
+                        modulo_nombre VARCHAR(200) NOT NULL,
+                        etapa VARCHAR(50) NOT NULL,
+                        estrategia VARCHAR(200) NOT NULL,
+                        puntos INTEGER NOT NULL,
+                        fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT fk_usuario FOREIGN KEY (usuario_id) REFERENCES "user"(id) ON DELETE CASCADE
+                    )
+                """)
+                
+                db.session.execute(create_table_sql)
+                
+                # Crear índices
+                index1_sql = text("CREATE INDEX idx_puntos_plan_negocio_usuario ON puntos_plan_negocio(usuario_id)")
+                index2_sql = text("CREATE INDEX idx_puntos_plan_negocio_modulo ON puntos_plan_negocio(modulo_nombre)")
+                db.session.execute(index1_sql)
+                db.session.execute(index2_sql)
+                db.session.commit()
+        except Exception as table_error:
+            # Si ya existe la tabla, ignorar el error
+            db.session.rollback()
+            pass
+        
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Formato de solicitud inválido'}), 400
+
+        modulo_nombre = (data.get('modulo_nombre') or '').strip()
+        estrategias_seleccionadas = data.get('estrategias', [])  # Lista de {etapa, estrategia}
+
+        if not modulo_nombre or not estrategias_seleccionadas:
+            return jsonify({'success': False, 'error': 'Faltan datos requeridos'}), 400
+
+        # Mapeo de puntos por estrategia (para módulo Descubrimiento de Oportunidades)
+        puntos_por_estrategia = {
+            # Introducción
+            'Promoción fuerte': 3,
+            'Pruebas gratuitas': 4,
+            'Definición de mercado meta': 5,
+            # Crecimiento
+            'Diferenciar': 5,
+            'Ampliar distribución': 4,
+            'Mejorar la calidad del producto': 3,
+            # Madurez
+            'Versiones nuevas': 4,
+            'Promociones': 3,
+            'Extensión de marca': 5,
+            # Declive
+            'Liquidación': 2,
+            'Segmentación selectiva': 4,
+            'Retiro gradual': 3
+        }
+
+        # Eliminar puntos anteriores del mismo módulo para este usuario (para permitir actualizaciones)
+        try:
+            registros_anteriores = PuntosPlanNegocio.query.filter_by(
+                usuario_id=current_user.id,
+                modulo_nombre=modulo_nombre
+            ).all()
+            
+            for registro in registros_anteriores:
+                db.session.delete(registro)
+            db.session.commit()
+        except Exception as delete_error:
+            db.session.rollback()
+            # Continuar aunque falle la eliminación (puede que no haya registros anteriores)
+
+        # Registrar cada estrategia seleccionada
+        puntos_totales = 0
+        for estrategia_data in estrategias_seleccionadas:
+            etapa = estrategia_data.get('etapa', '').strip()
+            estrategia = estrategia_data.get('estrategia', '').strip()
+            puntos_recibidos = estrategia_data.get('puntos', None)
+            
+            if not etapa or not estrategia:
+                continue
+            
+            # Si vienen puntos en el request (módulo 3), usarlos; si no, buscar en el mapeo (módulo 2)
+            if puntos_recibidos is not None:
+                puntos = puntos_recibidos
+            else:
+                puntos = puntos_por_estrategia.get(estrategia, 0)
+            
+            puntos_totales += puntos
+            
+            db.session.add(PuntosPlanNegocio(
+                usuario_id=current_user.id,
+                modulo_nombre=modulo_nombre,
+                etapa=etapa,
+                estrategia=estrategia,
+                puntos=puntos,
+                fecha_registro=get_colombia_time()
+            ))
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Puntos del plan de negocio registrados exitosamente',
+            'puntos_totales': puntos_totales
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error en registrar_puntos_plan_negocio: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': f'Error interno del servidor: {str(e)}'}), 500
+
+
+# Soportar ambas rutas (con y sin tilde). El frontend actual está llamando la versión con tilde.
+@user_bp.route('/registrar-intento-evaluacion', methods=['POST'])
+@user_bp.route('/registrar-intento-evaluación', methods=['POST'])
+@token_required
+def registrar_intento_evaluacion(current_user):
+    """
+    Registrar un intento de evaluación cuando el estudiante envía respuestas.
+    Se usa para métricas e incluso para lógica de desbloqueo (cuando aplica).
+    """
+    try:
+        from src.models import IntentosEvaluacion
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Formato de solicitud inválido'}), 400
+
+        modulo_nombre_raw = (data.get('modulo_nombre') or '').strip()
+        unidad_nombre = (data.get('unidad_nombre') or '').strip()
+        paso_nombre = (data.get('paso_nombre') or '').strip()
+        todas_correctas = bool(data.get('todas_correctas', False))
+
+        if not modulo_nombre_raw or not paso_nombre:
+            return jsonify({'success': False, 'error': 'Faltan datos requeridos'}), 400
+
+        # Normalizar nombre del módulo: convertir nombres largos del frontend a nombres estándar del backend
+        mapeo_normalizacion = {
+            'Finanzas y Gestión Empresarial': 'Finanzas',
+            'Atención al Cliente y Resolución de Conflictos': 'Atención al Cliente',
+            'Descubrimiento de Oportunidades': 'Descubrimiento de Oportunidades',
+            'Modelo de Negocios': 'Modelo de Negocios',
+            'Marketing Digital': 'Marketing Digital',
+            'Marketing y Comercialización': 'Marketing y Comercialización',
+            'Proyecto de vida': 'Proyecto de vida',
+            'Trabajo en Equipo': 'Trabajo en Equipo',
+            'Liderazgo': 'Liderazgo',
+            'Plan de Inversión': 'Plan de Inversión'
+        }
+        modulo_nombre = mapeo_normalizacion.get(modulo_nombre_raw, modulo_nombre_raw)
+
+        intento = IntentosEvaluacion(
+            usuario_id=current_user.id,
+            modulo_nombre=modulo_nombre,
+            unidad_nombre=unidad_nombre,
+            paso_nombre=paso_nombre,
+            todas_correctas=todas_correctas,
+            fecha_intento=get_colombia_time()
+        )
+
+        db.session.add(intento)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Intento registrado exitosamente',
+            'intento_id': intento.id
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error en registrar_intento_evaluacion: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+
+@user_bp.route('/verificar-evaluacion', methods=['GET'])
+@token_required
+def verificar_evaluacion(current_user):
+    """Verificar si el usuario ya pasó una evaluación específica"""
+    try:
+        from src.models import IntentosEvaluacion
+        
+        modulo_nombre_raw = request.args.get('modulo_nombre', '').strip()
+        unidad_nombre = request.args.get('unidad_nombre', '').strip()
+        paso_nombre = request.args.get('paso_nombre', '').strip()
+
+        if not modulo_nombre_raw or not unidad_nombre or not paso_nombre:
+            return jsonify({'success': False, 'error': 'Faltan parámetros requeridos'}), 400
+
+        # Normalizar nombre del módulo
+        mapeo_normalizacion = {
+            'Finanzas y Gestión Empresarial': 'Finanzas',
+            'Atención al Cliente y Resolución de Conflictos': 'Atención al Cliente',
+            'Descubrimiento de Oportunidades': 'Descubrimiento de Oportunidades',
+            'Modelo de Negocios': 'Modelo de Negocios',
+            'Marketing Digital': 'Marketing Digital',
+            'Marketing y Comercialización': 'Marketing y Comercialización',
+            'Proyecto de vida': 'Proyecto de vida',
+            'Trabajo en Equipo': 'Trabajo en Equipo',
+            'Liderazgo': 'Liderazgo',
+            'Plan de Inversión': 'Plan de Inversión'
+        }
+        modulo_nombre = mapeo_normalizacion.get(modulo_nombre_raw, modulo_nombre_raw)
+
+        # Buscar si existe un intento con todas_correctas = True
+        intento_exitoso = IntentosEvaluacion.query.filter_by(
+            usuario_id=current_user.id,
+            modulo_nombre=modulo_nombre,
+            unidad_nombre=unidad_nombre,
+            paso_nombre=paso_nombre,
+            todas_correctas=True
+        ).first()
+
+        return jsonify({
+            'success': True,
+            'ya_paso': intento_exitoso is not None,
+            'fecha_paso': intento_exitoso.fecha_intento.isoformat() if intento_exitoso else None
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error en verificar_evaluacion: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error al verificar evaluación'}), 500
+
+# ------------------------------------------------------------
+# RESPUESTAS PLAN DE NEGOCIO (Persistencia de ejercicios)
+# ------------------------------------------------------------
+
+@user_bp.route('/save-respuestas-plan', methods=['POST'])
+@token_required
+def save_respuestas_plan(current_user):
+    """
+    Guardar las respuestas de un ejercicio del plan de negocio.
+    Incluye lógica para asegurar que la tabla existe en AWS Lambda.
+    """
+    try:
+        from sqlalchemy import inspect, text
+        
+        # Asegurar que la tabla existe (única forma de agregar tablas es vía Lambda)
+        try:
+            inspector = inspect(db.engine)
+            if 'respuestas_plan_negocio' not in inspector.get_table_names():
+                import logging
+                logging.getLogger(__name__).info("Creando tabla respuestas_plan_negocio...")
+                
+                create_table_sql = text("""
+                    CREATE TABLE respuestas_plan_negocio (
+                        id SERIAL PRIMARY KEY,
+                        usuario_id INTEGER NOT NULL,
+                        modulo_nombre VARCHAR(200) NOT NULL,
+                        respuestas_json JSONB NOT NULL,
+                        fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT fk_usuario_respuestas FOREIGN KEY (usuario_id) REFERENCES "user"(id) ON DELETE CASCADE
+                    )
+                """)
+                db.session.execute(create_table_sql)
+                db.session.commit()
+        except Exception as table_error:
+            db.session.rollback()
+            # Si falla porque ya existe u otro error, intentamos continuar
+
+        data = request.get_json(silent=True) or {}
+        modulo_nombre = data.get('modulo_nombre')
+        respuestas_json = data.get('respuestas')
+
+        if not modulo_nombre or respuestas_json is None:
+            return jsonify({'success': False, 'error': 'Faltan datos requeridos (modulo_nombre, respuestas)'}), 400
+
+        # Buscar si ya existe una respuesta para este módulo para actualizarla
+        registro = RespuestasPlanNegocio.query.filter_by(
+            usuario_id=current_user.id,
+            modulo_nombre=modulo_nombre
+        ).first()
+
+        if registro:
+            registro.respuestas_json = respuestas_json
+            registro.fecha_registro = get_colombia_time()
+        else:
+            registro = RespuestasPlanNegocio(
+                usuario_id=current_user.id,
+                modulo_nombre=modulo_nombre,
+                respuestas_json=respuestas_json,
+                fecha_registro=get_colombia_time()
+            )
+            db.session.add(registro)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Respuestas guardadas exitosamente'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error en save_respuestas_plan: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': f'Error interno: {str(e)}'}), 500
+
+@user_bp.route('/get-respuestas-plan', methods=['GET'])
+@token_required
+def get_respuestas_plan(current_user):
+    """Obtener todas las respuestas del plan de negocio del usuario"""
+    try:
+        respuestas = RespuestasPlanNegocio.query.filter_by(usuario_id=current_user.id).all()
+        
+        # Agrupar por módulo para facilitar uso en frontend
+        resultado = {}
+        for r in respuestas:
+            resultado[r.modulo_nombre] = r.respuestas_json
+
+        return jsonify({
+            'success': True,
+            'respuestas': resultado
+        }), 200
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error en get_respuestas_plan: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error al obtener respuestas'}), 500
+
+# ===== ENDPOINT TEMPORAL PARA CAMBIAR CONTRASEÑA POR ID (SOLO USO INTERNO) =====
+@user_bp.route('/admin/change-password/<int:user_id>', methods=['POST'])
+def admin_change_password(user_id):
+    """
+    Endpoint temporal para cambiar contraseña de un usuario por ID
+    SOLO PARA USO INTERNO - NO REQUIERE AUTENTICACIÓN
+    """
+    try:
+        data = request.json
+        new_password = data.get('new_password')
+        
+        if not new_password:
+            return jsonify({'error': 'new_password es obligatorio'}), 400
+        
+        # Validar que la contraseña tenga al menos 8 caracteres
+        if len(new_password) < 8:
+            return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+        
+        # Buscar usuario
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': f'Usuario con ID {user_id} no encontrado'}), 404
+        
+        # Actualizar contraseña
+        user.set_password(new_password)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Contraseña actualizada exitosamente para el usuario {user.email}',
+            'user_id': user_id,
+            'email': user.email,
+            'nombre': f'{user.nombre} {user.apellido}'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al cambiar contraseña: {str(e)}'}), 500

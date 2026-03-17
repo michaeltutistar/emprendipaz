@@ -1,12 +1,20 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Input } from './ui/input';
+
 import { Label } from './ui/label';
+
 import { Textarea } from './ui/textarea';
+
 import { Badge } from './ui/badge';
+
 import { Upload, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+
 import { toast } from 'sonner';
+import API_BASE_URL from '@/config/api'
 
 const EvidenceUploadFixed = () => {
     const [tipoEmprendimiento, setTipoEmprendimiento] = useState('');
@@ -23,7 +31,7 @@ const EvidenceUploadFixed = () => {
 
     const fetchEvidenciasExistentes = async () => {
         try {
-            const response = await fetch('/api/evidencias/me', { 
+            const response = await fetch(`${API_BASE_URL}/evidencias/me`, { 
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json'
@@ -75,7 +83,7 @@ const EvidenceUploadFixed = () => {
             formData.append('archivo2', archivo2);
             formData.append('observaciones', observaciones);
 
-            const response = await fetch('/api/evidencias', {
+            const response = await fetch(`${API_BASE_URL}/evidencias`, {
                 method: 'POST',
                 credentials: 'include',
                 body: formData
@@ -119,7 +127,7 @@ const EvidenceUploadFixed = () => {
         }
     };
 
-    // Mostrar error si hay uno
+    // mostrar error si hay uno
     if (error) {
         return (
             <div className="p-6">
@@ -132,7 +140,7 @@ const EvidenceUploadFixed = () => {
         );
     }
 
-    // Mostrar evidencias existentes
+    // mostrar evidencias existentes
     if (evidenciasExistentes) {
         return (
             <div className="space-y-6">

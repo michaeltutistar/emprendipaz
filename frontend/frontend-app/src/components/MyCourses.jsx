@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { BookOpen, Play, CheckCircle, Clock, AlertCircle, ExternalLink, BarChart3 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Progress } from './ui/progress'
-
+import API_BASE_URL from '@/config/api'
 const MyCourses = () => {
   const [cursos, setCursos] = useState([])
   const [estadisticas, setEstadisticas] = useState({})
@@ -17,7 +17,7 @@ const MyCourses = () => {
 
   const fetchMyCourses = async () => {
     try {
-      const response = await fetch('/api/usuarios/me/cursos', {
+      const response = await fetch(`${API_BASE_URL}/usuarios/me/cursos`, {
         credentials: 'include'
       })
       
@@ -37,7 +37,7 @@ const MyCourses = () => {
 
   const updateCursoEstado = async (asignacionId, nuevoEstado) => {
     try {
-      const response = await fetch(`/api/usuarios_cursos/${asignacionId}`, {
+      const response = await fetch(`${API_BASE_URL}/usuarios_cursos/${asignacionId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -59,7 +59,7 @@ const MyCourses = () => {
 
   const updateProgreso = async (asignacionId, progreso) => {
     try {
-      const response = await fetch(`/api/usuarios_cursos/${asignacionId}`, {
+      const response = await fetch(`${API_BASE_URL}/usuarios_cursos/${asignacionId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

@@ -1,12 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Input } from '../ui/input';
+
 import { Label } from '../ui/label';
+
 import { Textarea } from '../ui/textarea';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
 import { Progress } from '../ui/progress';
+
 import { Badge } from '../ui/badge';
+
 import { 
   Upload, 
   Video, 
@@ -20,8 +28,11 @@ import {
   Play
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 import { toast } from 'sonner';
+
 import InstructorHeader from './InstructorHeader';
+import API_BASE_URL from '@/config/api'
 
 const ContentUpload = () => {
   const [tipoContenido, setTipoContenido] = useState('video');
@@ -54,7 +65,7 @@ const ContentUpload = () => {
       setCargando(true);
       
       // Cargar cursos del instructor
-      const cursosResponse = await fetch('/api/instructor/cursos', {
+      const cursosResponse = await fetch(`${API_BASE_URL}/instructor/cursos`, {
         credentials: 'include'
       });
       
@@ -66,7 +77,7 @@ const ContentUpload = () => {
       }
       
       // Cargar módulos del instructor
-      const modulosResponse = await fetch('/api/instructor/modulos', {
+      const modulosResponse = await fetch(`${API_BASE_URL}/instructor/modulos`, {
         credentials: 'include'
       });
       

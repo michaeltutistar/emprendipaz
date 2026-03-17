@@ -19,11 +19,11 @@ class S3Service:
         self.region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
         
         try:
-            # 🔧 CRÍTICO: Especificar región explícitamente
+            # Especificar región explícitamente para evitar inconsistencias en Lambda.
             self.s3_client = boto3.client('s3', region_name=self.region)
             self.s3_resource = boto3.resource('s3', region_name=self.region)
             self.bucket = self.s3_resource.Bucket(self.bucket_name)
-            print(f"🔍 DEBUG - S3 Client configurado para región: {self.region}")
+            print(f"DEBUG - S3 Client configurado para region: {self.region}")
         except NoCredentialsError:
             print("ERROR: Credenciales de AWS no configuradas")
             raise

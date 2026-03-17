@@ -3,7 +3,9 @@ import SearchInput from '../common/SearchInput'
 import * as XLSX from 'xlsx'
 import emailjs from '@emailjs/browser'
 import { MUNICIPIOS_POR_SUBREGION } from '@/constants/municipios'
-
+import JSZip from 'jszip'
+import { saveAs } from 'file-saver'
+import API_BASE_URL from '@/config/api'
 const UserManagement = () => {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +37,19 @@ const UserManagement = () => {
   const [successMessage, setSuccessMessage] = useState('')
   const [editableEmail, setEditableEmail] = useState('')
 
+  // Edición manual de nombre/apellido (corrección de datos)
+  const [showEditNameModal, setShowEditNameModal] = useState(false)
+  const [selectedUserForEditName, setSelectedUserForEditName] = useState(null)
+  const [editNombre, setEditNombre] = useState('')
+  const [editApellido, setEditApellido] = useState('')
+  const [isSavingEditName, setIsSavingEditName] = useState(false)
+  
+  // Estados para descarga de archivos
+  const [showDownloadModal, setShowDownloadModal] = useState(false)
+  const [selectedUserForDownload, setSelectedUserForDownload] = useState(null)
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0, status: '' })
+  const [isDownloading, setIsDownloading] = useState(false)
+
   useEffect(() => {
     fetchCurrentUser()
     fetchUsers()
@@ -42,7 +57,7 @@ const UserManagement = () => {
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await fetch('/api/profile', {
+      const response = await fetch(`${API_BASE_URL}/profile`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -62,7 +77,7 @@ const UserManagement = () => {
     try {
       setLoading(true)
       const params = new URLSearchParams(filters)
-      const response = await fetch(`/api/admin/users?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users?${params}`, {
         credentials: 'include'
       })
       
@@ -104,7 +119,7 @@ const UserManagement = () => {
 
   const handleUserUpdate = async (userId, updates) => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -139,7 +154,7 @@ const UserManagement = () => {
       if (bulkAction === 'make_student') updates.rol = 'estudiante'
       if (bulkAction === 'make_evaluador') updates.rol = 'evaluador'
 
-      const response = await fetch('/api/admin/users/bulk-update', {
+      const response = await fetch(`${API_BASE_URL}/admin/users/bulk-update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -168,7 +183,7 @@ const UserManagement = () => {
     try {
       setError(null)
       
-      // Mostrar indicador de carga
+      // mostrar indicador de carga
       const btnExcel = document.getElementById('btn-download-excel')
       if (btnExcel) {
         btnExcel.disabled = true
@@ -241,7 +256,7 @@ const UserManagement = () => {
       
       XLSX.writeFile(wb, fileName)
       
-      // Mostrar mensaje de éxito
+      // mostrar mensaje de éxito
       setSuccessMessage('✅ Excel descargado exitosamente')
       setTimeout(() => setSuccessMessage(''), 3000)
       
@@ -262,24 +277,55 @@ const UserManagement = () => {
     try {
       setError(null)
       
-      // Mostrar indicador de carga
+      // mostrar indicador de carga
       const btnExcelAll = document.getElementById('btn-download-excel-all')
       if (btnExcelAll) {
         btnExcelAll.disabled = true
+        btnExcelAll.textContent = '⏳ Obteniendo usuarios...'
+      }
+      
+      // Obtener TODOS los usuarios usando paginación
+      const allUsers = []
+      let page = 1
+      let hasMore = true
+      const perPage = 2000  // 2000 usuarios por request
+      
+      while (hasMore) {
+        // Actualizar mensaje de progreso
+        if (btnExcelAll) {
+          btnExcelAll.textContent = `⏳ Descargando página ${page}...`
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/admin/users/all?page=${page}&per_page=${perPage}`, {
+          credentials: 'include'
+        })
+        
+        if (!response.ok) {
+          throw new Error('Error al obtener usuarios')
+        }
+        
+        const data = await response.json()
+        const users = data.users || []
+        const pagination = data.pagination || {}
+        
+        // Agregar usuarios de esta página al array total
+        allUsers.push(...users)
+        
+        // Verificar si hay más páginas
+        hasMore = pagination.has_next || false
+        page++
+        
+        // Prevenir bucles infinitos
+        if (page > 50) {  // Máximo 50 páginas = 100,000 usuarios
+          console.warn('Límite de páginas alcanzado')
+          break
+        }
+      }
+      
+      // Actualizar mensaje
+      if (btnExcelAll) {
         btnExcelAll.textContent = '⏳ Generando Excel...'
       }
-      
-      // Obtener TODOS los usuarios sin filtros
-      const response = await fetch('/api/admin/users/all', {
-        credentials: 'include'
-      })
-      
-      if (!response.ok) {
-        throw new Error('Error al obtener todos los usuarios')
-      }
-      
-      const data = await response.json()
-      const allUsers = data.users || []
       
       // Crear datos para Excel con TODOS los campos disponibles en el orden especificado
       const excelData = allUsers.map(user => ({
@@ -291,9 +337,15 @@ const UserManagement = () => {
         'Municipio': user.municipio || '-',
         'Tipo Documento': user.tipo_documento || '-',
         'Número Documento': user.numero_documento || '-',
+        'Fecha Nacimiento': user.fecha_nacimiento ? formatColombianDateTime(user.fecha_nacimiento).fecha : '-',
+        'Edad': calcularEdad(user.fecha_nacimiento),
+        'Género': user.sexo || '-',
         'Tipo Persona': user.tipo_persona || '-',
         'Emprendimiento': user.emprendimiento_nombre || '-',
         'Sector': user.emprendimiento_sector || '-',
+        'Tiempo Funcionamiento': user.tiempo_funcionamiento || '-',
+        'Empleos Generados': user.empleos_generados || '-',
+        'Acceso a Mercados': user.acceso_mercados || '-',
         'Estado Cuenta': user.estado_cuenta || '-',
         'Fecha Creación': user.fecha_creacion ? formatColombianDateTime(user.fecha_creacion).fecha + ' ' + formatColombianDateTime(user.fecha_creacion).hora : '-',
         'TDR': user.doc_terminos_pdf_nombre ? 'Sí' : 'No',
@@ -353,9 +405,15 @@ const UserManagement = () => {
         { wch: 20 }, // Municipio
         { wch: 15 }, // Tipo Documento
         { wch: 18 }, // Número Documento
+        { wch: 18 }, // Fecha Nacimiento
+        { wch: 8 },  // Edad
+        { wch: 12 }, // Género
         { wch: 15 }, // Tipo Persona
         { wch: 25 }, // Emprendimiento
         { wch: 20 }, // Sector
+        { wch: 20 }, // Tiempo Funcionamiento
+        { wch: 18 }, // Empleos Generados
+        { wch: 18 }, // Acceso a Mercados
         { wch: 15 }, // Estado Cuenta
         { wch: 20 }, // Fecha Creación
         { wch: 8 },  // TDR
@@ -410,7 +468,7 @@ const UserManagement = () => {
       
       XLSX.writeFile(wb, fileName)
       
-      // Mostrar mensaje de éxito
+      // mostrar mensaje de éxito
       setSuccessMessage(`✅ Excel con todos los usuarios descargado exitosamente (${allUsers.length} usuarios)`)
       setTimeout(() => setSuccessMessage(''), 3000)
       
@@ -432,7 +490,7 @@ const UserManagement = () => {
       setLoadingUserDetails(true)
       setShowUserDetailsModal(true)
       
-      const response = await fetch(`/api/admin/users/${userId}/detailed-info`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/detailed-info`, {
         credentials: 'include'
       })
       
@@ -467,6 +525,190 @@ const UserManagement = () => {
     setMessageText('')
     setIsSendingMessage(false)
     setMessageStatus(null)
+  }
+
+  // Edición manual de nombre/apellido
+  const handleOpenEditNameModal = (user) => {
+    setError(null)
+    setSuccessMessage('')
+    setSelectedUserForEditName(user)
+    setEditNombre((user?.nombre || '').toString())
+    setEditApellido((user?.apellido || '').toString())
+    setShowEditNameModal(true)
+  }
+
+  const handleCloseEditNameModal = () => {
+    if (isSavingEditName) return
+    setShowEditNameModal(false)
+    setSelectedUserForEditName(null)
+    setEditNombre('')
+    setEditApellido('')
+    setIsSavingEditName(false)
+  }
+
+  const handleSaveEditName = async () => {
+    if (!selectedUserForEditName) return
+
+    const nombre = (editNombre || '').trim()
+    const apellido = (editApellido || '').trim()
+    if (!nombre || !apellido) {
+      setError('Nombre y apellido son obligatorios')
+      return
+    }
+
+    try {
+      setIsSavingEditName(true)
+      setError(null)
+
+      const response = await fetch(`${API_BASE_URL}/admin/users/${selectedUserForEditName.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ nombre, apellido })
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setError(data?.error || 'Error al actualizar usuario')
+        return
+      }
+
+      setSuccessMessage('✅ Nombre/apellido actualizado(s) exitosamente')
+      setTimeout(() => setSuccessMessage(''), 3000)
+      handleCloseEditNameModal()
+      fetchUsers()
+    } catch (e) {
+      setError('Error de conexión')
+    } finally {
+      setIsSavingEditName(false)
+    }
+  }
+
+  // Funciones para descarga de archivos
+  const handleOpenDownloadModal = (user) => {
+    setSelectedUserForDownload(user)
+    setDownloadProgress({ current: 0, total: 0, status: '' })
+    setShowDownloadModal(true)
+  }
+
+  const handleCloseDownloadModal = () => {
+    if (!isDownloading) {
+      setShowDownloadModal(false)
+      setSelectedUserForDownload(null)
+      setDownloadProgress({ current: 0, total: 0, status: '' })
+    }
+  }
+
+  const handleDownloadUserFiles = async () => {
+    if (!selectedUserForDownload) return
+
+    try {
+      setIsDownloading(true)
+      setDownloadProgress({ current: 0, total: 0, status: 'Obteniendo lista de archivos...' })
+
+      // 1. Obtener URLs de archivos del usuario
+      const response = await fetch(`${API_BASE_URL}/admin/user/${selectedUserForDownload.id}/files`, {
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al obtener archivos del usuario')
+      }
+
+      const data = await response.json()
+      const files = data.files || []
+
+      if (files.length === 0) {
+        setDownloadProgress({ current: 0, total: 0, status: 'No se encontraron archivos para este usuario' })
+        setTimeout(() => {
+          setIsDownloading(false)
+          setShowDownloadModal(false)
+        }, 2000)
+        return
+      }
+
+      setDownloadProgress({ current: 0, total: files.length, status: `Descargando 0 de ${files.length} archivos...` })
+
+      // 2. Crear ZIP
+      const zip = new JSZip()
+      let successCount = 0
+      let errorCount = 0
+
+      // 3. Descargar cada archivo y agregarlo al ZIP
+      for (let i = 0;
+ i < files.length; i++) {
+        const file = files[i]
+        setDownloadProgress({
+          current: i + 1,
+          total: files.length,
+          status: `Descargando: ${file.display_name} (${i + 1}/${files.length})`
+        })
+
+        try {
+          // Descargar archivo desde S3 usando la URL pre-firmada
+          const fileResponse = await fetch(file.url)
+          
+          if (fileResponse.ok) {
+            const blob = await fileResponse.blob()
+            
+            // Agregar archivo al ZIP con nombre descriptivo
+            const safeFilename = `${file.display_name}_${file.filename}`.replace(/[^a-z0-9._-]/gi, '_')
+            zip.file(safeFilename, blob)
+            successCount++
+          } else {
+            console.error(`Error descargando ${file.filename}:`, fileResponse.statusText)
+            errorCount++
+          }
+        } catch (error) {
+          console.error(`Error descargando ${file.filename}:`, error)
+          errorCount++
+        }
+      }
+
+      // 4. Generar y descargar el ZIP
+      setDownloadProgress({
+        current: files.length,
+        total: files.length,
+        status: 'Generando archivo ZIP...'
+      })
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      
+      // Nombre del archivo ZIP
+      const userName = `${selectedUserForDownload.nombre}_${selectedUserForDownload.apellido}`.replace(/\s+/g, '_')
+      const zipFilename = `archivos_${userName}_${selectedUserForDownload.numero_documento}.zip`
+      
+      // Descargar el ZIP
+      saveAs(zipBlob, zipFilename)
+
+      // mostrar resumen
+      setDownloadProgress({
+        current: files.length,
+        total: files.length,
+        status: `✅ Descarga completada! ${successCount} archivos descargados${errorCount > 0 ? `, ${errorCount} errores` : ''}`
+      })
+
+      // Cerrar modal después de 3 segundos
+      setTimeout(() => {
+        setIsDownloading(false)
+        setShowDownloadModal(false)
+        setSuccessMessage(`✅ Archivos de ${selectedUserForDownload.nombre} ${selectedUserForDownload.apellido} descargados exitosamente`)
+        setTimeout(() => setSuccessMessage(''), 3000)
+      }, 3000)
+
+    } catch (error) {
+      console.error('Error descargando archivos:', error)
+      setDownloadProgress({
+        current: 0,
+        total: 0,
+        status: `❌ Error: ${error.message}`
+      })
+      setTimeout(() => {
+        setIsDownloading(false)
+      }, 3000)
+    }
   }
 
   const handleSendMessage = async () => {
@@ -560,6 +802,33 @@ const UserManagement = () => {
     })
     
     return { fecha, hora }
+  }
+
+  const calcularEdad = (fechaNacimiento) => {
+    if (!fechaNacimiento) return '-'
+    
+    try {
+      const fechaNac = new Date(fechaNacimiento)
+      const hoy = new Date()
+      
+      // Validar que la fecha sea válida
+      if (isNaN(fechaNac.getTime())) return '-'
+      
+      let edad = hoy.getFullYear() - fechaNac.getFullYear()
+      const mes = hoy.getMonth() - fechaNac.getMonth()
+      
+      // Si aún no ha cumplido años este año, restar 1
+      if (mes < 0 || (mes === 0 && hoy.getDate() < fechaNac.getDate())) {
+        edad--
+      }
+      
+      // Validar que la edad sea razonable (entre 0 y 150 años)
+      if (edad < 0 || edad > 150) return '-'
+      
+      return edad
+    } catch (error) {
+      return '-'
+    }
   }
 
   if (loading) {
@@ -878,6 +1147,20 @@ const UserManagement = () => {
                       >
                         Enviar Mensaje
                       </button>
+                      <button
+                        onClick={() => handleOpenDownloadModal(user)}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-medium"
+                        title="Descargar archivos del usuario"
+                      >
+                        📥 Descargar Archivos
+                      </button>
+                      <button
+                        onClick={() => handleOpenEditNameModal(user)}
+                        className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs font-medium"
+                        title="Editar nombre y apellido"
+                      >
+                        ✏️ Editar Nombre
+                      </button>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -1040,6 +1323,86 @@ const UserManagement = () => {
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <p className="text-green-800">{successMessage}</p>
+        </div>
+      )}
+
+      {/* Modal de Edición de Nombre/Apellido */}
+      {showEditNameModal && selectedUserForEditName && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border max-w-xl shadow-lg rounded-md bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900">
+                Editar Nombre / Apellido
+              </h3>
+              <button
+                onClick={handleCloseEditNameModal}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={isSavingEditName}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">ID:</span> {selectedUserForEditName.id}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Email:</span> {selectedUserForEditName.email}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre *
+                  </label>
+                  <input
+                    type="text"
+                    value={editNombre}
+                    onChange={(e) => setEditNombre(e.target.value)}
+                    disabled={isSavingEditName}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="Ej: María Luna Paula"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Apellido *
+                  </label>
+                  <input
+                    type="text"
+                    value={editApellido}
+                    onChange={(e) => setEditApellido(e.target.value)}
+                    disabled={isSavingEditName}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="Ej: González Quiñones"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  onClick={handleCloseEditNameModal}
+                  disabled={isSavingEditName}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveEditName}
+                  disabled={isSavingEditName || !editNombre.trim() || !editApellido.trim()}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSavingEditName ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1469,6 +1832,89 @@ const UserManagement = () => {
                   {isSendingMessage ? 'Enviando...' : 'Enviar'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Descarga de Archivos */}
+      {showDownloadModal && selectedUserForDownload && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border max-w-lg shadow-lg rounded-md bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900">
+                Descargar Archivos
+              </h3>
+              {!isDownloading && (
+                <button
+                  onClick={handleCloseDownloadModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {/* Información del usuario */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">Usuario:</span> {selectedUserForDownload.nombre} {selectedUserForDownload.apellido}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">Cédula:</span> {selectedUserForDownload.numero_documento}
+                </p>
+              </div>
+
+              {/* Barra de progreso */}
+              {downloadProgress.total > 0 && (
+                <div className="space-y-2">
+                  <div className="w-full bg-gray-200 rounded-full h-4">
+                    <div
+                      className="bg-purple-600 h-4 rounded-full transition-all duration-300"
+                      style={{ width: `${(downloadProgress.current / downloadProgress.total) * 100}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-center text-gray-600">
+                    {downloadProgress.current} de {downloadProgress.total} archivos
+                  </p>
+                </div>
+              )}
+
+              {/* Estado de la descarga */}
+              {downloadProgress.status && (
+                <div className={`p-3 rounded-md ${
+                  downloadProgress.status.includes('✅') 
+                    ? 'bg-green-50 border border-green-200' 
+                    : downloadProgress.status.includes('❌')
+                    ? 'bg-red-50 border border-red-200'
+                    : 'bg-blue-50 border border-blue-200'
+                }`}>
+                  <p className="text-sm text-gray-700">
+                    {downloadProgress.status}
+                  </p>
+                </div>
+              )}
+
+              {/* Botones */}
+              {!isDownloading && downloadProgress.current === 0 && (
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    onClick={handleCloseDownloadModal}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleDownloadUserFiles}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                  >
+                    📥 Iniciar Descarga
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

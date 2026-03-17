@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Input } from '../ui/input';
+
 import { Label } from '../ui/label';
+
 import { Textarea } from '../ui/textarea';
+
 import { Badge } from '../ui/badge';
+
 import { 
   Calendar,
   Clock,
@@ -23,12 +29,15 @@ import {
   Bell
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 import { toast } from 'sonner';
+
 import InstructorHeader from './InstructorHeader';
+import API_BASE_URL from '@/config/api'
 
 const ContentScheduler = () => {
   const [contenidoProgramado, setContenidoProgramado] = useState([]);
-  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [mostrarFormulario, setmostrarFormulario] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [formData, setFormData] = useState({
@@ -56,7 +65,7 @@ const ContentScheduler = () => {
   const cargarDatosInstructor = async () => {
     try {
       // Cargar cursos del instructor
-      const cursosResponse = await fetch('/api/instructor/cursos', {
+      const cursosResponse = await fetch(`${API_BASE_URL}/instructor/cursos`, {
         credentials: 'include'
       });
       
@@ -68,7 +77,7 @@ const ContentScheduler = () => {
       }
       
       // Cargar módulos del instructor
-      const modulosResponse = await fetch('/api/instructor/modulos', {
+      const modulosResponse = await fetch(`${API_BASE_URL}/instructor/modulos`, {
         credentials: 'include'
       });
       
@@ -229,7 +238,7 @@ const ContentScheduler = () => {
       recordatorio: false,
       recordatorio_horas: 24
     });
-    setMostrarFormulario(true);
+    setmostrarFormulario(true);
   };
 
   const handleEditarProgramacion = (item) => {
@@ -247,7 +256,7 @@ const ContentScheduler = () => {
       recordatorio: item.recordatorio,
       recordatorio_horas: item.recordatorio_horas
     });
-    setMostrarFormulario(true);
+    setmostrarFormulario(true);
   };
 
   const handleInputChange = (field, value) => {
@@ -294,7 +303,7 @@ const ContentScheduler = () => {
         toast.success("Contenido programado exitosamente");
       }
       
-      setMostrarFormulario(false);
+      setmostrarFormulario(false);
       setItemEditando(null);
       setFormData({
         titulo: '',
@@ -586,7 +595,7 @@ const ContentScheduler = () => {
                         type="button"
                         variant="outline"
                         onClick={() => {
-                          setMostrarFormulario(false);
+                          setmostrarFormulario(false);
                           setItemEditando(null);
                         }}
                       >

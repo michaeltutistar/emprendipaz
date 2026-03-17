@@ -8,13 +8,17 @@ import mimetypes
 class S3Service:
     def __init__(self):
         """Inicializar el servicio S3"""
-        self.s3_client = boto3.client(
-            's3',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.getenv('AWS_REGION', 'us-east-1')
+        # En Lambda (y en general), boto3 debe usar el "credential provider chain" (incluye AWS_SESSION_TOKEN).
+        # NO pasar aws_access_key_id/aws_secret_access_key manualmente, porque rompe credenciales temporales.
+        region = os.getenv('AWS_REGION', 'us-east-1')
+        self.s3_client = boto3.client('s3', region_name=region)
+
+        # Compatibilidad: en serverless.yml usamos S3_BUCKET. También aceptamos S3_BUCKET_NAME.
+        self.bucket_name = (
+            os.getenv('S3_BUCKET_NAME')
+            or os.getenv('S3_BUCKET')
+            or 'elearning-archivos'
         )
-        self.bucket_name = os.getenv('S3_BUCKET_NAME', 'elearning-narino-resources')
         self.base_url = f"https://{self.bucket_name}.s3.amazonaws.com"
     
     def generate_s3_key(self, filename, folder="uploads"):

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Users, BookOpen, Play, CheckCircle, Clock, AlertCircle, Search, Filter } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import { Progress } from '../ui/progress'
-
+import API_BASE_URL from '@/config/api'
 const CourseManagement = () => {
   const [cursos, setCursos] = useState([])
   const [usuarios, setUsuarios] = useState([])
@@ -24,7 +24,7 @@ const CourseManagement = () => {
 
   const fetchCursos = async () => {
     try {
-      const response = await fetch('/api/cursos', {
+      const response = await fetch(`${API_BASE_URL}/cursos`, {
         credentials: 'include'
       })
       
@@ -41,7 +41,7 @@ const CourseManagement = () => {
 
   const fetchUsuarios = async () => {
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
         credentials: 'include'
       })
       
@@ -56,7 +56,7 @@ const CourseManagement = () => {
 
   const createCurso = async (cursoData) => {
     try {
-      const response = await fetch('/api/cursos', {
+      const response = await fetch(`${API_BASE_URL}/cursos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -79,7 +79,7 @@ const CourseManagement = () => {
 
   const updateCurso = async (cursoId, cursoData) => {
     try {
-      const response = await fetch(`/api/cursos/${cursoId}`, {
+      const response = await fetch(`${API_BASE_URL}/cursos/${cursoId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -102,7 +102,7 @@ const CourseManagement = () => {
 
   const asignarCurso = async (cursoId, userId) => {
     try {
-      const response = await fetch(`/api/cursos/${cursoId}/asignar/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/cursos/${cursoId}/asignar/${userId}`, {
         method: 'POST',
         credentials: 'include'
       })

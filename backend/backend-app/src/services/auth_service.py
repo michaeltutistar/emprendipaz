@@ -37,6 +37,12 @@ def token_required(f):
                 raise ValueError("SECRET_KEY no configurada")
             
             data = jwt.decode(token, secret_key, algorithms=["HS256"])
+            # Evitar que un refresh token funcione como access token
+            if isinstance(data, dict) and data.get('type') == 'refresh':
+                return jsonify({
+                    'success': False,
+                    'error': 'Token inválido'
+                }), 401
             current_user = User.query.get(data['user_id'])
             
             if not current_user:
@@ -154,13 +160,63 @@ def generate_token(user_id, expires_in=24*60*60):  # 24 horas por defecto
         payload = {
             'user_id': user_id,
             'exp': datetime.utcnow() + timedelta(seconds=expires_in),
-            'iat': datetime.utcnow()
+            'iat': datetime.utcnow(),
+            'type': 'access'
         }
         
         token = jwt.encode(payload, secret_key, algorithm="HS256")
         return token
     except Exception as e:
         logger.error(f"Error generating token: {str(e)}")
+        return None
+
+def generate_refresh_token(user_id, expires_in=30*24*60*60):  # 30 días por defecto
+    """Generar refresh token JWT (largo)"""
+    try:
+        secret_key = current_app.config.get('SECRET_KEY')
+        if not secret_key:
+            raise ValueError("SECRET_KEY no configurada")
+
+        payload = {
+            'user_id': user_id,
+            'exp': datetime.utcnow() + timedelta(seconds=expires_in),
+            'iat': datetime.utcnow(),
+            'type': 'refresh'
+        }
+
+        token = jwt.encode(payload, secret_key, algorithm="HS256")
+        return token
+    except Exception as e:
+        logger.error(f"Error generating refresh token: {str(e)}")
+        return None
+
+def verify_refresh_token(token):
+    """Verificar refresh token y retornar el usuario"""
+    try:
+        secret_key = current_app.config.get('SECRET_KEY')
+        if not secret_key:
+            raise ValueError("SECRET_KEY no configurada")
+
+        data = jwt.decode(token, secret_key, algorithms=["HS256"])
+        if not isinstance(data, dict) or data.get('type') != 'refresh':
+            return None
+
+        user = User.query.get(data.get('user_id'))
+        if not user:
+            return None
+
+        if user.estado_cuenta != 'activa':
+            return None
+
+        return user
+    except jwt.ExpiredSignatureError:
+        logger.warning("Refresh token expirado")
+        return None
+    except jwt.InvalidTokenError:
+        logger.warning("Refresh token inválido")
+        return None
+    except Exception as e:
+        logger.error(f"Error verifying refresh token: {str(e)}")
         return None
 
 def verify_token(token):

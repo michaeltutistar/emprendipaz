@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import CourseContentManager from './CourseContentManager'
 import SearchInput from '../common/SearchInput'
-
+import API_BASE_URL from '@/config/api'
 const ContentManagement = () => {
   const [courses, setCourses] = useState([])
   const [instructors, setInstructors] = useState([])
@@ -42,7 +42,7 @@ const ContentManagement = () => {
     try {
       setLoading(true)
       const params = new URLSearchParams(filters)
-      const response = await fetch(`/api/admin/courses?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/courses?${params}`, {
         credentials: 'include'
       })
       
@@ -62,7 +62,7 @@ const ContentManagement = () => {
 
   const fetchInstructors = async () => {
     try {
-      const response = await fetch('/api/admin/instructors', {
+      const response = await fetch(`${API_BASE_URL}/admin/instructors`, {
         credentials: 'include'
       })
       
@@ -97,7 +97,7 @@ const ContentManagement = () => {
 
   const handleCreateCourse = async () => {
     try {
-      const response = await fetch('/api/admin/courses', {
+      const response = await fetch(`${API_BASE_URL}/admin/courses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -133,7 +133,7 @@ const ContentManagement = () => {
 
   const handleUpdateCourse = async () => {
     try {
-      const response = await fetch(`/api/admin/courses/${selectedCourse.id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/courses/${selectedCourse.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -161,7 +161,7 @@ const ContentManagement = () => {
     }
 
     try {
-      const response = await fetch(`/api/admin/courses/${courseId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/courses/${courseId}`, {
         method: 'DELETE',
         credentials: 'include'
       })

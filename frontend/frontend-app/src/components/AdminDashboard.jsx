@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import API_BASE_URL from '@/config/api'
 import MetricsPanel from './admin/MetricsPanel'
 import CuposConfig from './admin/CuposConfig'
 import UserManagement from './admin/UserManagement'
@@ -17,7 +16,7 @@ import CriteriosEvaluacion from './admin/CriteriosEvaluacion'
 import EvaluacionPanel from './admin/EvaluacionPanel'
 import RankingsPanel from './admin/RankingsPanel'
 import SorteoPanel from './admin/SorteoPanel'
-
+import API_BASE_URL from '@/config/api'
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [user, setUser] = useState(null)
@@ -69,7 +68,7 @@ const AdminDashboard = () => {
     if (user?.rol === 'evaluador') {
       return ['users'] // Solo Gestión de Usuarios para evaluadores
     }
-    return ['dashboard', 'users', 'bulk-import', 'content', 'resources', 'logs', 'cupos', 'certificados', 'fases', 'cursos', 'activos', 'evidencias', 'criterios', 'evaluacion', 'rankings', 'sorteos']
+    return ['dashboard', 'users']
   }
 
   const visibleTabs = getVisibleTabs()
@@ -80,6 +79,12 @@ const AdminDashboard = () => {
       setActiveTab('users')
     }
   }, [user, activeTab])
+
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0] || 'dashboard')
+    }
+  }, [activeTab, visibleTabs])
 
   if (loading) {
     return (

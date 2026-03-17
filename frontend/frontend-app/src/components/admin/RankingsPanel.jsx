@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
+
 import { Badge } from '@/components/ui/badge';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 import { toast } from 'sonner';
+
 import { Download, Trophy, Medal, Award, User, Calendar, MapPin } from 'lucide-react';
+import API_BASE_URL from '@/config/api'
 
 const RankingsPanel = () => {
   const [rankings, setRankings] = useState([]);
@@ -17,7 +23,7 @@ const RankingsPanel = () => {
 
   const cargarRankings = async () => {
     try {
-      const response = await fetch('/api/admin/evaluaciones/rankings', {
+      const response = await fetch(`${API_BASE_URL}/admin/evaluaciones/rankings`, {
         credentials: 'include'
       });
 
@@ -37,7 +43,7 @@ const RankingsPanel = () => {
   const exportarExcel = async () => {
     try {
       setExporting(true);
-      const response = await fetch('/api/admin/evaluaciones/exportar', {
+      const response = await fetch(`${API_BASE_URL}/admin/evaluaciones/exportar`, {
         credentials: 'include'
       });
 

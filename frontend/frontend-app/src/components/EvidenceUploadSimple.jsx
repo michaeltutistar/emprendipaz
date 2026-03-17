@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Input } from './ui/input';
+
 import { Label } from './ui/label';
+
 import { Textarea } from './ui/textarea';
+
 import { Badge } from './ui/badge';
+
 import { Upload, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+
 import { toast } from 'sonner';
+import API_BASE_URL from '@/config/api'
 
 const EvidenceUploadSimple = () => {
     const [tipoEmprendimiento, setTipoEmprendimiento] = useState('');
@@ -22,7 +30,7 @@ const EvidenceUploadSimple = () => {
 
     const fetchEvidenciasExistentes = async () => {
         try {
-            const response = await fetch('/api/evidencias/me', { credentials: 'include' });
+            const response = await fetch(`${API_BASE_URL}/evidencias/me`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 setEvidenciasExistentes(data.evidencias[0] || null);
@@ -62,7 +70,7 @@ const EvidenceUploadSimple = () => {
             formData.append('archivo2', archivo2);
             formData.append('observaciones', observaciones);
 
-            const response = await fetch('/api/evidencias', {
+            const response = await fetch(`${API_BASE_URL}/evidencias`, {
                 method: 'POST',
                 credentials: 'include',
                 body: formData

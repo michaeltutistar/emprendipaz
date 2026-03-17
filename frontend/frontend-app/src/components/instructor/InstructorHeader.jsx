@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
+
 import { Badge } from '../ui/badge';
+
 import { LogOut, User, ArrowLeft } from 'lucide-react';
+
 import { useNavigate } from 'react-router-dom';
+
 import { toast } from 'sonner';
+import API_BASE_URL from '@/config/api'
+import { clearAuthToken, clearPwaCachedUser } from '@/utils/auth-storage';
 
 const InstructorHeader = ({ title, subtitle, showBackButton = false, backUrl = '/instructor/dashboard' }) => {
   const [user, setUser] = useState(null);
@@ -15,7 +21,7 @@ const InstructorHeader = ({ title, subtitle, showBackButton = false, backUrl = '
 
   const cargarDatosUsuario = async () => {
     try {
-      const response = await fetch('/api/profile', {
+      const response = await fetch(`${API_BASE_URL}/profile`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -35,7 +41,7 @@ const InstructorHeader = ({ title, subtitle, showBackButton = false, backUrl = '
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/logout', {
+      const response = await fetch(`${API_BASE_URL}/logout`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -44,6 +50,8 @@ const InstructorHeader = ({ title, subtitle, showBackButton = false, backUrl = '
         // Limpiar datos locales
         localStorage.removeItem('userEmail');
         sessionStorage.clear();
+        clearAuthToken();
+        clearPwaCachedUser();
         
         // Redirigir al login
         navigate('/login');

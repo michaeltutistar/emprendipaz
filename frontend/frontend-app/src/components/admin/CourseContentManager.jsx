@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
+import API_BASE_URL from '@/config/api'
 
 const CourseContentManager = ({ courseId, onClose }) => {
   const [course, setCourse] = useState(null)
@@ -41,7 +42,7 @@ const CourseContentManager = ({ courseId, onClose }) => {
       setLoading(true)
       
       // Obtener información del curso
-      const courseResponse = await fetch(`/api/admin/courses/${courseId}`, {
+      const courseResponse = await fetch(`${API_BASE_URL}/admin/courses/${courseId}`, {
         credentials: 'include'
       })
       
@@ -51,7 +52,7 @@ const CourseContentManager = ({ courseId, onClose }) => {
       }
       
       // Obtener módulos del curso
-      const modulesResponse = await fetch(`/api/content/courses/${courseId}/modules`, {
+      const modulesResponse = await fetch(`${API_BASE_URL}/content/courses/${courseId}/modules`, {
         credentials: 'include'
       })
       
@@ -69,7 +70,7 @@ const CourseContentManager = ({ courseId, onClose }) => {
 
   const fetchLessons = async (moduleId) => {
     try {
-      const response = await fetch(`/api/content/modules/${moduleId}/lessons`, {
+      const response = await fetch(`${API_BASE_URL}/content/modules/${moduleId}/lessons`, {
         credentials: 'include'
       })
       
@@ -89,7 +90,7 @@ const CourseContentManager = ({ courseId, onClose }) => {
 
   const handleCreateModule = async () => {
     try {
-      const response = await fetch(`/api/content/courses/${courseId}/modules`, {
+      const response = await fetch(`${API_BASE_URL}/content/courses/${courseId}/modules`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -113,7 +114,7 @@ const CourseContentManager = ({ courseId, onClose }) => {
 
   const handleUpdateModule = async () => {
     try {
-      const response = await fetch(`/api/content/modules/${editingModule.id}`, {
+      const response = await fetch(`${API_BASE_URL}/content/modules/${editingModule.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -142,7 +143,7 @@ const CourseContentManager = ({ courseId, onClose }) => {
     }
 
     try {
-      const response = await fetch(`/api/content/modules/${moduleId}`, {
+      const response = await fetch(`${API_BASE_URL}/content/modules/${moduleId}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -166,7 +167,7 @@ const CourseContentManager = ({ courseId, onClose }) => {
     if (!selectedModule) return
 
     try {
-      const response = await fetch(`/api/content/modules/${selectedModule.id}/lessons`, {
+      const response = await fetch(`${API_BASE_URL}/content/modules/${selectedModule.id}/lessons`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -199,7 +200,7 @@ const CourseContentManager = ({ courseId, onClose }) => {
 
   const handleUpdateLesson = async () => {
     try {
-      const response = await fetch(`/api/content/lessons/${editingLesson.id}`, {
+      const response = await fetch(`${API_BASE_URL}/content/lessons/${editingLesson.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -237,7 +238,7 @@ const CourseContentManager = ({ courseId, onClose }) => {
     }
 
     try {
-      const response = await fetch(`/api/content/lessons/${lessonId}`, {
+      const response = await fetch(`${API_BASE_URL}/content/lessons/${lessonId}`, {
         method: 'DELETE',
         credentials: 'include'
       })

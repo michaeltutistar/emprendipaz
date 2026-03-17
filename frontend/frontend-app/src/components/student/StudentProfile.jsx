@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Badge } from '../ui/badge';
+
 import { Progress } from '../ui/progress';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+
 import { 
   User, 
   Award, 
@@ -14,11 +19,20 @@ import {
   Calendar,
   BookOpen,
   TrendingUp,
-  Clock
+  Clock,
+  ArrowLeft,
+  MessageSquareMore
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 import { toast } from 'sonner';
+
 import StudentHeader from './StudentHeader';
+import SupportCenterWidget from './SupportCenterWidget';
+import API_BASE_URL from '@/config/api'
+import { isInstalledPwa } from '@/utils/pwa';
+import { clearAuthToken, getAuthToken } from '@/utils/auth-storage';
+import { resolveForumNodeByMunicipio } from '@/constants/forumNodes';
 
 const StudentProfile = () => {
   const [perfil, setPerfil] = useState({
@@ -26,10 +40,22 @@ const StudentProfile = () => {
     email: '',
     telefono: '',
     fechaNacimiento: '',
+    // Se mantienen por compatibilidad con datos antiguos, pero en UI mostramos:
+    // - ciudad => municipio del usuario
+    // - pais => nombre del emprendimiento
     pais: '',
     ciudad: '',
+    municipio: '',
+    emprendimiento_nombre: '',
+    foto_perfil_url: '',
+    foto_emprendimiento_url: '',
     bio: ''
   });
+  const [fotoPerfilFile, setFotoPerfilFile] = useState(null);
+  const [fotoEmprendimientoFile, setFotoEmprendimientoFile] = useState(null);
+  const [uploadingFotos, setUploadingFotos] = useState({ perfil: false, emprendimiento: false });
+  const fotoPerfilInputRef = useRef(null);
+  const fotoEmprendimientoInputRef = useRef(null);
   const [certificados, setCertificados] = useState([]);
   const [estadisticas, setEstadisticas] = useState({});
   const [editando, setEditando] = useState(false);
@@ -43,11 +69,36 @@ const StudentProfile = () => {
   const cargarPerfil = async () => {
     try {
       setLoading(true);
+
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('No hay sesión activa. Por favor, inicia sesión.');
+        if (!isInstalledPwa()) {
+          navigate('/login');
+        }
+        return;
+      }
+
+      const authHeaders = {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
       
       // Cargar información del perfil
-      const perfilResponse = await fetch('/api/student/perfil', {
-        credentials: 'include'
+      const perfilResponse = await fetch(`${API_BASE_URL}/student/perfil`, {
+        credentials: 'include',
+        headers: authHeaders
       });
+
+      if (perfilResponse.status === 401) {
+        if (isInstalledPwa()) {
+          toast.error('No se pudo validar tu sesión con el servidor. Puedes continuar en modo offline.');
+        } else {
+          clearAuthToken();
+          toast.error('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+          navigate('/login');
+        }
+        return;
+      }
       
       if (perfilResponse.ok) {
         const perfilData = await perfilResponse.json();
@@ -57,8 +108,9 @@ const StudentProfile = () => {
       }
       
       // Cargar certificados
-      const certificadosResponse = await fetch('/api/student/certificados', {
-        credentials: 'include'
+      const certificadosResponse = await fetch(`${API_BASE_URL}/student/certificados`, {
+        credentials: 'include',
+        headers: authHeaders
       });
       
       if (certificadosResponse.ok) {
@@ -69,8 +121,9 @@ const StudentProfile = () => {
       }
       
       // Cargar estadísticas
-      const statsResponse = await fetch('/api/student/estadisticas', {
-        credentials: 'include'
+      const statsResponse = await fetch(`${API_BASE_URL}/student/estadisticas`, {
+        credentials: 'include',
+        headers: authHeaders
       });
       
       if (statsResponse.ok) {
@@ -90,10 +143,19 @@ const StudentProfile = () => {
 
   const handleGuardarPerfil = async () => {
     try {
-      const response = await fetch('/api/student/perfil', {
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('No hay sesión activa. Por favor, inicia sesión.');
+        if (!isInstalledPwa()) {
+          navigate('/login');
+        }
+        return;
+      }
+      const response = await fetch(`${API_BASE_URL}/student/perfil`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         credentials: 'include',
         body: JSON.stringify(perfil)
@@ -116,10 +178,156 @@ const StudentProfile = () => {
     }
   };
 
+  const subirFoto = async (tipo) => {
+    try {
+      const file = tipo === 'perfil' ? fotoPerfilFile : fotoEmprendimientoFile;
+      if (!file) {
+        toast.error('Selecciona una imagen primero');
+        return;
+      }
+
+      // Validación/normalización: el backend acepta JPG/PNG/WEBP y máx 5MB.
+      // Si el archivo supera el límite, intentamos comprimir/redimensionar a JPG para evitar 400.
+      const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+      const isHeic =
+        (file.type || '').toLowerCase().includes('heic') ||
+        (file.type || '').toLowerCase().includes('heif') ||
+        /\.heic$/i.test(file.name || '') ||
+        /\.heif$/i.test(file.name || '');
+
+      const readAsDataURL = (f) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+          reader.readAsDataURL(f);
+        });
+
+      const compressToJpegDataUrl = async (inputFile) => {
+        // Cargar imagen en un <img> vía objectURL para poder dibujar en canvas
+        const objectUrl = URL.createObjectURL(inputFile);
+        try {
+          const img = await new Promise((resolve, reject) => {
+            const el = new Image();
+            el.onload = () => resolve(el);
+            el.onerror = () => reject(new Error('No se pudo cargar la imagen'));
+            el.src = objectUrl;
+          });
+
+          const maxDim = 1024; // suficiente para perfil/logo
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            const ratio = Math.min(maxDim / width, maxDim / height);
+            width = Math.max(1, Math.round(width * ratio));
+            height = Math.max(1, Math.round(height * ratio));
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('No se pudo procesar la imagen');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Intentar varias calidades hasta quedar <= 5MB
+          const qualities = [0.85, 0.75, 0.65, 0.55];
+          for (const q of qualities) {
+            // eslint-disable-next-line no-await-in-loop
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', q));
+            if (!blob) continue;
+            if (blob.size <= MAX_IMAGE_BYTES) {
+              const filenameBase = (inputFile.name || 'imagen').replace(/\.[^.]+$/, '');
+              const jpegFile = new File([blob], `${filenameBase}.jpg`, { type: 'image/jpeg' });
+              // eslint-disable-next-line no-await-in-loop
+              const dataUrl = await readAsDataURL(jpegFile);
+              return { dataUrl, filename: jpegFile.name, contentType: jpegFile.type };
+            }
+          }
+
+          throw new Error('La imagen es demasiado grande. Máximo 5MB.');
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('No hay sesión activa. Por favor, inicia sesión.');
+        navigate('/login');
+        return;
+      }
+
+      setUploadingFotos((prev) => ({ ...prev, [tipo]: true }));
+
+      const endpoint = tipo === 'perfil'
+        ? `${API_BASE_URL}/student/perfil/foto-perfil`
+        : `${API_BASE_URL}/student/perfil/foto-emprendimiento`;
+
+      // En AWS API Gateway, multipart/form-data puede no llegar como request.files.
+      // Usamos dataUrl (base64) para que funcione consistente en PWA/desktop/tablet.
+      // Además, comprimimos/redimensionamos si hace falta para cumplir el límite del backend.
+      let payloadImagen;
+      if (isHeic) {
+        toast.error('La imagen está en formato HEIC/HEIF. Por favor conviértela a JPG/PNG y vuelve a intentar.');
+        return;
+      }
+
+      const tipoOk = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes((file.type || '').toLowerCase());
+      if (!tipoOk) {
+        toast.error('Tipo de archivo no permitido. Usa JPG, PNG o WEBP.');
+        return;
+      }
+
+      if (file.size > MAX_IMAGE_BYTES) {
+        payloadImagen = await compressToJpegDataUrl(file);
+      } else {
+        const dataUrl = await readAsDataURL(file);
+        payloadImagen = { dataUrl, filename: file.name, contentType: file.type };
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          dataUrl: payloadImagen.dataUrl,
+          filename: payloadImagen.filename,
+          content_type: payloadImagen.contentType
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.success) {
+        toast.error(data?.error || 'Error al subir la imagen');
+        return;
+      }
+
+      if (tipo === 'perfil') {
+        setPerfil((prev) => ({ ...prev, foto_perfil_url: data.url }));
+        setFotoPerfilFile(null);
+      } else {
+        setPerfil((prev) => ({ ...prev, foto_emprendimiento_url: data.url }));
+        setFotoEmprendimientoFile(null);
+      }
+
+      toast.success('Imagen actualizada');
+    } catch (e) {
+      console.error('Error subiendo imagen:', e);
+      toast.error('Error al subir la imagen');
+    } finally {
+      setUploadingFotos((prev) => ({ ...prev, [tipo]: false }));
+    }
+  };
+
   const handleDescargarCertificado = async (certificadoId) => {
     try {
-      const response = await fetch(`/api/student/certificado/${certificadoId}/descargar`, {
-        credentials: 'include'
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/student/certificado/${certificadoId}/descargar`, {
+        credentials: 'include',
+        headers: token ? { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) } : undefined
       });
       
       if (response.ok) {
@@ -158,6 +366,8 @@ const StudentProfile = () => {
     );
   }
 
+  const forumNode = resolveForumNodeByMunicipio(perfil.municipio || perfil.ciudad || '')
+
   return (
     <div className="min-h-screen bg-gray-50">
       <StudentHeader 
@@ -165,14 +375,14 @@ const StudentProfile = () => {
         subtitle="Gestiona tu información personal"
         showBackButton={true}
         backUrl="/student/dashboard"
+        hideNavigation={true}
       />
 
       <div className="max-w-7xl mx-auto p-6">
         <Tabs defaultValue="perfil" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="perfil">Información Personal</TabsTrigger>
             <TabsTrigger value="certificados">Certificados</TabsTrigger>
-            <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="perfil" className="space-y-6">
@@ -204,6 +414,135 @@ const StudentProfile = () => {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Fotos */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  {/* Foto de perfil */}
+                  <div className="border rounded-lg p-4 bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-gray-800">Foto de perfil</h4>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border flex-shrink-0" style={{ minWidth: '80px', minHeight: '80px' }}>
+                        {perfil.foto_perfil_url ? (
+                          <img
+                            src={perfil.foto_perfil_url}
+                            alt="Foto de perfil"
+                            className="w-full h-full object-cover"
+                            style={{ 
+                              display: 'block',
+                              minWidth: '80px',
+                              minHeight: '80px',
+                              width: '100%',
+                              height: '100%'
+                            }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm" style={{ minWidth: '80px', minHeight: '80px' }}>
+                            Sin foto
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          ref={fotoPerfilInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          disabled={uploadingFotos.perfil}
+                          onChange={(e) => setFotoPerfilFile(e.target.files?.[0] || null)}
+                          className="sr-only"
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={uploadingFotos.perfil}
+                            onClick={() => fotoPerfilInputRef.current?.click()}
+                          >
+                            Elegir foto
+                          </Button>
+                          <span className="text-sm text-gray-600 truncate">
+                            {fotoPerfilFile?.name || 'Ningún archivo seleccionado'}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          disabled={uploadingFotos.perfil}
+                          onClick={() => subirFoto('perfil')}
+                        >
+                          {uploadingFotos.perfil ? 'Subiendo...' : 'Subir foto de perfil'}
+                        </Button>
+                        <p className="text-xs text-gray-500">Formatos: JPG/PNG/WEBP. Máx: 5MB.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Foto del emprendimiento */}
+                  <div className="border rounded-lg p-4 bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-gray-800">Foto del emprendimiento</h4>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 border flex-shrink-0" style={{ minWidth: '80px', minHeight: '80px' }}>
+                        {perfil.foto_emprendimiento_url ? (
+                          <img
+                            src={perfil.foto_emprendimiento_url}
+                            alt="Foto del emprendimiento"
+                            className="w-full h-full object-cover"
+                            style={{ 
+                              display: 'block',
+                              minWidth: '80px',
+                              minHeight: '80px',
+                              width: '100%',
+                              height: '100%'
+                            }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm" style={{ minWidth: '80px', minHeight: '80px' }}>
+                            Sin foto
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          ref={fotoEmprendimientoInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          disabled={uploadingFotos.emprendimiento}
+                          onChange={(e) => setFotoEmprendimientoFile(e.target.files?.[0] || null)}
+                          className="sr-only"
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={uploadingFotos.emprendimiento}
+                            onClick={() => fotoEmprendimientoInputRef.current?.click()}
+                          >
+                            Elegir foto
+                          </Button>
+                          <span className="text-sm text-gray-600 truncate">
+                            {fotoEmprendimientoFile?.name || 'Ningún archivo seleccionado'}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          disabled={uploadingFotos.emprendimiento}
+                          onClick={() => subirFoto('emprendimiento')}
+                        >
+                          {uploadingFotos.emprendimiento ? 'Subiendo...' : 'Subir foto del emprendimiento'}
+                        </Button>
+                        <p className="text-xs text-gray-500">Formatos: JPG/PNG/WEBP. Máx: 5MB.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -213,7 +552,7 @@ const StudentProfile = () => {
                       type="text"
                       value={perfil.nombre}
                       onChange={(e) => setPerfil({...perfil, nombre: e.target.value})}
-                      disabled={!editando}
+                      disabled={true}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                     />
                   </div>
@@ -226,7 +565,7 @@ const StudentProfile = () => {
                       type="email"
                       value={perfil.email}
                       onChange={(e) => setPerfil({...perfil, email: e.target.value})}
-                      disabled={!editando}
+                      disabled={true}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                     />
                   </div>
@@ -252,19 +591,19 @@ const StudentProfile = () => {
                       type="date"
                       value={perfil.fechaNacimiento}
                       onChange={(e) => setPerfil({...perfil, fechaNacimiento: e.target.value})}
-                      disabled={!editando}
+                      disabled={true}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                     />
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      País
+                      Nombre del emprendimiento
                     </label>
                     <input
                       type="text"
-                      value={perfil.pais}
-                      onChange={(e) => setPerfil({...perfil, pais: e.target.value})}
+                      value={perfil.emprendimiento_nombre || ''}
+                      onChange={(e) => setPerfil({...perfil, emprendimiento_nombre: e.target.value})}
                       disabled={!editando}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                     />
@@ -276,9 +615,9 @@ const StudentProfile = () => {
                     </label>
                     <input
                       type="text"
-                      value={perfil.ciudad}
-                      onChange={(e) => setPerfil({...perfil, ciudad: e.target.value})}
-                      disabled={!editando}
+                      value={perfil.municipio || perfil.ciudad || ''}
+                      onChange={(e) => setPerfil({...perfil, municipio: e.target.value})}
+                      disabled={true}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                     />
                   </div>
@@ -299,6 +638,58 @@ const StudentProfile = () => {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquareMore className="h-5 w-5 text-blue-600" />
+                  Foro del nodo
+                </CardTitle>
+                <CardDescription>
+                  {forumNode
+                    ? `Tu municipio participa en el foro ${forumNode.name}.`
+                    : 'Accede al foro asincrónico de tu nodo para conversar con estudiantes e instructores.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="text-sm text-gray-600">
+                  {forumNode
+                    ? `Municipio registrado: ${perfil.municipio || perfil.ciudad || 'No especificado'}`
+                    : 'Si no se identifica el nodo, revisa que tu municipio esté correctamente registrado.'}
+                </div>
+                <Button type="button" onClick={() => navigate('/student/foro')}>
+                  Ir al foro de mi nodo
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Botones en la parte inferior */}
+            <div className="flex justify-center items-center gap-4 mt-8">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/student/dashboard')}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver
+              </Button>
+              <Button
+                variant={editando ? "outline" : "outline"}
+                onClick={() => !editando && setEditando(true)}
+                disabled={editando}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+              {editando && (
+                <Button
+                  variant="default"
+                  onClick={handleGuardarPerfil}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar
+                </Button>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="certificados" className="space-y-6">
@@ -367,91 +758,9 @@ const StudentProfile = () => {
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="estadisticas" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Cursos Completados</CardTitle>
-                  <BookOpen className="h-4 w-4 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{estadisticas.cursosCompletados || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Total de cursos finalizados
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Horas de Estudio</CardTitle>
-                  <Clock className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{estadisticas.horasEstudio || 0}h</div>
-                  <p className="text-xs text-muted-foreground">
-                    Tiempo total invertido
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Promedio Calificación</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-purple-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{estadisticas.promedioCalificacion || 0}%</div>
-                  <p className="text-xs text-muted-foreground">
-                    Calificación promedio
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Días Activo</CardTitle>
-                  <Calendar className="h-4 w-4 text-orange-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{estadisticas.diasActivo || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Días de actividad
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Progreso por Categoría</CardTitle>
-                <CardDescription>
-                  Tu rendimiento en diferentes áreas de conocimiento
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {estadisticas.progresoPorCategoria?.map((categoria, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{categoria.nombre}</span>
-                        <span className="text-sm text-gray-500">{categoria.progreso}%</span>
-                      </div>
-                      <Progress value={categoria.progreso} className="h-2" />
-                    </div>
-                  ))}
-                  {(!estadisticas.progresoPorCategoria || estadisticas.progresoPorCategoria.length === 0) && (
-                    <p className="text-center text-gray-500 py-4">
-                      No hay datos de progreso por categoría disponibles
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
+      <SupportCenterWidget screenLabel="student-profile" />
     </div>
   );
 };

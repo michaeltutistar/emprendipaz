@@ -22,3 +22,8 @@ from .evidencia_funcionamiento import EvidenciaFuncionamiento
 from .criterio_evaluacion import CriterioEvaluacion
 from .evaluacion import Evaluacion
 from .sorteo import Sorteo
+from .intentos_evaluacion import IntentosEvaluacion
+from .asistencia_jornada import AsistenciaJornada
+from .puntos_plan_negocio import PuntosPlanNegocio
+from .respuestas_plan_negocio import RespuestasPlanNegocio
+from .balance_jornada_tutor import BalanceJornadaTutor

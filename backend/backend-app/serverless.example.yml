@@ -1,6 +1,7 @@
-# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+# Copiar a serverless.yml y completar variables de entorno.
+# NUNCA subir serverless.yml con credenciales reales al repositorio.
+
 org: emprendimientonarino
-# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
 app: emprendimiento-narino-api
 service: elearning-api
 
@@ -21,15 +22,23 @@ provider:
   region: us-east-1
   vpc:
     securityGroupIds:
-      - sg-04cd22ea237418b42
+      - sg-XXXXXXXX
     subnetIds:
-      - subnet-00e26742dbdcefc9e
-      - subnet-04779f375475262e5
+      - subnet-XXXXXXXX
+      - subnet-XXXXXXXX
   environment:
-    RDS_ENDPOINT: "elearning-db.cwn4cmackagl.us-east-1.rds.amazonaws.com"
-    S3_BUCKET: "elearning-archivos"
-    DATABASE_URL: "postgresql+psycopg://elearning_user:Elearning2024!@elearning-db.cwn4cmackagl.us-east-1.rds.amazonaws.com:5432/elearning_narino"
+    RDS_ENDPOINT: "${env:RDS_ENDPOINT}"
+    S3_BUCKET: "${env:S3_BUCKET}"
+    DATABASE_URL: "${env:DATABASE_URL}"
     FLASK_ENV: "production"
+    OPENROUTER_API_KEY: "${env:OPENROUTER_API_KEY}"
+    OPENROUTER_MODEL: "${env:OPENROUTER_MODEL, 'openai/gpt-4o-mini'}"
+    SUPPORT_KB_BUCKET: "${env:SUPPORT_KB_BUCKET}"
+    SUPPORT_KB_KEY: "${env:SUPPORT_KB_KEY, 'support/kb.json'}"
+    SUPPORT_WHATSAPP_NUMBER: "${env:SUPPORT_WHATSAPP_NUMBER}"
+    EMAIL_SENDER: "${env:EMAIL_SENDER}"
+    EMAIL_APP_PASSWORD: "${env:EMAIL_APP_PASSWORD}"
+    FRONTEND_URL: "${env:FRONTEND_URL}"
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -39,21 +48,25 @@ provider:
         - s3:PutObjectAcl
         - s3:GetObjectAcl
         - s3:ListBucket
-      Resource: 
-        - "arn:aws:s3:::elearning-archivos"
-        - "arn:aws:s3:::elearning-archivos/*"
+      Resource:
+        - "arn:aws:s3:::TU-BUCKET"
+        - "arn:aws:s3:::TU-BUCKET/*"
 
 functions:
   api:
     handler: src.main.lambda_handler
     description: "API principal de e-learning"
-    timeout: 30
+    timeout: 60
     events:
       - http:
           path: /{proxy+}
           method: any
           cors:
-            origin: 'https://emprendimiento-narino.com'
+            origins:
+              - 'https://emprendimiento-narino.com'
+              - 'https://www.emprendimiento-narino.com'
+              - 'http://localhost:5173'
+              - 'http://localhost:3000'
             headers:
               - Content-Type
               - Authorization
@@ -61,8 +74,6 @@ functions:
               - Accept
               - Origin
             allowCredentials: true
-
-
 
 plugins:
   - serverless-wsgi
@@ -72,4 +83,4 @@ custom:
   wsgi:
     app: src.main.app
   pythonRequirements:
-    dockerizePip: true
+    dockerizePip: false

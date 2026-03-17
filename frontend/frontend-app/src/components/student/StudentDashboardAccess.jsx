@@ -13,7 +13,9 @@ import {
 } from 'lucide-react';
 import StudentDashboard from './StudentDashboard';
 import StudentDashboardBlocked from './StudentDashboardBlocked';
-
+import API_BASE_URL from '@/config/api'
+import { isInstalledPwa } from '@/utils/pwa';
+import { getAuthToken, getPwaCachedUser, setPwaCachedUser } from '@/utils/auth-storage';
 const StudentDashboardAccess = () => {
   const [userStatus, setUserStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,22 +30,46 @@ const StudentDashboardAccess = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/profile', {
+      // PWA instalada + offline: usar estado cacheado (si existe) y permitir acceso
+      if (isInstalledPwa() && typeof navigator !== 'undefined' && navigator.onLine === false) {
+        const cached = getPwaCachedUser();
+        if (cached) {
+          setUserStatus(cached);
+          setLoading(false);
+          return;
+        }
+      }
+
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/profile`, {
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
 
       if (response.ok) {
         const userData = await response.json();
         setUserStatus(userData);
+        setPwaCachedUser(userData);
       } else {
-        setError('Error al verificar el estado del usuario');
+        // Si el backend no responde OK pero tenemos cache PWA, usarlo.
+        const cached = isInstalledPwa() ? getPwaCachedUser() : null;
+        if (cached) {
+          setUserStatus(cached);
+        } else {
+          setError('Error al verificar el estado del usuario');
+        }
       }
     } catch (err) {
       console.error('Error al verificar estado del usuario:', err);
-      setError('Error de conexión al verificar el estado');
+      const cached = isInstalledPwa() ? getPwaCachedUser() : null;
+      if (cached) {
+        setUserStatus(cached);
+      } else {
+        setError('Error de conexión al verificar el estado');
+      }
     } finally {
       setLoading(false);
     }

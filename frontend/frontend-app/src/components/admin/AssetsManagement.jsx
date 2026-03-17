@@ -1,15 +1,26 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Input } from '../ui/input';
+
 import { Label } from '../ui/label';
+
 import { Badge } from '../ui/badge';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
 import { Textarea } from '../ui/textarea';
+
 import { Plus, Edit, Trash2, Package, Users, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+
 import { toast } from 'sonner';
+import API_BASE_URL from '@/config/api'
 
 const AssetsManagement = () => {
     const [activos, setActivos] = useState([]);
@@ -47,9 +58,9 @@ const AssetsManagement = () => {
         setError(null);
         try {
             const [activosRes, usuariosRes, asignacionesRes] = await Promise.all([
-                fetch('/api/activos', { credentials: 'include' }),
-                fetch('/api/admin/users', { credentials: 'include' }),
-                fetch('/api/activos/1/usuarios', { credentials: 'include' }).catch(() => null) // Ejemplo, se puede mejorar
+                fetch(`${API_BASE_URL}/activos`, { credentials: 'include' }),
+                fetch(`${API_BASE_URL}/admin/users`, { credentials: 'include' }),
+                fetch(`${API_BASE_URL}/activos/1/usuarios`, { credentials: 'include' }).catch(() => null) // Ejemplo, se puede mejorar
             ]);
 
             if (!activosRes.ok) throw new Error('Error al cargar activos');
@@ -72,7 +83,7 @@ const AssetsManagement = () => {
     const handleCreateActivo = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch('/api/activos', {
+            const response = await fetch(`${API_BASE_URL}/activos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -96,7 +107,7 @@ const AssetsManagement = () => {
     const handleUpdateActivo = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch(`/api/activos/${editingActivo.id}`, {
+            const response = await fetch(`${API_BASE_URL}/activos/${editingActivo.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -120,7 +131,7 @@ const AssetsManagement = () => {
     const handleAssignActivo = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch(`/api/activos/${assignData.activo_id}/asignar/${assignData.user_id}`, {
+            const response = await fetch(`${API_BASE_URL}/activos/${assignData.activo_id}/asignar/${assignData.user_id}`, {
                 method: 'POST',
                 credentials: 'include'
             });

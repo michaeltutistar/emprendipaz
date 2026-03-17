@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+
 import { Package, CheckCircle, XCircle, Clock, Loader2, AlertCircle } from 'lucide-react';
+
 import { toast } from 'sonner';
+import API_BASE_URL from '@/config/api'
 
 const MyAssets = () => {
     const [activos, setActivos] = useState([]);
@@ -20,7 +26,7 @@ const MyAssets = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/usuarios/me/activos', { credentials: 'include' });
+            const response = await fetch(`${API_BASE_URL}/usuarios/me/activos`, { credentials: 'include' });
             if (!response.ok) {
                 throw new Error('Error al cargar activos');
             }

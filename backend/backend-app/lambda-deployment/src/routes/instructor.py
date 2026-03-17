@@ -1,11 +1,12 @@
 from flask import Blueprint, request, jsonify, current_app
-from flask_cors import cross_origin
+from flask_cors import cross_origin as _cross_origin
 from werkzeug.utils import secure_filename
 import boto3
 import os
 import uuid
 from datetime import datetime, timedelta
-from ..models import db, User, Curso, Modulo, Leccion, Recurso, Inscripcion, LogActividad
+import json
+from ..models import db, User, Curso, Modulo, Leccion, Recurso, Inscripcion, LogActividad, AsistenciaJornada, BalanceJornadaTutor
 from ..services.auth_service import token_required, instructor_required
 import logging
 
@@ -14,6 +15,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 instructor_bp = Blueprint('instructor', __name__)
+
+# Asegurar que cross_origin no rompa credenciales (credentials: include) en el frontend.
+def cross_origin(*args, **kwargs):
+    kwargs.setdefault('supports_credentials', True)
+    kwargs.setdefault('origins', [
+        'https://emprendimiento-narino.com',
+        'https://www.emprendimiento-narino.com',
+        'http://localhost:5173',
+        'http://localhost:3000',
+    ])
+    return _cross_origin(*args, **kwargs)
 
 # Configuración de S3
 def get_s3_client():
@@ -63,63 +75,40 @@ def upload_to_s3(file, folder='content'):
         }
 
 @instructor_bp.route('/dashboard', methods=['GET'])
-@cross_origin()
-def get_instructor_dashboard():
+@token_required
+@instructor_required
+def get_instructor_dashboard(current_user):
     """Obtener datos del dashboard del instructor"""
     try:
-        # Verificar sesión
-        from flask import session
-        user_id = session.get('user_id')
-        if not user_id:
-            return jsonify({
-                'success': False,
-                'error': 'No hay sesión activa'
-            }), 401
+        user = current_user
         
-        # Verificar que el usuario es instructor
-        user = User.query.get(user_id)
-        if not user or user.rol != 'instructor':
-            return jsonify({
-                'success': False,
-                'error': 'Acceso denegado. Se requiere rol de instructor'
-            }), 403
-        
-        # Obtener cursos del instructor
-        cursos = Curso.query.filter_by(instructor_id=user.id).all()
-        
-        # Calcular estadísticas
-        total_cursos = len(cursos)
-        total_estudiantes = 0
+        # Nota: En esta plataforma no dependemos del esquema "Cursos" (y en Lambda el modelo Curso no tiene
+        # instructor_id/estado/fecha_creacion). Para evitar 500 devolvemos estadísticas seguras.
+        total_cursos = 0
         promedio_progreso = 0
-        
         cursos_data = []
-        for curso in cursos:
-            # Contar estudiantes inscritos
-            inscripciones = Inscripcion.query.filter_by(curso_id=curso.id).all()
-            total_estudiantes_curso = len(inscripciones)
-            total_estudiantes += total_estudiantes_curso
-            
-            # Progreso promedio (no disponible en modelo actual)
-            progreso_curso = 0
-            
-            promedio_progreso += progreso_curso
-            
-            cursos_data.append({
-                'id': curso.id,
-                'titulo': curso.titulo,
-                'descripcion': curso.descripcion,
-                'totalEstudiantes': total_estudiantes_curso,
-                'promedioProgreso': progreso_curso,
-                'estado': curso.estado,
-                'fechaCreacion': curso.fecha_creacion.isoformat(),
-                'ultimaActividad': curso.fecha_actualizacion.isoformat()
-            })
+
+        # Conteo aproximado de estudiantes activos: usuarios únicos con actividad de completado
+        try:
+            total_estudiantes = db.session.query(LogActividad.usuario_id).filter(
+                LogActividad.accion.like('Completó:%')
+            ).distinct().count()
+        except Exception:
+            total_estudiantes = 0
         
-        if total_cursos > 0:
-            promedio_progreso = round(promedio_progreso / total_cursos, 1)
-        
-        # Obtener actividad reciente (temporalmente vacío hasta implementar LogActividad)
-        actividad_data = []
+        # Actividad reciente (completados)
+        try:
+            actividades = LogActividad.query.filter(
+                LogActividad.accion.like('Completó:%')
+            ).order_by(LogActividad.fecha.desc()).limit(10).all()
+            actividad_data = [a.to_dict() if hasattr(a, 'to_dict') else {
+                'id': a.id,
+                'accion': a.accion,
+                'detalles': a.detalles,
+                'fecha': a.fecha.isoformat() if a.fecha else None
+            } for a in actividades]
+        except Exception:
+            actividad_data = []
         
         return jsonify({
             'success': True,
@@ -133,11 +122,584 @@ def get_instructor_dashboard():
         }), 200
         
     except Exception as e:
-        logger.error(f"Error getting instructor dashboard: {str(e)}")
+        logger.error(f"Error getting instructor dashboard: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': 'Error al obtener datos del dashboard'
         }), 500
+
+
+@instructor_bp.route('/actividad-reciente', methods=['GET'])
+@token_required
+@instructor_required
+def get_actividad_reciente(current_user):
+    """Obtener actividad reciente de los estudiantes (usado por dashboard instructor)."""
+    try:
+        actividades = LogActividad.query.filter(
+            LogActividad.accion.like('Completó:%')
+        ).order_by(LogActividad.fecha.desc()).limit(20).all()
+
+        actividades_data = [a.to_dict() if hasattr(a, 'to_dict') else {
+            'id': a.id,
+            'accion': a.accion,
+            'detalles': a.detalles,
+            'fecha': a.fecha.isoformat() if a.fecha else None
+        } for a in actividades]
+
+        return jsonify({'success': True, 'actividades': actividades_data}), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo actividad reciente: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Error al obtener actividad reciente'}), 500
+
+
+@instructor_bp.route('/progreso-estudiantes', methods=['GET'])
+@token_required
+@instructor_required
+def get_progreso_estudiantes(current_user):
+    """Obtener progreso de estudiantes por módulo (misma lógica que backend/src)."""
+    try:
+        from collections import defaultdict
+        import re
+        from ..models import IntentosEvaluacion, PuntosPlanNegocio
+        import os
+        import csv
+        from sqlalchemy import func
+
+        # Precargar metadata de usuarios para evitar N+1 (User.query.get en loops).
+        user_rows = db.session.query(User.id, User.nombre, User.apellido, User.rol).all()
+        user_meta = {uid: {'nombre': n or '', 'apellido': a or '', 'rol': r or ''} for uid, n, a, r in user_rows}
+        def _is_student(uid: int) -> bool:
+            m = user_meta.get(uid)
+            return bool(m) and m.get('rol') in ('estudiante', 'usuario')
+        def _full_name(uid: int) -> str:
+            m = user_meta.get(uid) or {}
+            return f"{(m.get('nombre') or '').strip()} {(m.get('apellido') or '').strip()}".strip()
+
+        intentos_evaluacion = db.session.query(
+            IntentosEvaluacion.usuario_id,
+            IntentosEvaluacion.modulo_nombre,
+            IntentosEvaluacion.paso_nombre
+        ).all()
+        # Mapa nombre_completo -> user.id (evita re-buscar por nombre y asegura ID estable)
+        ids_por_nombre_estudiante = {}
+        
+        # Obtener puntos del plan de negocio por estudiante y módulo
+        # Normalizar nombres largos (BD/frontend) al canónico para que el informe muestre puntos correctos
+        mapeo_modulo_plan_negocio = {
+            'Finanzas y Gestión Empresarial': 'Finanzas',
+            'Atención al Cliente y Resolución de Conflictos': 'Atención al Cliente',
+        }
+        puntos_por_estudiante_modulo = defaultdict(lambda: defaultdict(int))
+        fechas_plan_negocio = defaultdict(lambda: defaultdict(lambda: None))
+        try:
+            # Asegurar que la tabla existe
+            asegurar_tabla_puntos_plan_negocio()
+            
+            # Agrupar en SQL por (usuario_id, modulo_nombre) para reducir volumen y evitar N+1
+            rows = db.session.query(
+                PuntosPlanNegocio.usuario_id,
+                PuntosPlanNegocio.modulo_nombre,
+                func.coalesce(func.sum(PuntosPlanNegocio.puntos), 0).label('puntos_sum'),
+                func.max(PuntosPlanNegocio.fecha_registro).label('fecha_max')
+            ).group_by(
+                PuntosPlanNegocio.usuario_id, PuntosPlanNegocio.modulo_nombre
+            ).all()
+
+            for uid, mod_raw, puntos_sum, fecha_max in rows:
+                if not uid or not _is_student(int(uid)):
+                    continue
+                uid = int(uid)
+                nombre_estudiante = _full_name(uid)
+                ids_por_nombre_estudiante[nombre_estudiante] = uid
+                mod_nombre = (mod_raw or '').strip()
+                mod_canonico = mapeo_modulo_plan_negocio.get(mod_nombre, mod_nombre)
+                puntos_por_estudiante_modulo[nombre_estudiante][mod_canonico] += int(puntos_sum or 0)
+                if fecha_max:
+                    fecha_actual = fechas_plan_negocio[nombre_estudiante][mod_canonico]
+                    if fecha_actual is None or fecha_max > fecha_actual:
+                        fechas_plan_negocio[nombre_estudiante][mod_canonico] = fecha_max
+        except Exception as e:
+            # Si la tabla no existe o hay algún error, simplemente continuar sin puntos
+            logger.warning(f"Error obteniendo puntos del plan de negocio: {str(e)}")
+            pass
+
+        intentos_por_estudiante = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        modulos_por_estudiante = defaultdict(set)
+
+        for uid, modulo_nombre, paso_nombre in intentos_evaluacion:
+            if not uid or not _is_student(int(uid)):
+                continue
+            uid = int(uid)
+            nombre_estudiante = _full_name(uid)
+            ids_por_nombre_estudiante[nombre_estudiante] = uid
+            modulo_normalizado = (modulo_nombre or '').strip()
+            paso_normalizado = (paso_nombre or '').strip()
+            match = re.search(r'Unidad\s+(\d+)', paso_normalizado, re.IGNORECASE)
+            if match:
+                unidad_key = f"Unidad {match.group(1)}"
+                intentos_por_estudiante[nombre_estudiante][modulo_normalizado][unidad_key] += 1
+                modulos_por_estudiante[nombre_estudiante].add(modulo_normalizado)
+
+        actividades = db.session.query(
+            LogActividad.usuario_id,
+            LogActividad.accion,
+            LogActividad.detalles,
+            LogActividad.fecha
+        ).filter(
+            LogActividad.accion.like('Completó:%')
+        ).all()
+
+        progreso_por_estudiante = defaultdict(lambda: defaultdict(list))
+        modulos_posibles = [
+            'Marketing Digital', 'Marketing y Comercialización', 'Proyecto de vida',
+            'Trabajo en Equipo', 'Descubrimiento de Oportunidades', 'Modelo de Negocios',
+            'Atención al Cliente', 'Finanzas', 'Liderazgo', 'Plan de Inversión',
+            # Variantes largas del frontend
+            'Finanzas y Gestión Empresarial', 'Atención al Cliente y Resolución de Conflictos'
+        ]
+        
+        # Mapeo de normalización: convertir nombres largos a nombres estándar
+        mapeo_normalizacion = {
+            'Finanzas y Gestión Empresarial': 'Finanzas',
+            'Atención al Cliente y Resolución de Conflictos': 'Atención al Cliente'
+        }
+
+        for uid, accion, detalles, fecha in actividades:
+            if not uid or not _is_student(int(uid)):
+                continue
+            uid = int(uid)
+            nombre_estudiante = _full_name(uid)
+            ids_por_nombre_estudiante[nombre_estudiante] = uid
+            paso = (accion or '').replace('Completó: ', '')
+            detalles = detalles or ''
+            modulo = None
+            texto_buscar = (detalles + ' ' + paso).lower()
+            modulo_encontrado = None
+            for mod in modulos_posibles:
+                if mod.lower() in texto_buscar:
+                    modulo_encontrado = mod
+                    break
+            if not modulo_encontrado:
+                continue
+            
+            # Normalizar el nombre del módulo encontrado
+            modulo = mapeo_normalizacion.get(modulo_encontrado, modulo_encontrado)
+            modulos_por_estudiante[nombre_estudiante].add(modulo)
+            if not any(p['paso'] == paso for p in progreso_por_estudiante[nombre_estudiante][modulo]):
+                progreso_por_estudiante[nombre_estudiante][modulo].append({
+                    'paso': paso,
+                    'fecha': actividad.fecha.isoformat() if actividad.fecha else None,
+                    'detalles': detalles
+                })
+
+        # Calcular progreso agrupado por estudiante (formato esperado por el frontend: progreso_estudiantes)
+        resultado_por_estudiante = defaultdict(lambda: {
+            'estudiante': '',
+            'modulos': [],
+            'porcentaje_total': 0,
+            'total_modulos': 0
+        })
+
+        todos_estudiantes = set(list(modulos_por_estudiante.keys()) + list(progreso_por_estudiante.keys()))
+
+        for estudiante in todos_estudiantes:
+            resultado_por_estudiante[estudiante]['estudiante'] = estudiante
+            # Incluir ID del estudiante (necesario para agrupación por municipio en frontend)
+            resultado_por_estudiante[estudiante]['estudiante_id'] = ids_por_nombre_estudiante.get(estudiante)
+            modulos_estudiante = modulos_por_estudiante.get(estudiante, set())
+            modulos_estudiante.update(progreso_por_estudiante.get(estudiante, {}).keys())
+
+            for modulo in modulos_estudiante:
+                pasos_completados = progreso_por_estudiante.get(estudiante, {}).get(modulo, [])
+
+                # Agrupar pasos por unidad
+                unidades_encontradas = set()
+                pasos_por_unidad = defaultdict(list)
+                otros_pasos = []
+
+                for paso_obj in pasos_completados:
+                    paso = paso_obj['paso']
+                    match = re.search(r'Unidad\s+(\d+)', paso, re.IGNORECASE)
+                    if match:
+                        unidad_key = f"Unidad {match.group(1)}"
+                        unidades_encontradas.add(unidad_key)
+                        pasos_por_unidad[unidad_key].append(paso_obj)
+                    else:
+                        otros_pasos.append(paso_obj)
+
+                progreso_pasos = []
+
+                # Pasos sin unidad (excluir "Plan de Negocio" ya que se agrega después con puntos)
+                for paso_obj in otros_pasos:
+                    # Filtrar "Plan de Negocio" para evitar duplicados (comparación flexible)
+                    paso_nombre = paso_obj['paso'].strip().lower()
+                    if 'plan' in paso_nombre and 'negocio' in paso_nombre:
+                        continue
+                    progreso_pasos.append({
+                        'nombre': paso_obj['paso'],
+                        'completado': True,
+                        'porcentaje': 100.0,
+                        'subpasos_completados': 1,
+                        'total_subpasos': 1,
+                        'fecha': paso_obj.get('fecha'),
+                        'intentos': 0
+                    })
+
+                # Unidades con intentos o con pasos completados
+                unidades_con_intentos = set(intentos_por_estudiante.get(estudiante, {}).get(modulo, {}).keys())
+                todas_las_unidades = unidades_encontradas.union(unidades_con_intentos)
+
+                def unidad_sort_key(x):
+                    m = re.search(r'\d+', x)
+                    return int(m.group()) if m else 0
+
+                for unidad_key in sorted(todas_las_unidades, key=unidad_sort_key):
+                    pasos_unidad = pasos_por_unidad.get(unidad_key, [])
+                    total_pasos_unidad = 4 if modulo == 'Proyecto de vida' else 3
+                    completados_count = len(pasos_unidad)
+                    porcentaje_paso = min(100.0, (completados_count / total_pasos_unidad) * 100) if total_pasos_unidad > 0 else 0
+                    completado = completados_count >= total_pasos_unidad
+
+                    # Fecha más reciente del paso
+                    fecha_completado = None
+                    if pasos_unidad:
+                        fechas = [p.get('fecha') for p in pasos_unidad if p.get('fecha')]
+                        if fechas:
+                            fecha_completado = max(fechas)
+
+                    intentos = intentos_por_estudiante.get(estudiante, {}).get(modulo, {}).get(unidad_key, 0)
+
+                    progreso_pasos.append({
+                        'nombre': unidad_key,
+                        'completado': completado,
+                        'porcentaje': round(porcentaje_paso, 1),
+                        'subpasos_completados': completados_count,
+                        'total_subpasos': total_pasos_unidad,
+                        'fecha': fecha_completado,
+                        'intentos': intentos
+                    })
+
+                # Agregar tarjeta "Plan de Negocio" si el módulo tiene plan de negocio con puntos
+                if modulo in ['Descubrimiento de Oportunidades', 'Modelo de Negocios', 'Marketing y Comercialización', 'Marketing Digital', 'Atención al Cliente', 'Trabajo en Equipo', 'Finanzas', 'Liderazgo']:
+                    puntos_plan = puntos_por_estudiante_modulo.get(estudiante, {}).get(modulo, 0)
+                    fecha_plan = fechas_plan_negocio.get(estudiante, {}).get(modulo)
+                    progreso_pasos.append({
+                        'nombre': 'Plan de Negocio',
+                        'completado': puntos_plan > 0,
+                        'porcentaje': 100.0 if puntos_plan > 0 else 0,
+                        'subpasos_completados': 1 if puntos_plan > 0 else 0,
+                        'total_subpasos': 1,
+                        'fecha': fecha_plan.isoformat() if fecha_plan else None,
+                        'intentos': 0,
+                        'puntos_plan_negocio': puntos_plan
+                    })
+
+                # Calcular porcentaje del módulo basado en unidades completadas
+                unidades_en_progreso = [p for p in progreso_pasos if re.search(r'Unidad\s+\d+', p['nombre'], re.IGNORECASE)]
+                total_unidades = len(unidades_en_progreso)
+                unidades_completadas = len([p for p in unidades_en_progreso if p['completado']])
+
+                porcentaje_modulo = (unidades_completadas / total_unidades * 100) if total_unidades > 0 else 0
+
+                # Normalizar nombre del módulo antes de obtener el orden
+                mapeo_normalizacion = {
+                    'Finanzas y Gestión Empresarial': 'Finanzas',
+                    'Atención al Cliente y Resolución de Conflictos': 'Atención al Cliente'
+                }
+                modulo_normalizado = mapeo_normalizacion.get(modulo, modulo)
+                
+                # Obtener el orden del módulo usando mapeo por defecto
+                # (más seguro que consultar BD, evita errores 502)
+                # Orden según las capturas de pantalla del frontend
+                mapeo_modulos = {
+                    'Proyecto de vida': 1,
+                    'Descubrimiento de Oportunidades': 2,
+                    'Modelo de Negocios': 3,
+                    'Marketing y Comercialización': 4,
+                    'Marketing Digital': 5,
+                    'Atención al Cliente': 6,
+                    'Trabajo en Equipo': 7,
+                    'Finanzas': 8,
+                    'Plan de Inversión': 9,
+                    'Liderazgo': 10
+                }
+                modulo_orden = mapeo_modulos.get(modulo_normalizado, 999)  # 999 para módulos no reconocidos
+                
+                # Usar el nombre normalizado para el registro
+                modulo = modulo_normalizado
+
+                resultado_por_estudiante[estudiante]['modulos'].append({
+                    'modulo': modulo,
+                    'modulo_orden': modulo_orden,
+                    'progreso_pasos': progreso_pasos,
+                    'porcentaje': round(porcentaje_modulo, 1),
+                    'pasos_completados': unidades_completadas,
+                    'total_pasos': total_unidades
+                })
+
+            # Progreso total del estudiante: 10% por módulo completado (100%), excluye Plan de Negocios
+            modulos_est = resultado_por_estudiante[estudiante]['modulos']
+            modulos_para_progreso = [m for m in modulos_est if m['modulo'] != 'Plan de Negocios']
+            total_modulos_para_progreso = 10
+
+            if modulos_para_progreso:
+                modulos_completados = len([m for m in modulos_para_progreso if m['porcentaje'] >= 100])
+                porcentaje_total_est = (modulos_completados / total_modulos_para_progreso) * 100
+                resultado_por_estudiante[estudiante]['porcentaje_total'] = round(porcentaje_total_est, 1)
+                resultado_por_estudiante[estudiante]['total_modulos'] = len(modulos_est)
+            else:
+                resultado_por_estudiante[estudiante]['porcentaje_total'] = 0
+                resultado_por_estudiante[estudiante]['total_modulos'] = len(modulos_est)
+
+        # Convertir a lista y ordenar módulos por orden dentro de cada estudiante
+        resultado = list(resultado_por_estudiante.values())
+        
+        # Ordenar los módulos de cada estudiante por su número de orden
+        try:
+            for estudiante_data in resultado:
+                if 'modulos' in estudiante_data and isinstance(estudiante_data['modulos'], list):
+                    estudiante_data['modulos'].sort(key=lambda m: m.get('modulo_orden', 999) if isinstance(m, dict) else 999)
+        except Exception as e:
+            logger.warning(f"Error al ordenar módulos: {str(e)}")
+            # Continuar sin ordenar si hay error
+        
+        # --- Expandir a roster completo (728 estudiantes del CSV), incluso si no tienen actividad ---
+        # Buscar por NOMBRE COMPLETO (Nombre + Apellido) porque el ID del CSV no coincide con la BD
+        import unicodedata
+        def normalizar(s):
+            """Normalizar texto: minúsculas, sin tildes, sin espacios extra"""
+            if not s:
+                return ''
+            s = ' '.join(s.lower().split())  # espacios múltiples -> uno solo
+            # Quitar tildes
+            s = unicodedata.normalize('NFD', s)
+            s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+            return s
+        
+        municipios_por_nombre = {}  # clave = nombre_normalizado
+        nombres_csv = set()
+        try:
+            csv_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'municipios.csv')
+            csv_path = os.path.abspath(csv_path)
+            with open(csv_path, mode='r', encoding='latin-1', newline='') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for row in reader:
+                    nombre = (row.get('Nombre') or row.get('Nombre ') or row.get('NOMBRE') or '').strip()
+                    apellido = (row.get('Apellido') or row.get('APELLIDO') or '').strip()
+                    municipio = (row.get('Municipio') or row.get('MUNICIPIO') or '').strip()
+                    if not nombre:
+                        continue
+                    nombre_completo = f"{nombre} {apellido}".strip()
+                    nombre_norm = normalizar(nombre_completo)
+                    nombres_csv.add(nombre_norm)
+                    if municipio:
+                        municipios_por_nombre[nombre_norm] = municipio
+        except Exception as e:
+            logger.error(f"No se pudo leer municipios.csv: {str(e)}", exc_info=True)
+        
+        print(f"[Roster] CSV cargado: {len(nombres_csv)} nombres únicos, {len(municipios_por_nombre)} con municipio")
+
+        # Indexar progreso ya calculado por estudiante_id
+        progreso_por_id = {}
+        for item in resultado:
+            sid = item.get('estudiante_id')
+            if sid:
+                progreso_por_id[int(sid)] = item
+
+        # Consultar TODOS los usuarios de la BD y matchear por nombre con el CSV
+        # Estrategia: para cada nombre del CSV, buscar el PRIMER usuario de BD que contenga ese nombre
+        roster = []
+        ids_usados = set()  # Evitar duplicados por ID de usuario
+        nombres_usados = set()  # Evitar duplicados por nombre normalizado
+        try:
+            usuarios = User.query.filter(User.rol.notin_(['admin', 'instructor'])).all()
+            
+            # Crear índice de usuarios por nombre normalizado
+            # Ordenar cada lista por preferencia: nombres con más minúsculas primero
+            usuarios_por_nombre = {}
+            for u in usuarios:
+                nombre_original = f"{u.nombre} {u.apellido}".strip()
+                nombre_norm = normalizar(nombre_original)
+                if nombre_norm not in usuarios_por_nombre:
+                    usuarios_por_nombre[nombre_norm] = []
+                usuarios_por_nombre[nombre_norm].append(u)
+            
+            # Ordenar cada lista: preferir usuarios con nombres más en minúsculas
+            for nombre_norm in usuarios_por_nombre:
+                usuarios_por_nombre[nombre_norm].sort(
+                    key=lambda u: sum(1 for c in f"{u.nombre} {u.apellido}" if c.isupper()),
+                    reverse=False  # Menos mayúsculas primero
+                )
+            
+            matched = 0
+            # Para cada nombre del CSV, buscar match en BD
+            for nombre_csv in nombres_csv:
+                usuario_match = None
+                municipio = municipios_por_nombre.get(nombre_csv)
+                
+                # Primero: match exacto
+                if nombre_csv in usuarios_por_nombre:
+                    for u in usuarios_por_nombre[nombre_csv]:
+                        if u.id not in ids_usados:
+                            usuario_match = u
+                            break
+                
+                # Segundo: match por todas las palabras (CSV subset de BD O BD subset de CSV)
+                if not usuario_match:
+                    palabras_csv = set(nombre_csv.split())
+                    for nombre_bd, lista_usuarios in usuarios_por_nombre.items():
+                        palabras_bd = set(nombre_bd.split())
+                        # CSV es subconjunto de BD (caso normal)
+                        # O BD es subconjunto de CSV (BD tiene menos info, ej: "nory yohana" vs "nory yohana araujo montano")
+                        if palabras_csv.issubset(palabras_bd) or (len(palabras_bd) >= 2 and palabras_bd.issubset(palabras_csv)):
+                            for u in lista_usuarios:
+                                if u.id not in ids_usados:
+                                    usuario_match = u
+                                    break
+                        if usuario_match:
+                            break
+                
+                
+                
+                if usuario_match and usuario_match.id not in ids_usados:
+                    # Verificar que este nombre normalizado no esté ya en el roster
+                    nombre_norm_bd = normalizar(f"{usuario_match.nombre} {usuario_match.apellido}")
+                    if nombre_norm_bd in nombres_usados:
+                        continue  # Saltar si ya hay alguien con nombre similar
+                    
+                    ids_usados.add(usuario_match.id)
+                    nombres_usados.add(nombre_norm_bd)
+                    matched += 1
+                    nombre_completo = f"{usuario_match.nombre} {usuario_match.apellido}".strip()
+                    existing = progreso_por_id.get(usuario_match.id)
+                    if existing:
+                        existing['estudiante'] = nombre_completo
+                        existing['estudiante_id'] = usuario_match.id
+                        existing['municipio'] = municipio
+                        roster.append(existing)
+                    else:
+                        roster.append({
+                            'estudiante': nombre_completo,
+                            'estudiante_id': usuario_match.id,
+                            'municipio': municipio,
+                            'modulos': [],
+                            'porcentaje_total': 0,
+                            'total_modulos': 0
+                        })
+            
+            print(f"[Roster] Estudiantes en BD: {len(usuarios)}, matcheados con CSV: {matched}")
+        except Exception as e:
+            logger.error(f"Error consultando roster de estudiantes: {str(e)}", exc_info=True)
+            roster = resultado
+        
+        # Si no hay roster del CSV, usar resultado original (estudiantes con actividad)
+        if not roster:
+            roster = resultado
+        
+        # IMPORTANT: No hacer escrituras/commits dentro de este endpoint (puede causar latencia y timeouts).
+        # Las correcciones manuales de nombres deben hacerse por el panel admin o scripts de mantenimiento.
+        
+        # Agregar usuarios específicos que no matchean por nombre
+        ids_forzados = {
+            462: 'Ipiales',      # KEREN YULIETH PALLÉS LÓPEZ
+            3724: 'San Lorenzo', # María Edilma Hidalgo Imbajoa
+            3906: 'Pasto',       # Sandra Lorena Viteri Jamondino
+            2407: 'Barbacoas',   # CESAR ALEXANDER GONZALEZ QUIÑONES
+            2677: 'Barbacoas',   # MAIRA ALEJANDRA SEGURA QUIÑONES
+            84: 'Barbacoas',     # Jader Ivan Lemos Hinestroza
+            2706: 'El Tambo',    # MONICA YAQUELINE ORTEGA CHAVEZ
+            2584: 'La Cruz',     # Katherin Elizabeth Solarte Muñoz
+            4765: 'San Andrés de Tumaco',  # BLANCA MERCEDES PRADOS CORTES
+            1608: 'San Andrés de Tumaco'   # Piter Daniel Cundumi Obando
+        }
+        for uid, municipio in ids_forzados.items():
+            if uid not in ids_usados:
+                u = User.query.get(uid)
+                if u:
+                    nombre = f"{u.nombre} {u.apellido}".strip()
+                    # Verificar si ya existe progreso calculado para este usuario
+                    existing = progreso_por_id.get(uid)
+                    if existing:
+                        existing['estudiante'] = nombre
+                        existing['estudiante_id'] = u.id
+                        existing['municipio'] = municipio
+                        roster.append(existing)
+                    else:
+                        roster.append({
+                            'estudiante': nombre,
+                            'estudiante_id': u.id,
+                            'municipio': municipio,
+                            'modulos': [],
+                            'porcentaje_total': 0,
+                            'total_modulos': 0
+                        })
+                    ids_usados.add(uid)
+
+        # PASO 1: Actualizar entradas del roster que tienen módulos vacíos pero SÍ tienen progreso real
+        # Esto corrige estudiantes matched por CSV o forzados que no recibieron su progreso
+        actualizados = 0
+        for entry in roster:
+            entry_id = entry.get('estudiante_id')
+            if entry_id is None:
+                continue
+            try:
+                entry_id_int = int(entry_id)
+            except Exception:
+                continue
+            
+            # Si la entrada tiene módulos vacíos, buscar si hay progreso real
+            if not entry.get('modulos') or len(entry.get('modulos', [])) == 0:
+                progreso_real = progreso_por_id.get(entry_id_int)
+                if progreso_real and progreso_real.get('modulos'):
+                    entry['modulos'] = progreso_real['modulos']
+                    entry['porcentaje_total'] = progreso_real.get('porcentaje_total', 0)
+                    entry['total_modulos'] = progreso_real.get('total_modulos', 0)
+                    actualizados += 1
+        
+        if actualizados:
+            print(f"[Roster] Entradas actualizadas con progreso real: {actualizados}")
+        
+        # PASO 2: Incluir también estudiantes "fuera del CSV" (p.ej. usuarios de prueba) que tienen progreso real.
+        # Estos antes aparecían como "Sin municipio" y se perdían al devolver solo el roster del CSV.
+        try:
+            extras_agregados = 0
+            for item in resultado:
+                sid = item.get('estudiante_id')
+                if sid is None:
+                    continue
+                try:
+                    sid_int = int(sid)
+                except Exception:
+                    continue
+
+                if sid_int in ids_usados:
+                    continue
+
+                nombre_item = (item.get('estudiante') or '').strip()
+                nombre_norm_item = normalizar(nombre_item) if nombre_item else ''
+                if nombre_norm_item and nombre_norm_item in nombres_usados:
+                    continue
+
+                # Forzar el grupo "Sin municipio" para que sea visible en el dashboard del instructor
+                item['municipio'] = 'Sin municipio'
+
+                roster.append(item)
+                ids_usados.add(sid_int)
+                if nombre_norm_item:
+                    nombres_usados.add(nombre_norm_item)
+                extras_agregados += 1
+
+            if extras_agregados:
+                print(f"[Roster] Extras agregados (no CSV): {extras_agregados}")
+        except Exception as e:
+            logger.warning(f"Error agregando extras fuera del CSV: {str(e)}")
+        
+        print(f"[Roster] Devolviendo {len(roster)} estudiantes (de {len(nombres_csv)} en CSV)")
+
+        return jsonify({'success': True, 'progreso_estudiantes': roster}), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo progreso estudiantes: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Error al obtener progreso de estudiantes'}), 500
 
 @instructor_bp.route('/cursos', methods=['GET'])
 @cross_origin()
@@ -1592,4 +2154,470 @@ def delete_course(curso_id):
         return jsonify({
             'success': False,
             'error': 'Error al eliminar curso'
-        }), 500 
+        }), 500
+
+
+def asegurar_tabla_asistencia_jornada():
+    """Crear la tabla asistencia_jornada si no existe"""
+    from sqlalchemy import text, inspect
+    
+    try:
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        
+        if 'asistencia_jornada' not in existing_tables:
+            logger.info("Creando tabla asistencia_jornada...")
+            
+            # PostgreSQL: usar IF NOT EXISTS por resiliencia (evita depender de inspector)
+            create_table_sql = text("""
+                CREATE TABLE IF NOT EXISTS asistencia_jornada (
+                    id SERIAL PRIMARY KEY,
+                    estudiante_id INTEGER NOT NULL,
+                    jornada_numero INTEGER NOT NULL CHECK (jornada_numero >= 1 AND jornada_numero <= 10),
+                    marcada BOOLEAN NOT NULL DEFAULT FALSE,
+                    fecha_marcado TIMESTAMP NULL,
+                    instructor_id INTEGER NULL,
+                    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_estudiante FOREIGN KEY (estudiante_id) REFERENCES "user"(id) ON DELETE CASCADE,
+                    CONSTRAINT fk_instructor FOREIGN KEY (instructor_id) REFERENCES "user"(id) ON DELETE SET NULL,
+                    CONSTRAINT _estudiante_jornada_uc UNIQUE (estudiante_id, jornada_numero)
+                )
+            """)
+            
+            db.session.execute(create_table_sql)
+            
+            # Crear índices
+            index1_sql = text("CREATE INDEX IF NOT EXISTS idx_asistencia_jornada_estudiante ON asistencia_jornada(estudiante_id)")
+            index2_sql = text("CREATE INDEX IF NOT EXISTS idx_asistencia_jornada_jornada ON asistencia_jornada(jornada_numero)")
+            
+            db.session.execute(index1_sql)
+            db.session.execute(index2_sql)
+            
+            db.session.commit()
+            logger.info("Tabla asistencia_jornada creada exitosamente")
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creando tabla asistencia_jornada: {str(e)}", exc_info=True)
+        # No lanzar excepción, solo loguear el error
+
+def asegurar_tabla_puntos_plan_negocio():
+    """Asegurar que la tabla puntos_plan_negocio existe, crearla si no existe"""
+    try:
+        from sqlalchemy import text
+        from sqlalchemy import inspect
+        
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        
+        if 'puntos_plan_negocio' not in existing_tables:
+            logger.info("Creando tabla puntos_plan_negocio...")
+            
+            create_table_sql = text("""
+                CREATE TABLE puntos_plan_negocio (
+                    id SERIAL PRIMARY KEY,
+                    usuario_id INTEGER NOT NULL,
+                    modulo_nombre VARCHAR(200) NOT NULL,
+                    etapa VARCHAR(50) NOT NULL,
+                    estrategia VARCHAR(200) NOT NULL,
+                    puntos INTEGER NOT NULL,
+                    fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_usuario FOREIGN KEY (usuario_id) REFERENCES "user"(id) ON DELETE CASCADE
+                )
+            """)
+            
+            db.session.execute(create_table_sql)
+            
+            # Crear índices
+            index1_sql = text("CREATE INDEX idx_puntos_plan_negocio_usuario ON puntos_plan_negocio(usuario_id)")
+            index2_sql = text("CREATE INDEX idx_puntos_plan_negocio_modulo ON puntos_plan_negocio(modulo_nombre)")
+            
+            db.session.execute(index1_sql)
+            db.session.execute(index2_sql)
+            
+            db.session.commit()
+            logger.info("Tabla puntos_plan_negocio creada exitosamente")
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creando tabla puntos_plan_negocio: {str(e)}", exc_info=True)
+        # No lanzar excepción, solo loguear el error
+
+
+def asegurar_tabla_balance_jornada_tutor():
+    """Asegurar que la tabla balance_jornada_tutor existe, crearla si no existe."""
+    from sqlalchemy import text, inspect
+
+    try:
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+
+        if 'balance_jornada_tutor' not in existing_tables:
+            logger.info("Creando tabla balance_jornada_tutor...")
+
+            create_table_sql = text("""
+                CREATE TABLE IF NOT EXISTS balance_jornada_tutor (
+                    id SERIAL PRIMARY KEY,
+                    instructor_id INTEGER NOT NULL,
+                    fecha DATE NOT NULL,
+                    nodo_territorial VARCHAR(120) NOT NULL,
+                    municipios TEXT NULL,
+                    modulos_desarrollados TEXT NULL,
+                    nombre_tutor VARCHAR(200) NULL,
+                    participantes_programados INTEGER NULL,
+                    participantes_asistentes INTEGER NULL,
+                    actividades TEXT NULL,
+                    metodologia TEXT NULL,
+                    mayores_dificultades TEXT NULL,
+                    novedades_operativas TEXT NULL,
+                    recomendaciones_mejora TEXT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_balance_instructor FOREIGN KEY (instructor_id) REFERENCES "user"(id) ON DELETE CASCADE,
+                    CONSTRAINT uq_balance_instructor_fecha_nodo UNIQUE (instructor_id, fecha, nodo_territorial)
+                )
+            """)
+
+            db.session.execute(create_table_sql)
+            db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_balance_jornada_instructor ON balance_jornada_tutor(instructor_id)"))
+            db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_balance_jornada_fecha ON balance_jornada_tutor(fecha)"))
+            db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_balance_jornada_nodo ON balance_jornada_tutor(nodo_territorial)"))
+            db.session.commit()
+            logger.info("Tabla balance_jornada_tutor creada exitosamente")
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creando tabla balance_jornada_tutor: {str(e)}", exc_info=True)
+
+
+@instructor_bp.route('/balance-jornada', methods=['GET'])
+@token_required
+@instructor_required
+def get_balance_jornada_tutor(current_user):
+    """Obtener balance de jornada (por nodo y fecha) del instructor actual."""
+    try:
+        asegurar_tabla_balance_jornada_tutor()
+
+        nodo = (request.args.get('nodo') or '').strip()
+        fecha_str = (request.args.get('fecha') or '').strip()
+
+        if not nodo or not fecha_str:
+            return jsonify({'success': False, 'error': 'Parámetros requeridos: nodo, fecha'}), 400
+
+        try:
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        except Exception:
+            return jsonify({'success': False, 'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
+
+        item = BalanceJornadaTutor.query.filter_by(
+            instructor_id=current_user.id,
+            nodo_territorial=nodo,
+            fecha=fecha
+        ).first()
+
+        return jsonify({
+            'success': True,
+            'data': item.to_dict() if item else None
+        }), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo balance de jornada: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+
+@instructor_bp.route('/balance-jornada', methods=['POST'])
+@token_required
+@instructor_required
+def upsert_balance_jornada_tutor(current_user):
+    """Crear/actualizar balance de jornada (por nodo y fecha) del instructor actual."""
+    try:
+        asegurar_tabla_balance_jornada_tutor()
+
+        def _to_int(value):
+            try:
+                if value is None or value == '':
+                    return None
+                return int(value)
+            except Exception:
+                return None
+
+        data = request.get_json() or {}
+        nodo = (data.get('nodo_territorial') or '').strip()
+        fecha_str = (data.get('fecha') or '').strip()
+
+        if not nodo or not fecha_str:
+            return jsonify({'success': False, 'error': 'Campos requeridos: nodo_territorial, fecha'}), 400
+
+        try:
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        except Exception:
+            return jsonify({'success': False, 'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
+
+        municipios = data.get('municipios', [])
+        try:
+            municipios_json = json.dumps(municipios if isinstance(municipios, list) else [])
+        except Exception:
+            municipios_json = '[]'
+
+        item = BalanceJornadaTutor.query.filter_by(
+            instructor_id=current_user.id,
+            nodo_territorial=nodo,
+            fecha=fecha
+        ).first()
+
+        if not item:
+            item = BalanceJornadaTutor(
+                instructor_id=current_user.id,
+                nodo_territorial=nodo,
+                fecha=fecha
+            )
+            db.session.add(item)
+
+        item.municipios = municipios_json
+        item.modulos_desarrollados = data.get('modulos_desarrollados', '')
+        item.nombre_tutor = data.get('nombre_tutor', '')
+        item.participantes_programados = _to_int(data.get('participantes_programados'))
+        item.participantes_asistentes = _to_int(data.get('participantes_asistentes'))
+        item.actividades = data.get('actividades', '')
+        item.metodologia = data.get('metodologia', '')
+        item.mayores_dificultades = data.get('mayores_dificultades', '')
+        item.novedades_operativas = data.get('novedades_operativas', '')
+        item.recomendaciones_mejora = data.get('recomendaciones_mejora', '')
+        item.updated_at = datetime.utcnow()
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'data': item.to_dict(),
+            'message': 'Balance de jornada guardado'
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error guardando balance de jornada: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+def buscar_estudiante_por_nombre(nombre_completo):
+    """Buscar estudiante por nombre completo, con manejo flexible de espacios"""
+    from sqlalchemy import func as db_func
+    
+    # Normalizar el nombre: eliminar espacios extra
+    nombre_normalizado = ' '.join(nombre_completo.split())
+    
+    # Buscar primero con el nombre completo exacto
+    partes = nombre_normalizado.split(' ', 1)
+    if len(partes) == 2:
+        nombre, apellido = partes
+        estudiante = User.query.filter(
+            User.nombre == nombre.strip(),
+            User.apellido == apellido.strip(),
+            User.rol.notin_(['admin', 'instructor'])
+        ).first()
+        
+        if estudiante:
+            return estudiante
+        
+        # Si no se encuentra exacto, buscar por nombre completo concatenado (insensible a mayúsculas)
+        nombre_completo_lower = nombre_normalizado.lower()
+        estudiantes = User.query.filter(
+            User.rol.notin_(['admin', 'instructor']),
+            db_func.lower(db_func.concat(User.nombre, ' ', User.apellido)) == nombre_completo_lower
+        ).all()
+        
+        if estudiantes:
+            return estudiantes[0]
+    
+    # Buscar solo por nombre si no tiene apellido separado
+    if len(partes) == 1:
+        estudiante = User.query.filter(
+            User.nombre == partes[0].strip(),
+            User.rol.notin_(['admin', 'instructor'])
+        ).first()
+        if estudiante:
+            return estudiante
+    
+    # Última opción: buscar por coincidencia parcial
+    nombre_buscar = f"%{nombre_normalizado}%"
+    estudiante = User.query.filter(
+        User.rol.notin_(['admin', 'instructor']),
+        db_func.lower(db_func.concat(User.nombre, ' ', User.apellido)).like(nombre_buscar.lower())
+    ).first()
+    
+    return estudiante
+
+
+@instructor_bp.route('/jornadas/<estudiante_id_o_nombre>', methods=['GET', 'POST', 'OPTIONS'])
+@cross_origin()
+@token_required
+@instructor_required
+def manejar_jornadas_estudiante(current_user, estudiante_id_o_nombre):
+    """Obtener o guardar jornadas marcadas de un estudiante (por ID o nombre)"""
+    # Para OPTIONS (preflight CORS), retornar inmediatamente
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+    
+    try:
+        # Asegurar que la tabla existe
+        asegurar_tabla_asistencia_jornada()
+        
+        # Buscar el estudiante - primero intentar por ID, luego por nombre
+        estudiante = None
+        if estudiante_id_o_nombre.isdigit():
+            estudiante = User.query.filter(
+                User.id == int(estudiante_id_o_nombre),
+                User.rol.notin_(['admin', 'instructor'])
+            ).first()
+        if not estudiante:
+            estudiante = buscar_estudiante_por_nombre(estudiante_id_o_nombre)
+        
+        if not estudiante:
+            return jsonify({'success': False, 'error': 'Estudiante no encontrado'}), 404
+        
+        # GET: Obtener jornadas
+        if request.method == 'GET':
+            try:
+                jornadas = AsistenciaJornada.query.filter_by(estudiante_id=estudiante.id).all()
+            except Exception as e:
+                logger.error(f"Error consultando asistencia_jornada (GET jornadas) estudiante_id={estudiante.id}: {str(e)}", exc_info=True)
+                return jsonify({'success': True, 'jornadas': {}}), 200
+            jornadas_dict = {}
+            for jornada in jornadas:
+                if jornada.marcada:
+                    jornadas_dict[jornada.jornada_numero] = True
+            
+            return jsonify({
+                'success': True,
+                'jornadas': jornadas_dict
+            }), 200
+        
+        # POST: Guardar jornadas
+        elif request.method == 'POST':
+            from datetime import datetime
+            try:
+                from zoneinfo import ZoneInfo
+                def get_colombia_time():
+                    return datetime.now(ZoneInfo('America/Bogota'))
+            except ImportError:
+                try:
+                    import pytz
+                    def get_colombia_time():
+                        tz_colombia = pytz.timezone('America/Bogota')
+                        return datetime.now(tz_colombia)
+                except ImportError:
+                    from datetime import timedelta, timezone
+                    def get_colombia_time():
+                        tz_colombia = timezone(timedelta(hours=-5))
+                        return datetime.now(tz_colombia)
+            
+            data = request.get_json()
+            jornadas_marcadas = data.get('jornadas', {})  # {1: true, 2: false, ...}
+            
+            # Procesar cada jornada (1-10)
+            for jornada_num in range(1, 11):
+                marcada = jornadas_marcadas.get(str(jornada_num), False) or jornadas_marcadas.get(jornada_num, False)
+                
+                # Buscar si ya existe
+                jornada = AsistenciaJornada.query.filter_by(
+                    estudiante_id=estudiante.id,
+                    jornada_numero=jornada_num
+                ).first()
+                
+                if jornada:
+                    jornada.marcada = marcada
+                    jornada.fecha_marcado = get_colombia_time() if marcada else None
+                    jornada.instructor_id = current_user.id
+                else:
+                    jornada = AsistenciaJornada(
+                        estudiante_id=estudiante.id,
+                        jornada_numero=jornada_num,
+                        marcada=marcada,
+                        fecha_marcado=get_colombia_time() if marcada else None,
+                        instructor_id=current_user.id
+                    )
+                    db.session.add(jornada)
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Jornadas guardadas exitosamente'
+            }), 200
+            
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en jornadas: {str(e)}", exc_info=True)
+        return jsonify({'success': True, 'jornadas': {}}), 200
+
+
+@instructor_bp.route('/debug/student-progress/<int:student_id>', methods=['GET'])
+@token_required
+@instructor_required
+def debug_student_progress(current_user, student_id):
+    """Debug endpoint para consultar progreso de un estudiante específico"""
+    try:
+        from ..models import IntentosEvaluacion, PuntosPlanNegocio, RespuestasPlanNegocio
+        
+        # Obtener datos del estudiante
+        estudiante = User.query.filter_by(id=student_id).first()
+        if not estudiante:
+            return jsonify({'success': False, 'error': 'Estudiante no encontrado'}), 404
+        
+        # Obtener LogActividad
+        actividades = LogActividad.query.filter_by(usuario_id=student_id).order_by(LogActividad.fecha.desc()).limit(50).all()
+        actividades_data = [{
+            'id': a.id,
+            'accion': a.accion,
+            'detalles': a.detalles,
+            'fecha': a.fecha.isoformat() if a.fecha else None
+        } for a in actividades]
+        
+        # Obtener intentos de evaluación
+        try:
+            intentos = IntentosEvaluacion.query.filter_by(estudiante_id=student_id).all()
+            intentos_data = [{
+                'id': i.id,
+                'modulo': i.modulo,
+                'unidad': i.unidad,
+                'puntaje': i.puntaje,
+                'fecha': i.fecha.isoformat() if i.fecha else None
+            } for i in intentos]
+        except Exception as e:
+            intentos_data = {'error': str(e)}
+        
+        # Obtener puntos de plan de negocio
+        try:
+            puntos = PuntosPlanNegocio.query.filter_by(estudiante_id=student_id).all()
+            puntos_data = [{
+                'id': p.id,
+                'modulo': p.modulo,
+                'puntos': p.puntos,
+                'fecha': p.fecha.isoformat() if hasattr(p, 'fecha') and p.fecha else None
+            } for p in puntos]
+        except Exception as e:
+            puntos_data = {'error': str(e)}
+        
+        # Obtener UsuarioCurso
+        try:
+            from ..models import UsuarioCurso
+            cursos = UsuarioCurso.query.filter_by(usuario_id=student_id).all()
+            cursos_data = [{
+                'curso_id': c.curso_id,
+                'progreso': c.progreso,
+                'fecha_inscripcion': c.fecha_inscripcion.isoformat() if hasattr(c, 'fecha_inscripcion') and c.fecha_inscripcion else None
+            } for c in cursos]
+        except Exception as e:
+            cursos_data = {'error': str(e)}
+        
+        return jsonify({
+            'success': True,
+            'estudiante': {
+                'id': estudiante.id,
+                'nombre': estudiante.nombre,
+                'apellido': estudiante.apellido,
+                'municipio': estudiante.municipio if hasattr(estudiante, 'municipio') else None
+            },
+            'actividades': actividades_data,
+            'intentos_evaluacion': intentos_data,
+            'puntos_plan_negocio': puntos_data,
+            'cursos': cursos_data
+        }), 200
+    except Exception as e:
+        logger.error(f"Error en debug student progress: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500

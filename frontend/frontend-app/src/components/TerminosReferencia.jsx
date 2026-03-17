@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -41,7 +41,7 @@ const TerminosReferencia = () => {
     e.preventDefault()
     
     try {
-      // Mostrar mensaje de carga
+      // mostrar mensaje de carga
       alert('Enviando consulta...')
       
       // Configurar EmailJS con credenciales directas
@@ -90,62 +90,69 @@ const TerminosReferencia = () => {
   const documentos = [
     {
       id: 1,
+      nombre: "Modificatorio 2",
+      archivo: "Terminos_Subsanacion.pdf",
+      tipo: "pdf",
+      descripcion: "Modificatorio 2 a los términos de referencia del programa"
+    },
+    {
+      id: 2,
+      nombre: "TDR Ajustados",
+      archivo: "0. TDR Ajustados.pdf",
+      tipo: "pdf",
+      descripcion: "Términos de Referencia Ajustados del programa"
+    },
+    {
+      id: 3,
       nombre: "MODIFICACIÓN No.1 A LOS TÉRMINOS DE REFERENCIA",
       archivo: "MODIFICACIÓN No.1 A LOS TÉRMINOS DE REFERENCIA.pdf",
       tipo: "pdf",
       descripcion: "Modificación a los términos de referencia del programa"
     },
     {
-      id: 2,
-      nombre: "TDR",
-      archivo: "1. TDR.pdf",
-      tipo: "pdf",
-      descripcion: "Términos de Referencia del Programa EmprendiPaz"
-    },
-    {
-      id: 3,
+      id: 4,
       nombre: "Certificado de Vecindad",
       archivo: "5.Certificado de Vecindad.pdf",
       tipo: "pdf",
       descripcion: "Formato de certificación de residencia"
     },
     {
-      id: 4,
+      id: 5,
       nombre: "Documento Instructivo",
       archivo: "8. Documento_instructivo_video.pdf",
       tipo: "pdf",
       descripcion: "para el video de presentación"
     },
     {
-      id: 5,
+      id: 6,
       nombre: "Certificado de Compromiso",
       archivo: "3. Certificado de Compromiso.pdf",
       tipo: "pdf",
       descripcion: "Formato de certificación de compromiso del participante"
     },
     {
-      id: 6,
+      id: 7,
       nombre: "Autorización de Datos",
       archivo: "4. Autorización.pdf",
       tipo: "pdf",
       descripcion: "Autorización para el uso de datos personales e imagen"
     },
     {
-      id: 7,
+      id: 8,
       nombre: "Plan de Negocio",
       archivo: "6. FORMATO PLAN DE NEGOCIO INSCRIPCIÓN.xlsx",
       tipo: "excel",
       descripcion: "Formato para el plan de negocio del emprendimiento"
     },
     {
-      id: 8,
+      id: 9,
       nombre: "Declaración Jurada",
       archivo: "7. DECLARACIÓN JURAMENTADA DE CAPACIDAD LEGAL.pdf",
       tipo: "pdf",
       descripcion: "Declaración jurada de capacidad legal"
     },
     {
-      id: 9,
+      id: 10,
       nombre: "Lista de Chequeo",
       archivo: "2. Lista de chequeo.pdf",
       tipo: "pdf",
@@ -156,7 +163,8 @@ const TerminosReferencia = () => {
   // Función para descargar documentos
   const handleDownloadDocument = (archivo, nombre) => {
     const link = document.createElement('a');
-    link.href = `/Terminos/${archivo}`;
+    // Codificar la URL correctamente para manejar caracteres especiales
+    link.href = `/Terminos/${encodeURIComponent(archivo)}`;
     
     // Agregar extensión correcta según el tipo de archivo
     const extension = archivo.includes('.xlsx') ? '.xlsx' : 
@@ -188,13 +196,16 @@ const TerminosReferencia = () => {
               <img src="/consorcio.png" alt="Consorcio" className="h-10 sm:h-12" />
             </div>
             <div className="flex items-center space-x-3">
-              <Link to="/register">
-                <Button className="bg-green-600 hover:bg-green-700 text-white flex items-center space-x-2 text-sm sm:text-base">
+              {/* Botón de Subsanación deshabilitado por solicitud del usuario */}
+              {/* <Link to="/register">
+                <Button 
+                  className="bg-green-600 hover:bg-green-700 text-white flex items-center space-x-2 text-sm sm:text-base"
+                >
                   <Users className="h-4 w-4" />
-                  <span className="hidden sm:inline">Regístrate</span>
-                  <span className="sm:hidden">Registro</span>
+                  <span className="hidden sm:inline">Subsanación</span>
+                  <span className="sm:hidden">Subsanación</span>
                 </Button>
-              </Link>
+              </Link> */}
               <Link to="/">
                 <Button variant="outline" className="flex items-center space-x-2 text-sm sm:text-base">
                   <ArrowLeft className="h-4 w-4" />
@@ -418,8 +429,8 @@ const TerminosReferencia = () => {
                         </div>
                       </div>
                       
-                      {/* Acordeón de información importante solo para el primer documento */}
-                      {doc.id === 1 && (
+                      {/* Acordeón de información importante solo para la Modificación 1 */}
+                      {doc.id === 3 && (
                         <div className="mt-3">
                           <Button
                             onClick={() => setIsInfoOpen(!isInfoOpen)}
@@ -485,24 +496,12 @@ const TerminosReferencia = () => {
                 <li><a href="#caracteristicas" className="text-gray-300 hover:text-white transition-colors">Fases</a></li>
                 <li><a href="#beneficios" className="text-gray-300 hover:text-white transition-colors">Cobertura</a></li>
                 <li><Link to="/login" className="text-gray-300 hover:text-white transition-colors">Iniciar Sesión</Link></li>
-                <li>
-                  {(() => {
-                    // Solo permitir registro para administradores
-                    const registrationEnabled = isAdmin;
-                    return registrationEnabled ? (
-                      <Link to="/register" className="text-gray-300 hover:text-white transition-colors">
-                        Registrarse (Admin)
-                      </Link>
-                    ) : (
-                      <span 
-                        className="text-gray-500 cursor-not-allowed"
-                        title="Registro temporalmente cerrado"
-                      >
-                        Registro Cerrado
-                      </span>
-                    );
-                  })()}
-                </li>
+                {/* Link de Subsanación deshabilitado por solicitud del usuario */}
+                {/* <li>
+                  <Link to="/register" className="text-gray-300 hover:text-white transition-colors">
+                    Subsanación
+                  </Link>
+                </li> */}
               </ul>
             </div>
             
@@ -518,7 +517,7 @@ const TerminosReferencia = () => {
           
           <div className="border-t border-gray-700 mt-8 pt-8 text-center">
             <p className="text-gray-300">
-              © 2025 Gobernación de Nariño. Todos los derechos reservados.
+              © 2026 Gobernación de Nariño. Todos los derechos reservados.
             </p>
           </div>
         </div>

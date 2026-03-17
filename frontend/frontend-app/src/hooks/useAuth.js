@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
-import API_BASE_URL from '@/config/api';
-
+import API_BASE_URL from '@/config/api'
+import { isInstalledPwa } from '@/utils/pwa';
+import {
+  clearAuthToken,
+  getAuthToken,
+  getPwaCachedUser,
+  setPwaCachedUser,
+  canRestorePwaSession,
+  isForceLoggedOut,
+  clearLocalSession
+} from '@/utils/auth-storage';
 export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11,9 +20,43 @@ export const useAuth = () => {
   }, []);
 
   const checkAuth = async () => {
+    const pwaInstalled = isInstalledPwa();
+    const cached = getPwaCachedUser();
+
     try {
-      const token = localStorage.getItem('authToken');
+      // Si el usuario hizo "logout local", no auto-restaurar sesión con refresh token.
+      if (isForceLoggedOut()) {
+        setUser(null);
+        setIsAuthenticated(false);
+        setLoading(false);
+        return;
+      }
+
+      const token = getAuthToken();
+
+      if (pwaInstalled && canRestorePwaSession() && !token) {
+        setUser(cached);
+        setIsAuthenticated(true);
+        setLoading(false);
+        return;
+      }
+
       if (!token) {
+        setUser(null);
+        setIsAuthenticated(false);
+        setLoading(false);
+        return;
+      }
+
+      // PWA instalada: permitir sesión "local" cuando no hay conexión
+      if (pwaInstalled && typeof navigator !== 'undefined' && navigator.onLine === false) {
+        if (cached) {
+          setUser(cached);
+          setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
         setLoading(false);
         return;
       }
@@ -30,23 +73,36 @@ export const useAuth = () => {
         const userData = await response.json();
         setUser(userData);
         setIsAuthenticated(true);
+        setPwaCachedUser(userData);
       } else {
-        // Token inválido, limpiar
-        localStorage.removeItem('authToken');
-        setUser(null);
-        setIsAuthenticated(false);
+        // Token inválido o sesión no válida
+        if (pwaInstalled && cached) {
+          // En PWA instalada, NO borramos la sesión automáticamente:
+          // mantenemos al usuario "logueado" localmente si hay perfil cacheado.
+          setUser(cached);
+          setIsAuthenticated(true);
+        } else {
+          clearAuthToken();
+          setUser(null);
+          setIsAuthenticated(false);
+        }
       }
     } catch (error) {
       console.error('Error checking auth:', error);
-      setUser(null);
-      setIsAuthenticated(false);
+      if (canRestorePwaSession()) {
+        setUser(cached);
+        setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
+    clearLocalSession();
     localStorage.removeItem('userEmail');
     setUser(null);
     setIsAuthenticated(false);

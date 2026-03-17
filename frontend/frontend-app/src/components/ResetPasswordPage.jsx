@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eye, EyeOff, ArrowLeft, Lock } from 'lucide-react'
 import logoGobernacion from '../assets/logo-gobernacion.png'
 import logoGov from '../assets/logo-gov.png'
-
+import API_BASE_URL from '@/config/api'
 const ResetPasswordPage = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -89,7 +89,7 @@ const ResetPasswordPage = () => {
     setSuccessMessage('')
 
     try {
-      const response = await fetch('/api/reset-password', {
+      const response = await fetch(`${API_BASE_URL}/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

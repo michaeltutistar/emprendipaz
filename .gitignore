@@ -326,6 +326,9 @@ frontend/frontend-app/public/Terminos/Video_instructivo.mp4
 
 # Exclude serverless deployment files
 backend/backend-app/lambda-deployment/.serverless/
+backend/backend-app/lambda-deployment/*-extracted/
+backend/backend-app/lambda-deployment/lambda-build/
+backend/backend-app/lambda-deployment/.serverless-wsgi
 
 # Exclude Python cache files
 __pycache__/
@@ -364,3 +367,10 @@ documentos/plan de actualización de plataforma.rtf
 
 # Exclude git status files
 tatus --porcelain
+
+# Exclude config with secrets (use serverless.example.yml)
+backend/backend-app/serverless.yml
+backend/backend-app/lambda-deployment/serverless.yml
+
+# Exclude Lambda deployment bundle (large, built from backend)
+_lambda_patch/
