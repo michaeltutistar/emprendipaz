@@ -372,10 +372,14 @@ const StudentProfile = () => {
     <div className="min-h-screen bg-gray-50">
       <StudentHeader 
         title="Mi Perfil"
-        subtitle="Gestiona tu información personal"
         showBackButton={true}
         backUrl="/student/dashboard"
-        hideNavigation={true}
+        showUserMenu={false}
+        navigationItemsOverride={[
+          { name: 'Dashboard', href: '/student/dashboard', icon: BookOpen },
+          { name: 'Mis Cursos', href: '/student/modulos', icon: BookOpen },
+          { name: 'Cerrar Sesión', action: 'logout' },
+        ]}
       />
 
       <div className="max-w-7xl mx-auto p-6">

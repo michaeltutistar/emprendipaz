@@ -459,7 +459,7 @@ return (
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -553,7 +553,7 @@ return (
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 

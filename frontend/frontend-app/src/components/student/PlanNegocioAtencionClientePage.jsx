@@ -853,7 +853,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#AA27B9] transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -931,7 +931,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="hover:text-white transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1489,7 +1489,7 @@ localStorage.removeItem('plan_negocio_atención_cliente');
 
                   window.dispatchEvent(new Event('progreso-actualizado'));
 
-                  alert('¡Plan de Negocio completado! El siguiente modulo ha sido desbloqueado.');
+                  alert('¡Plan de Negocio completado! El siguiente módulo ha sido desbloqueado.');
 
                   navigate('/student/modulos');
 

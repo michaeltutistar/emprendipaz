@@ -32,5 +32,6 @@ from .intentos_evaluacion import IntentosEvaluacion
 from .asistencia_jornada import AsistenciaJornada
 from .puntos_plan_negocio import PuntosPlanNegocio
 from .respuestas_plan_negocio import RespuestasPlanNegocio
+from .landing_banner import LandingBanner
 from .support_ticket import SupportTicket, SupportTicketMessage, SupportTicketSatisfaction
 from .node_forum import NodeForumThread, NodeForumReply

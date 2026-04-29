@@ -914,7 +914,7 @@ const Unidad2CierrePage = () => {
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -1012,7 +1012,7 @@ const Unidad2CierrePage = () => {
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1256,7 +1256,7 @@ const Unidad2CierrePage = () => {
 
                 <p className="text-xs mt-1">
 
-                  Esta evaluación ya fue aprobada correctamente para este usuario. No se permiten más intentos en este modulo.
+                  Esta evaluación ya fue aprobada correctamente para este usuario. No se permiten más intentos en este módulo.
 
                 </p>
 

@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import API_BASE_URL from '@/config/api'
 
-const ESTUDIANTES_OPERATIVOS = 761
+const USUARIOS_INSCRITOS = 2567
+const ESTUDIANTES_ACTIVOS = 747
+const INSTRUCTORES_TOTAL = 5
+const ADMINISTRADORES_TOTAL = 1
+const EVALUADORES_TOTAL = 8
 const MODULOS_ACTIVOS = 10
 
 const MetricsPanel = () => {
@@ -60,9 +64,9 @@ const MetricsPanel = () => {
 
   const generalMetrics = [
     {
-      label: 'Estudiantes',
-      value: ESTUDIANTES_OPERATIVOS.toLocaleString(),
-      helper: 'base operativa actual',
+      label: 'Usuarios inscritos',
+      value: USUARIOS_INSCRITOS.toLocaleString(),
+      helper: 'total visible en la plataforma',
       icon: '🎓',
       accent: 'blue',
     },
@@ -75,15 +79,15 @@ const MetricsPanel = () => {
     },
     {
       label: 'Instructores',
-      value: metrics.roles.instructores,
+      value: INSTRUCTORES_TOTAL.toLocaleString(),
       helper: 'acompañamiento disponible',
       icon: '🧑‍🏫',
       accent: 'purple',
     },
     {
-      label: 'Usuarios activos',
-      value: metrics.usuarios.activos.toLocaleString(),
-      helper: 'cuentas activas',
+      label: 'Estudiantes activos',
+      value: ESTUDIANTES_ACTIVOS.toLocaleString(),
+      helper: 'base operativa actual',
       icon: '✅',
       accent: 'emerald',
     },
@@ -133,45 +137,7 @@ const MetricsPanel = () => {
       </div>
 
       {/* Métricas Detalladas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Estados de Usuario */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Estados de Usuario
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                <span className="text-sm text-gray-600">Activos</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900">
-                {metrics.usuarios.activos}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full mr-3"></div>
-                <span className="text-sm text-gray-600">Inactivos</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900">
-                {metrics.usuarios.inactivos}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
-                <span className="text-sm text-gray-600">Suspendidos</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900">
-                {metrics.usuarios.suspendidos}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Roles de Usuario */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Distribución por Roles
           </h3>
@@ -182,29 +148,46 @@ const MetricsPanel = () => {
                 <span className="text-sm text-gray-600">Estudiantes</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
-                {ESTUDIANTES_OPERATIVOS}
+                {ESTUDIANTES_ACTIVOS.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-cyan-500 rounded-full mr-3"></div>
+                <span className="text-sm text-gray-600">Inscritos</span>
+              </div>
+              <span className="text-sm font-medium text-gray-900">
+                {USUARIOS_INSCRITOS.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <div className="flex items-center">
                 <div className="w-3 h-3 bg-purple-500 rounded-full mr-3"></div>
-                <span className="text-sm text-gray-600">Instructores</span>
+                <span className="text-sm text-gray-600">Instructor</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
-                {metrics.roles.instructores}
+                {INSTRUCTORES_TOTAL.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <div className="flex items-center">
                 <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                <span className="text-sm text-gray-600">Administradores</span>
+                <span className="text-sm text-gray-600">Administrador</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
-                {metrics.roles.administradores}
+                {ADMINISTRADORES_TOTAL.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-orange-500 rounded-full mr-3"></div>
+                <span className="text-sm text-gray-600">Evaluador</span>
+              </div>
+              <span className="text-sm font-medium text-gray-900">
+                {EVALUADORES_TOTAL.toLocaleString()}
               </span>
             </div>
           </div>
-        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">

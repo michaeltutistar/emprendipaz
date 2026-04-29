@@ -202,7 +202,7 @@ const MarketingDigitalUnidad2Page = () => {
 
           >
 
-            Modulos
+            Módulos
 
           </button>
 

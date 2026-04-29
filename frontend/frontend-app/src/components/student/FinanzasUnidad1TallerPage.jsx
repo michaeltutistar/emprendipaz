@@ -745,7 +745,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#006837] transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 

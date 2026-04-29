@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Clock3, MapPin, MessageCircle, MessageSquareMore, Send, Users } from 'lucide-react'
+import { Clock3, MapPin, MessageCircle, MessageSquareMore, Reply, Send, Users } from 'lucide-react'
 
 import StudentHeader from './StudentHeader'
 import SupportCenterWidget from './SupportCenterWidget'
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { Textarea } from '../ui/textarea'
+import { nestForumReplies } from '@/utils/forumReplyTree'
 
 const StudentNodeForumPage = () => {
   const navigate = useNavigate()
@@ -23,6 +24,7 @@ const StudentNodeForumPage = () => {
   const [selectedThread, setSelectedThread] = useState(null)
   const [questionDraft, setQuestionDraft] = useState('')
   const [replyDraft, setReplyDraft] = useState('')
+  const [replyTarget, setReplyTarget] = useState(null)
 
   const authHeaders = useMemo(() => {
     const token = getAuthToken()
@@ -93,8 +95,10 @@ const StudentNodeForumPage = () => {
       throw new Error(data?.error || 'No fue posible cargar el hilo.')
     }
 
-    setSelectedThread(data.data?.thread || null)
-    return data.data?.thread || null
+    const thread = data.data?.thread || null
+    setSelectedThread(thread)
+    setReplyTarget(null)
+    return thread
   }
 
   const refreshAll = async () => {
@@ -179,11 +183,16 @@ const StudentNodeForumPage = () => {
 
     try {
       setReplying(true)
+      const payload = { body }
+      if (replyTarget?.mode === 'nested') {
+        payload.parent_reply_id = replyTarget.id
+      }
+
       const response = await fetch(`${API_BASE_URL}/student/forum/threads/${selectedThread.id}/replies`, {
         method: 'POST',
         credentials: 'include',
         headers: authHeaders,
-        body: JSON.stringify({ body }),
+        body: JSON.stringify(payload),
       })
 
       if (response.status === 401) {
@@ -197,6 +206,7 @@ const StudentNodeForumPage = () => {
       }
 
       setReplyDraft('')
+      setReplyTarget(null)
       toast.success('Tu respuesta fue publicada.')
       await loadThreads()
       await loadThreadDetail(selectedThread.id)
@@ -209,6 +219,57 @@ const StudentNodeForumPage = () => {
   }
 
   const activeNode = forumInfo?.node || resolveForumNodeByMunicipio(forumInfo?.student?.municipio)
+
+  const replyTree = useMemo(
+    () => nestForumReplies(selectedThread?.replies || []),
+    [selectedThread?.replies],
+  )
+
+  const renderReplyBranch = (node, depth) => (
+    <div
+      key={node.id}
+      className={depth > 0 ? 'mt-3 ml-3 sm:ml-5 pl-3 border-l-2 border-blue-300' : ''}
+    >
+      <div className="rounded-xl border bg-gray-50 p-4">
+        {node.parent_reply_preview && (
+          <div className="mb-2 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-600">
+            <span className="font-medium text-gray-700">En respuesta a {node.parent_reply_preview.author_nombre}:</span>{' '}
+            <span className="italic">{node.parent_reply_preview.body_preview}</span>
+          </div>
+        )}
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={node.author?.rol === 'instructor' ? 'default' : 'outline'}>
+              {node.author?.rol || 'usuario'}
+            </Badge>
+            <span className="text-sm font-medium text-gray-700">{node.author?.nombre || 'Usuario'}</span>
+            <span className="text-xs text-gray-500">{new Date(node.created_at).toLocaleString('es-CO')}</span>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0"
+            onClick={() =>
+              setReplyTarget({
+                mode: 'nested',
+                id: node.id,
+                authorLabel: node.author?.nombre || 'Usuario',
+                snippet: (node.body || '').slice(0, 100),
+              })
+            }
+          >
+            <Reply className="mr-1 h-3.5 w-3.5" />
+            Responder
+          </Button>
+        </div>
+        <p className="text-sm text-gray-700 whitespace-pre-wrap">{node.body}</p>
+      </div>
+      {node.children?.length > 0 && (
+        <div className="space-y-0">{node.children.map((child) => renderReplyBranch(child, depth + 1))}</div>
+      )}
+    </div>
+  )
 
   if (loading) {
     return (
@@ -341,9 +402,23 @@ const StudentNodeForumPage = () => {
               {selectedThread && (
                 <>
                   <div className="rounded-xl border bg-white p-5">
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                      <Badge>{selectedThread.author?.rol || 'usuario'}</Badge>
-                      <Badge variant="outline">{selectedThread.status}</Badge>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge>{selectedThread.author?.rol || 'usuario'}</Badge>
+                        <Badge variant="outline">{selectedThread.status}</Badge>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setReplyTarget(null)
+                          setReplyDraft('')
+                        }}
+                      >
+                        <Reply className="mr-1 h-4 w-4" />
+                        Responder
+                      </Button>
                     </div>
                     <p className="text-base font-semibold text-gray-900 mb-2">{selectedThread.question}</p>
                     <div className="text-sm text-gray-500 flex flex-wrap gap-4">
@@ -353,23 +428,8 @@ const StudentNodeForumPage = () => {
                   </div>
 
                   <div className="space-y-3">
-                    {selectedThread.replies?.length ? (
-                      selectedThread.replies.map((reply) => (
-                        <div key={reply.id} className="rounded-xl border bg-gray-50 p-4">
-                          <div className="flex flex-wrap items-center gap-2 mb-2">
-                            <Badge variant={reply.author?.rol === 'instructor' ? 'default' : 'outline'}>
-                              {reply.author?.rol || 'usuario'}
-                            </Badge>
-                            <span className="text-sm font-medium text-gray-700">
-                              {reply.author?.nombre || 'Usuario'}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {new Date(reply.created_at).toLocaleString('es-CO')}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{reply.body}</p>
-                        </div>
-                      ))
+                    {replyTree.length ? (
+                      replyTree.map((node) => renderReplyBranch(node, 0))
                     ) : (
                       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-500">
                         Todavía no hay respuestas en esta conversación.
@@ -378,6 +438,28 @@ const StudentNodeForumPage = () => {
                   </div>
 
                   <form onSubmit={handlePublishReply} className="space-y-3">
+                    <div className="rounded-lg border border-blue-100 bg-blue-50/80 px-3 py-2 text-sm text-gray-700">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span>
+                          {replyTarget?.mode === 'nested' ? (
+                            <>
+                              Respondiendo a <strong>{replyTarget.authorLabel}</strong>
+                              {replyTarget.snippet
+                                ? ` «${replyTarget.snippet}${replyTarget.snippet.length >= 100 ? '…' : ''}»`
+                                : ''}
+                              .
+                            </>
+                          ) : (
+                            <>Tu mensaje se publicará como respuesta a la pregunta del hilo.</>
+                          )}
+                        </span>
+                        {replyTarget?.mode === 'nested' && (
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setReplyTarget(null)}>
+                            Volver a responder al hilo
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                     <Textarea
                       value={replyDraft}
                       onChange={(event) => setReplyDraft(event.target.value)}
@@ -386,7 +468,7 @@ const StudentNodeForumPage = () => {
                     />
                     <Button type="submit" disabled={replying}>
                       <Send className="h-4 w-4" />
-                      {replying ? 'Enviando...' : 'Responder en el hilo'}
+                      {replying ? 'Enviando...' : 'Enviar respuesta'}
                     </Button>
                   </form>
                 </>

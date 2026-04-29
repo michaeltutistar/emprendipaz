@@ -697,7 +697,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#AA27B9] transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -775,7 +775,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="hover:text-white transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -863,7 +863,7 @@ return (
 
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
 
-              Descubrimiento de oportunidades: "Ciclo de vida de más productos"
+              Descubrimiento de oportunidades: "Ciclo de vida de mis productos"
 
             </h2>
 
@@ -871,7 +871,7 @@ return (
 
               <p className="text-gray-700 text-base leading-relaxed">
 
-                Ahora que ya has culminado exitosamente el desarrollo de las 3 unidades del modulo de descubrimiento de oportunidades, es momento de elaborar el aporte de esta modulo a tu plan de negocios.
+                Ahora que ya has culminado exitosamente el desarrollo de las 3 unidades del módulo de descubrimiento de oportunidades, es momento de elaborar el aporte de este módulo a tu plan de negocios.
 
               </p>
 
@@ -1061,7 +1061,7 @@ return (
 
               <div>
 
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">Tabla 1: Ciclo de vida de más productos</h4>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Tabla 1: Ciclo de vida de mis productos</h4>
 
                 <div className="overflow-x-auto">
 
@@ -1269,7 +1269,7 @@ localStorage.removeItem('plan_negocio_descubrimiento'); // Limpiar localstorage 
 
                   window.dispatchEvent(new Event('progreso-actualizado'));
 
-                  alert('¡Plan de Negocio completado y guardado permanentemente! El siguiente modulo ha sido desbloqueado.');
+                  alert('¡Plan de Negocio completado y guardado permanentemente! El siguiente módulo ha sido desbloqueado.');
 
                   navigate('/student/modulos');
 

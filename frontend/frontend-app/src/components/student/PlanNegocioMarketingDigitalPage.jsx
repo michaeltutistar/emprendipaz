@@ -889,7 +889,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#AA27B9] transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -967,7 +967,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="hover:text-white transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1063,7 +1063,7 @@ return (
 
               <p className="text-gray-700 text-base leading-relaxed">
 
-                En esta sección complementaria del modulo de marketing digital y estrategias comerciales, vamos a desarrollar una actividad que servirá como insumo o aporte a tu plan de negocio.
+                En esta sección complementaria del módulo de marketing digital y estrategias comerciales, vamos a desarrollar una actividad que servirá como insumo o aporte a tu plan de negocio.
 
               </p>
 
@@ -2025,7 +2025,7 @@ localStorage.removeItem('plan_negocio_marketing_digital');
 
                   window.dispatchEvent(new Event('progreso-actualizado'));
 
-                  alert('¡Plan de Negocio completado! El siguiente modulo ha sido desbloqueado.');
+                  alert('¡Plan de Negocio completado! El siguiente módulo ha sido desbloqueado.');
 
                   navigate('/student/modulos');
 

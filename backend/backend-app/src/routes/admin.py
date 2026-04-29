@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, session, send_file, make_response  # pyright: ignore[reportMissingImports]
 from sqlalchemy import or_
-from src.models import db, User, Curso, Inscripcion, LogActividad, CuposConfig, MunicipioCupo, Notificacion
+from src.models import db, User, Curso, Inscripcion, LogActividad, CuposConfig, MunicipioCupo, Notificacion, LandingBanner
 from src.models.intentos_evaluacion import IntentosEvaluacion
 from src.models.puntos_plan_negocio import PuntosPlanNegocio
 from src.models.respuestas_plan_negocio import RespuestasPlanNegocio
@@ -11,10 +11,13 @@ from src.models.cupos_municipio_config import CuposMunicipioConfig
 from src.models.documento_config import DocumentoConfig
 from src.services.auth_service import token_required, admin_required, admin_or_evaluador_required
 from src.services.student_municipio_service import get_preferred_municipio
+from src.services.s3_service import S3Service
 from datetime import datetime, timedelta
 import csv
 import io
 import tempfile
+import base64
+import binascii
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -74,6 +77,36 @@ def _build_municipios_summary(progreso_estudiantes):
         })
 
     return resumen
+
+
+def _ensure_landing_banners_table():
+    LandingBanner.__table__.create(bind=db.engine, checkfirst=True)
+
+
+def _parse_image_data_url(image_data_url):
+    if not image_data_url or not isinstance(image_data_url, str):
+        return None, None, 'La imagen es obligatoria'
+
+    if ';base64,' not in image_data_url:
+        return None, None, 'Formato de imagen inválido'
+
+    header, encoded = image_data_url.split(';base64,', 1)
+    if not header.startswith('data:image/'):
+        return None, None, 'Solo se permiten imágenes JPG, PNG o WEBP'
+
+    content_type = header.replace('data:', '', 1).strip().lower()
+    if content_type not in {'image/png', 'image/jpeg', 'image/jpg', 'image/webp'}:
+        return None, None, 'Solo se permiten imágenes JPG, PNG o WEBP'
+
+    try:
+        image_bytes = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error):
+        return None, None, 'No se pudo decodificar la imagen'
+
+    if not image_bytes:
+        return None, None, 'La imagen está vacía'
+
+    return image_bytes, content_type, None
 
 @admin_bp.route('/dashboard/metrics', methods=['GET'])
 @token_required
@@ -141,6 +174,141 @@ def get_dashboard_metrics(current_user):
         
     except Exception as e:
         return jsonify({'error': f'Error al obtener mÃ©tricas: {str(e)}'}), 500
+
+
+@admin_bp.route('/landing-banners/public', methods=['GET'])
+def get_public_landing_banners():
+    try:
+        _ensure_landing_banners_table()
+        s3_service = S3Service()
+        banners = LandingBanner.query.filter_by(is_active=True).order_by(LandingBanner.created_at.asc()).all()
+        return jsonify({
+            'success': True,
+            'banners': [banner.to_dict(s3_service=s3_service) for banner in banners]
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error al obtener banners: {str(e)}'}), 500
+
+
+@admin_bp.route('/landing-banners', methods=['GET'])
+@token_required
+@admin_required
+def get_landing_banners(current_user):
+    try:
+        _ensure_landing_banners_table()
+        s3_service = S3Service()
+        banners = LandingBanner.query.order_by(LandingBanner.created_at.desc()).all()
+        return jsonify({
+            'success': True,
+            'banners': [banner.to_dict(s3_service=s3_service) for banner in banners]
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error al obtener banners: {str(e)}'}), 500
+
+
+@admin_bp.route('/landing-banners', methods=['POST'])
+@token_required
+@admin_required
+def create_landing_banner(current_user):
+    try:
+        _ensure_landing_banners_table()
+        data = request.get_json(silent=True) or {}
+
+        title = (data.get('title') or '').strip()
+        body = (data.get('body') or '').strip()
+        image_filename = (data.get('image_filename') or 'banner.png').strip() or 'banner.png'
+        image_data_url = data.get('image_data_url')
+
+        if not title:
+            return jsonify({'success': False, 'error': 'El título es obligatorio'}), 400
+        if not body:
+            return jsonify({'success': False, 'error': 'El texto es obligatorio'}), 400
+
+        image_bytes, content_type, image_error = _parse_image_data_url(image_data_url)
+        if image_error:
+            return jsonify({'success': False, 'error': image_error}), 400
+
+        s3_service = S3Service()
+        image_key = s3_service.upload_file_data(
+            image_bytes,
+            current_user.id,
+            'landing-banners',
+            image_filename,
+            subfolder='landing'
+        )
+        if not image_key:
+            return jsonify({'success': False, 'error': 'No se pudo subir la imagen del banner'}), 500
+
+        banner = LandingBanner(
+            title=title,
+            body=body,
+            image_s3_key=image_key,
+            image_filename=image_filename[:255],
+            image_content_type=content_type,
+            is_active=True,
+            created_by=current_user.id,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(banner)
+        db.session.commit()
+
+        try:
+            db.session.add(LogActividad(
+                usuario_id=current_user.id,
+                accion='banner_landing_creado',
+                detalles=f'Banner #{banner.id}: {title[:120]}'
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        return jsonify({
+            'success': True,
+            'message': 'Banner creado exitosamente',
+            'banner': banner.to_dict(s3_service=s3_service)
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'Error al crear banner: {str(e)}'}), 500
+
+
+@admin_bp.route('/landing-banners/<int:banner_id>', methods=['DELETE'])
+@token_required
+@admin_required
+def delete_landing_banner(current_user, banner_id):
+    try:
+        _ensure_landing_banners_table()
+        banner = LandingBanner.query.get(banner_id)
+        if not banner:
+            return jsonify({'success': False, 'error': 'Banner no encontrado'}), 404
+
+        s3_deleted = True
+        if banner.image_s3_key:
+            s3_service = S3Service()
+            s3_deleted = s3_service.delete_file(banner.image_s3_key)
+
+        banner_title = banner.title
+        db.session.delete(banner)
+        db.session.commit()
+
+        try:
+            db.session.add(LogActividad(
+                usuario_id=current_user.id,
+                accion='banner_landing_eliminado',
+                detalles=f'Banner #{banner_id}: {banner_title[:120]}'
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        return jsonify({
+            'success': True,
+            'message': 'Banner eliminado exitosamente',
+            's3_deleted': s3_deleted
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'Error al eliminar banner: {str(e)}'}), 500
 
 
 @admin_bp.route('/users/reset-progress', methods=['POST'])
@@ -499,7 +667,12 @@ def get_users(current_user):
         if estado:
             query = query.filter_by(estado_cuenta=estado)
         if rol:
-            query = query.filter_by(rol=rol)
+            # En admin, el filtro visual de "estudiante" debe incluir
+            # cuentas históricas marcadas como "usuario" sin cambiar su rol real.
+            if rol == 'estudiante':
+                query = query.filter(User.rol.in_(['estudiante', 'usuario']))
+            else:
+                query = query.filter_by(rol=rol)
         if estado_control:
             query = query.filter_by(estado_control=estado_control)
         if municipio:

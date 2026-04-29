@@ -374,3 +374,4 @@ backend/backend-app/lambda-deployment/serverless.yml
 
 # Exclude Lambda deployment bundle (large, built from backend)
 _lambda_patch/
+node_modules

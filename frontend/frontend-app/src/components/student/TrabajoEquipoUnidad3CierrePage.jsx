@@ -212,7 +212,7 @@ const ResultadoModal = ({ resultado, onClose, onFinalizar }) => {
 
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center text-green-800">
 
-              ¡Felicitaciones! Has completado la Unidad 3 y todo el Modulo de Trabajo en Equipo.
+              ¡Felicitaciones! Has completado la Unidad 3 y todo el Módulo de Trabajo en Equipo.
 
             </div>
 
@@ -848,7 +848,7 @@ const TrabajoEquipoUnidad3CierrePage = () => {
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 

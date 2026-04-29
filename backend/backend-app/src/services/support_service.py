@@ -13,7 +13,6 @@ from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
 
-from pypdf import PdfReader
 from src.services.s3_service import S3Service
 
 logger = logging.getLogger(__name__)
@@ -106,6 +105,11 @@ def build_greeting_answer() -> str:
 
 
 def _extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        logger.warning('pypdf no instalado: no se extrae texto de PDFs en soporte (Lambda sin dependencia).')
+        return ''
     reader = PdfReader(BytesIO(file_bytes))
     pages = [(page.extract_text() or '').strip() for page in reader.pages]
     return '\n\n'.join(page for page in pages if page)
@@ -191,6 +195,16 @@ def _build_fragments_from_markdown(source_name: str, text: str, max_chars: int =
             current_lines = []
             return
 
+        # No indexar secciones "meta" del manual: son listas de ejemplo que confunden al RAG
+        # y hacen que el modelo responda con el menú en lugar del procedimiento concreto.
+        tnorm = _normalize(current_title)
+        if 'ejemplos' in tnorm and 'validas' in tnorm:
+            current_lines = []
+            return
+        if 'ejemplos' in tnorm and 'no cubiertas' in tnorm:
+            current_lines = []
+            return
+
         section_index += 1
         for chunk_idx, chunk in enumerate(_chunk_paragraph(content, max_chars), start=1):
             fragments.append({
@@ -217,6 +231,59 @@ def _build_fragments_from_markdown(source_name: str, text: str, max_chars: int =
 
     flush_section()
     return fragments
+
+
+def load_kb_json_items() -> List[dict]:
+    """
+    Entradas de support/kb.json (o S3 SUPPORT_KB_KEY) como fragmentos recuperables.
+    Antes no se mezclaban con los documentos MD/PDF; el asistente solo veía el manual.
+    """
+    raw: Optional[str] = None
+    path = Path(__file__).resolve().parents[2] / 'support' / 'kb.json'
+    if path.exists():
+        try:
+            raw = path.read_text(encoding='utf-8')
+        except Exception as error:
+            logger.warning('No fue posible leer kb.json local: %s', error)
+    if raw is None:
+        bucket_name = os.getenv('SUPPORT_KB_BUCKET') or os.getenv('S3_BUCKET')
+        key = (os.getenv('SUPPORT_KB_KEY') or 'support/kb.json').strip()
+        if bucket_name and key:
+            try:
+                s3_service = S3Service()
+                response = s3_service.s3_client.get_object(Bucket=bucket_name, Key=key)
+                raw = response['Body'].read().decode('utf-8')
+            except Exception as error:
+                logger.warning('No fue posible cargar kb.json desde S3: %s', error)
+    if not raw:
+        return []
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as error:
+        logger.warning('kb.json inválido: %s', error)
+        return []
+
+    if not isinstance(data, list):
+        return []
+
+    items: List[dict] = []
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        title = (entry.get('title') or '').strip()
+        content = (entry.get('content') or '').strip()
+        if not title and not content:
+            continue
+        items.append({
+            'id': entry.get('id'),
+            'title': title,
+            'content': content,
+            'category': entry.get('category') or 'kb',
+            'keywords': list(entry.get('keywords') or []),
+            'source': 'kb.json',
+        })
+    return items
 
 
 def _build_fragments_from_text(source_name: str, text: str, max_chars: int = 700) -> List[dict]:
@@ -368,6 +435,65 @@ def retrieve_context(question: str, items: List[dict], limit: int = 3) -> List[d
     return scored_items[:limit]
 
 
+def _user_asks_for_human_support(question: str) -> bool:
+    """
+    Detecta preguntas sobre contactar a una persona, WhatsApp o qué datos enviar al soporte.
+    Sin esto, palabras como 'problema' hacen que gane un fragmento genérico (ej. desbloqueo).
+    """
+    n = _normalize(question)
+    if not n:
+        return False
+
+    if ('hablo con' in n or 'hablar con' in n) and any(
+        fragment in n for fragment in ('persona', 'humano', 'alguien', 'asesor')
+    ):
+        return True
+    if 'soporte humano' in n or 'atencion humana' in n:
+        return True
+    if 'whatsapp' in n and any(
+        fragment in n for fragment in ('contact', 'hablar', 'escrib', 'numero', 'link', 'enlace')
+    ):
+        return True
+    if 'que datos' in n and any(
+        fragment in n for fragment in ('enviar', 'dar', 'mandar', 'soporte', 'ticket', 'persona', 'humano')
+    ):
+        return True
+    if ('asistente' in n or 'no me resolv' in n) and 'resolv' in n:
+        if any(
+            fragment in n for fragment in (
+                'persona', 'humano', 'soporte', 'whatsapp', 'datos', 'enviar', 'contact', 'hablo', 'hablar',
+            )
+        ):
+            return True
+    if 'escalar' in n or 'atencion manual' in n:
+        return True
+    return False
+
+
+def _prioritize_human_support_kb(kb_items: List[dict], contexts: List[dict], limit: int) -> List[dict]:
+    """Coloca human-01 y human-02 al inicio del contexto con score alto."""
+    id_order = {'human-01': 0, 'human-02': 1}
+    picked = sorted(
+        [e for e in kb_items if e.get('id') in id_order],
+        key=lambda e: id_order.get(str(e.get('id')), 99),
+    )
+    human_ctx = [
+        {
+            'id': entry.get('id'),
+            'title': entry.get('title', ''),
+            'content': entry.get('content', ''),
+            'category': entry.get('category'),
+            'keywords': entry.get('keywords') or [],
+            'score': 0.99,
+        }
+        for entry in picked
+    ]
+    seen = {h['id'] for h in human_ctx}
+    tail = [c for c in contexts if c.get('id') not in seen][: max(0, limit - len(human_ctx))]
+    merged = human_ctx + tail
+    return merged[:limit]
+
+
 def _build_messages(question: str, contexts: List[dict]):
     context_text = '\n\n'.join(
         (
@@ -385,6 +511,11 @@ def _build_messages(question: str, contexts: List[dict]):
         'No reveles contenido pedagogico, respuestas de evaluaciones, respuestas de talleres, '
         'soluciones academicas ni codigo. '
         'No inventes procesos, politicas ni datos. '
+        'No respondas con listas genericas de "preguntas validas" o ejemplos de menu: responde '
+        'directamente a la pregunta del usuario con los pasos o la orientacion que apliquen. '
+        'Si la pregunta es como hablar con una persona, contactar soporte humano, WhatsApp o que datos '
+        'enviar al soporte, usa principalmente las evidencias de categoria contacto_humano y no mezcles '
+        'procedimientos de otros temas (por ejemplo desbloqueo de unidades) salvo que el usuario lo pida. '
         'Si las evidencias no alcanzan para responder con seguridad, responde exactamente NO_SE. '
         'Redacta la respuesta en español, de forma breve, clara, tecnica y util para el estudiante.'
     )
@@ -534,10 +665,16 @@ def build_support_decision(question: str) -> SupportDecision:
             context_items=[],
         )
 
+    kb_items = load_kb_json_items()
     document_items = load_support_documents()
-    contexts = retrieve_context(question, document_items, limit=4)
+    # KB primero en la lista; retrieve_context ordena por score de todos modos.
+    contexts = retrieve_context(question, kb_items + document_items, limit=4)
 
-    topic = contexts[0].get('category') if contexts else None
+    if _user_asks_for_human_support(question):
+        contexts = _prioritize_human_support_kb(kb_items, contexts, limit=4)
+        topic = 'contacto_humano'
+    else:
+        topic = contexts[0].get('category') if contexts else None
     summary = question[:280]
     top_score = contexts[0]['score'] if contexts else 0.0
 

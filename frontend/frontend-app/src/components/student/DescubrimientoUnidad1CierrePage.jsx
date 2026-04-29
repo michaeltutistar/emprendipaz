@@ -859,6 +859,16 @@ return (
 
                     )}
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -961,7 +971,7 @@ return (
 
             <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#006837] transition-colors">
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -1265,7 +1275,7 @@ return (
 
               <p className="text-sm mt-1">
 
-                Tu avance ya está guardado para está usuario. Las respuestas seleccionadas no se muestran al volver porque
+                Tu avance ya está guardado para este usuario. Las respuestas seleccionadas no se muestran al volver porque
 
                 actualmente el sistema solo guarda el estado de completado, no las opciones marcadas.
 

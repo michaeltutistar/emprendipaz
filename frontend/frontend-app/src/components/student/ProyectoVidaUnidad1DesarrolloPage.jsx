@@ -603,6 +603,16 @@ return (
 
                     )}
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -610,13 +620,6 @@ return (
 {userMenuOpen && (
 
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 border z-[10001]">
-
-                      <div className="px-4 py-2 text-sm text-gray-500 border-b">
-
-                        {userName || 'Usuario'}
-
-                      </div>
-
                       <button
 
                         onClick={async () => {
@@ -705,7 +708,7 @@ return (
 
             <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#006837] transition-colors">
 
-              Modulos
+              Módulos
 
             </button>
 

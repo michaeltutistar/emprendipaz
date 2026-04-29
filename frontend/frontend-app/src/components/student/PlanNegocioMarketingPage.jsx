@@ -919,7 +919,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#AA27B9] transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -997,7 +997,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="hover:text-white transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1093,7 +1093,7 @@ return (
 
               <p className="text-gray-700 text-base leading-relaxed">
 
-                Ahora que ya has culminado exitosamente el desarrollo de las 3 unidades del modulo de Marketing y Comercialización, es momento de elaborar el aporte de este modulo a tu plan de negocios.
+                Ahora que ya has culminado exitosamente el desarrollo de las 3 unidades del módulo de Marketing y Comercialización, es momento de elaborar el aporte de este módulo a tu plan de negocios.
 
               </p>
 
@@ -1209,11 +1209,11 @@ return (
 
                   return (
 
-                    <div key={index} className="flex items-center" style={{ minHeight: '80px' }}>
+                    <div key={index} className="relative z-10 flex items-center" style={{ minHeight: '80px' }}>
 
                       {/* Bloque rectangular izquierdo */}
 
-                      <div className={`${item.colorClass} text-white px-6 py-4 rounded-lg shadow-md w-[140px] text-center font-semibold`}>
+                      <div className={`${item.colorClass} relative z-10 text-white px-6 py-4 rounded-lg shadow-md w-[140px] text-center font-semibold`}>
 
                         {item.variable}
 
@@ -1243,7 +1243,7 @@ return (
 
                       <svg
 
-                        className="absolute"
+                        className="absolute pointer-events-none z-0"
 
                         style={{
 
@@ -1289,7 +1289,7 @@ return (
 
 {/* Bloque redondeado derecho */}
 
-                      <div className={`${item.colorClass} text-white px-6 py-4 rounded-xl shadow-md w-[280px]`}>
+                      <div className={`${item.colorClass} relative z-10 text-white px-6 py-4 rounded-xl shadow-md w-[280px]`}>
 
                         <p className="text-sm leading-relaxed">{estrategiaLimpia}</p>
 
@@ -1553,7 +1553,7 @@ return (
 
                   window.dispatchEvent(new Event('progreso-actualizado'));
 
-                  alert('¡Plan de Negocio completado! El siguiente modulo ha sido desbloqueado.');
+                  alert('¡Plan de Negocio completado! El siguiente módulo ha sido desbloqueado.');
 
                   navigate('/student/modulos');
 

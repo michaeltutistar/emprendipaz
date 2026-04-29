@@ -50,6 +50,37 @@ const UserManagement = () => {
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0, status: '' })
   const [isDownloading, setIsDownloading] = useState(false)
 
+  const normalizeDisplayText = (value) => {
+    if (typeof value !== 'string' || !value) return value
+    if (!/[ÃÂðï]/.test(value)) return value
+
+    try {
+      const repaired = decodeURIComponent(escape(value))
+      return repaired || value
+    } catch {
+      return value
+        .replace(/TÃ©rminos/g, 'Términos')
+        .replace(/AutorizaciÃ³n/g, 'Autorización')
+        .replace(/DeclaraciÃ³n/g, 'Declaración')
+        .replace(/InformaciÃ³n/g, 'Información')
+        .replace(/PoblaciÃ³n/g, 'Población')
+        .replace(/PresentaciÃ³n/g, 'Presentación')
+        .replace(/SituaciÃ³n/g, 'Situación')
+        .replace(/Ãšnico/g, 'Único')
+        .replace(/VÃ­ctimas/g, 'Víctimas')
+        .replace(/Ã‰tnico/g, 'Étnico')
+        .replace(/ContralorÃ­a/g, 'Contraloría')
+        .replace(/ProcuradurÃ­a/g, 'Procuraduría')
+        .replace(/MatrÃ­cula/g, 'Matrícula')
+        .replace(/ðŸ“‹/g, '📋')
+        .replace(/ðŸ‘¤/g, '👤')
+        .replace(/ðŸ·ï¸/g, '🏷️')
+        .replace(/ðŸ”/g, '🔍')
+        .replace(/ðŸ¢/g, '🏢')
+        .replace(/ðŸŽ¥/g, '🎥')
+    }
+  }
+
   useEffect(() => {
     fetchCurrentUser()
     fetchUsers()
@@ -76,7 +107,20 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams(filters)
+      const effectiveFilters = { ...filters }
+      effectiveFilters.solo_finalizados = ''
+
+      // Maquillaje visual del dashboard:
+      // - "Estudiante + Todos" muestra realmente estudiantes activos.
+      // - "Inscrito" muestra realmente todos los estudiantes/usuarios inscritos.
+      if (effectiveFilters.rol === 'inscrito') {
+        effectiveFilters.rol = 'estudiante'
+        effectiveFilters.estado = ''
+      } else if (effectiveFilters.rol === 'estudiante' && !effectiveFilters.estado) {
+        effectiveFilters.estado = 'activa'
+      }
+
+      const params = new URLSearchParams(effectiveFilters)
       const response = await fetch(`${API_BASE_URL}/admin/users?${params}`, {
         credentials: 'include'
       })
@@ -96,11 +140,21 @@ const UserManagement = () => {
   }
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value,
-      page: 1 // Reset to first page when filtering
-    }))
+    setFilters(prev => {
+      const nextFilters = {
+        ...prev,
+        [key]: value,
+        page: 1 // Reset to first page when filtering
+      }
+
+      // "Inscrito" se comporta como una vista visual propia
+      // y siempre usa estado "Todos" en pantalla.
+      if (key === 'rol' && value === 'inscrito') {
+        nextFilters.estado = ''
+      }
+
+      return nextFilters
+    })
     setSelectedUsers([]) // Clear selection when filtering
   }
 
@@ -874,7 +928,7 @@ const UserManagement = () => {
 
       {/* Filtros */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <SearchInput
             placeholder="Nombre, email, documento..."
             onSearch={handleSearchChange}
@@ -888,15 +942,13 @@ const UserManagement = () => {
             <select
               value={filters.estado}
               onChange={(e) => handleFilterChange('estado', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              disabled={filters.rol === 'inscrito'}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
             >
               <option value="">Todos</option>
               <option value="activa">Activa</option>
               <option value="inactiva">Inactiva</option>
-              <option value="inscrito">Inscrito</option>
               <option value="pendiente">Pendiente</option>
-              <option value="seleccionado">Seleccionado</option>
-              <option value="rechazado">Rechazado</option>
             </select>
           </div>
           {currentUser?.rol !== 'evaluador' && (
@@ -911,10 +963,16 @@ const UserManagement = () => {
               >
                 <option value="">Todos</option>
                 <option value="estudiante">Estudiante</option>
+                <option value="inscrito">Inscrito</option>
                 <option value="instructor">Instructor</option>
                 <option value="admin">Admin</option>
                 <option value="evaluador">Evaluador</option>
               </select>
+              {filters.rol === 'inscrito' && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Esta vista muestra todos los inscritos a la plataforma.
+                </p>
+              )}
             </div>
           )}
           <div>
@@ -930,20 +988,6 @@ const UserManagement = () => {
               <option value={20}>20</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Estado de Finalización
-            </label>
-            <select
-              value={filters.solo_finalizados}
-              onChange={(e) => handleFilterChange('solo_finalizados', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            >
-              <option value="">Todos</option>
-              <option value="finalizados">Solo finalizados</option>
-              <option value="no_finalizados">Solo no finalizados</option>
             </select>
           </div>
           <div>
@@ -990,13 +1034,12 @@ const UserManagement = () => {
         </div>
         
         {/* Botón para limpiar filtros */}
-        {(filters.fecha_inicio || filters.fecha_fin || filters.solo_finalizados || filters.municipio) && (
+        {(filters.fecha_inicio || filters.fecha_fin || filters.municipio) && (
           <div className="mt-4 flex justify-end">
             <button
               onClick={() => {
                 handleFilterChange('fecha_inicio', '')
                 handleFilterChange('fecha_fin', '')
-                handleFilterChange('solo_finalizados', '')
                 handleFilterChange('municipio', '')
               }}
               className="text-sm text-gray-600 hover:text-gray-800 underline"
@@ -1679,7 +1722,7 @@ const UserManagement = () => {
                       {Object.entries(selectedUserDetails.files_by_section).map(([sectionKey, section]) => (
                         <div key={sectionKey} className="border border-gray-200 rounded-lg p-4">
                           <h5 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                            {section.section_name}
+                            {normalizeDisplayText(section.section_name)}
                             <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                               {section.files.length}
                             </span>
@@ -1688,7 +1731,7 @@ const UserManagement = () => {
                             {section.files.map((file, index) => (
                               <div key={index} className="border border-gray-100 rounded-lg p-3 bg-gray-50">
                                 <div className="text-sm font-medium text-gray-900 mb-2">
-                                  {file.document_name}
+                                  {normalizeDisplayText(file.document_name)}
                                 </div>
                                 <div className="text-xs text-gray-600 mb-2">
                                   <div><strong>Archivo:</strong> {file.filename}</div>

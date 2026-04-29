@@ -531,6 +531,16 @@ return (
 
                     </div>
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -645,7 +655,7 @@ return (
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -731,7 +741,7 @@ return (
 
             <p className="text-neutral-700 text-base md:text-lg mb-4 leading-relaxed">
 
-              Ahora que has completado el modulo de Finanzas y Gestión Empresarial, es momento de contribuir a tu plan de negocio.
+              Ahora que has completado el módulo de Finanzas y Gestión Empresarial, es momento de contribuir a tu plan de negocio.
 
             </p>
 
@@ -1051,7 +1061,7 @@ localStorage.setItem('finanzas_plan_negocio_completado', 'true');
 
                   window.dispatchEvent(new Event('progreso-actualizado'));
 
-                  alert('¡Plan de Negocio completado! El siguiente modulo ha sido desbloqueado.');
+                  alert('¡Plan de Negocio completado! El siguiente módulo ha sido desbloqueado.');
 
                   navigate('/student/modulos');
 

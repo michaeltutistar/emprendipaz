@@ -618,7 +618,17 @@ style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
 
 )}
 
-<ChevronDown className={`w-4 h-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
+                    <ChevronDown className={`w-4 h-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
 
 </button>
 
@@ -722,7 +732,7 @@ className="text-gray-600 hover:text-[#59D22E] transition-colors"
 
 >
 
-Modulos
+Módulos
 
 </button>
 

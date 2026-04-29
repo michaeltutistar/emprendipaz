@@ -184,7 +184,7 @@ const AtencionClienteUnidad3Page = () => {
 
           <button onClick={() => navigate('/student/modulos')} className="hover:text-neutral-900 transition-colors">
 
-            Modulos
+            Módulos
 
           </button>
 

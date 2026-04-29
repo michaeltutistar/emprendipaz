@@ -37,6 +37,31 @@ except ImportError:
 
 user_bp = Blueprint('user', __name__)
 
+PLAN_NEGOCIO_MODULE_NAME_MAP = {
+    'Finanzas y Gestión Empresarial': 'Finanzas',
+    'Atención al Cliente y Resolución de Conflictos': 'Atención al Cliente',
+    'Descubrimiento de Oportunidades': 'Descubrimiento de Oportunidades',
+    'Modelo de Negocios': 'Modelo de Negocios',
+    'Marketing Digital': 'Marketing Digital',
+    'Marketing y Comercialización': 'Marketing y Comercialización',
+    'Proyecto de vida': 'Proyecto de vida',
+    'Trabajo en Equipo': 'Trabajo en Equipo',
+    'Liderazgo': 'Liderazgo',
+    'Plan de Inversión': 'Plan de Inversión'
+}
+
+def normalize_plan_negocio_module_name(module_name):
+    module_name = (module_name or '').strip()
+    return PLAN_NEGOCIO_MODULE_NAME_MAP.get(module_name, module_name)
+
+def get_plan_negocio_module_variants(module_name):
+    canonical_name = normalize_plan_negocio_module_name(module_name)
+    module_variants = {canonical_name}
+    for raw_name, normalized_name in PLAN_NEGOCIO_MODULE_NAME_MAP.items():
+        if normalized_name == canonical_name:
+            module_variants.add(raw_name)
+    return canonical_name, module_variants
+
 def validate_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
@@ -2235,11 +2260,13 @@ def registrar_puntos_plan_negocio(current_user):
         if not isinstance(data, dict):
             return jsonify({'success': False, 'error': 'Formato de solicitud inválido'}), 400
 
-        modulo_nombre = (data.get('modulo_nombre') or '').strip()
+        modulo_nombre_raw = (data.get('modulo_nombre') or '').strip()
         estrategias_seleccionadas = data.get('estrategias', [])  # Lista de {etapa, estrategia}
 
-        if not modulo_nombre or not estrategias_seleccionadas:
+        if not modulo_nombre_raw or not estrategias_seleccionadas:
             return jsonify({'success': False, 'error': 'Faltan datos requeridos'}), 400
+
+        modulo_nombre, modulos_equivalentes = get_plan_negocio_module_variants(modulo_nombre_raw)
 
         # Mapeo de puntos por estrategia (para módulo Descubrimiento de Oportunidades)
         puntos_por_estrategia = {
@@ -2261,11 +2288,12 @@ def registrar_puntos_plan_negocio(current_user):
             'Retiro gradual': 3
         }
 
-        # Eliminar puntos anteriores del mismo módulo para este usuario (para permitir actualizaciones)
+        # Reemplazar el puntaje anterior del mismo módulo para este usuario.
+        # Incluye alias históricos para evitar acumulación cuando el nombre del módulo cambió.
         try:
-            registros_anteriores = PuntosPlanNegocio.query.filter_by(
-                usuario_id=current_user.id,
-                modulo_nombre=modulo_nombre
+            registros_anteriores = PuntosPlanNegocio.query.filter(
+                PuntosPlanNegocio.usuario_id == current_user.id,
+                PuntosPlanNegocio.modulo_nombre.in_(list(modulos_equivalentes))
             ).all()
             
             for registro in registros_anteriores:
@@ -2453,9 +2481,19 @@ def save_respuestas_plan(current_user):
 @user_bp.route('/get-respuestas-plan', methods=['GET'])
 @token_required
 def get_respuestas_plan(current_user):
-    """Obtener todas las respuestas del plan de negocio del usuario"""
+    """Obtener todas las respuestas del plan de negocio del usuario (o de otro usuario si admin/instructor)."""
     try:
-        respuestas = RespuestasPlanNegocio.query.filter_by(usuario_id=current_user.id).all()
+        usuario_id_param = request.args.get('usuario_id', type=int)
+        target_user_id = current_user.id
+        if usuario_id_param is not None:
+            if current_user.rol not in ('admin', 'instructor'):
+                return jsonify({'success': False, 'error': 'No autorizado'}), 403
+            target = User.query.get(usuario_id_param)
+            if not target:
+                return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
+            target_user_id = usuario_id_param
+
+        respuestas = RespuestasPlanNegocio.query.filter_by(usuario_id=target_user_id).all()
         
         # Agrupar por módulo para facilitar uso en frontend
         resultado = {}

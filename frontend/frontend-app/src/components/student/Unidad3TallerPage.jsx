@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../ui/button';
@@ -949,6 +949,16 @@ return (
 
                     </div>
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -1063,7 +1073,7 @@ return (
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -1157,7 +1167,7 @@ return (
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1223,7 +1233,7 @@ return (
 
             <p className="text-white/80 max-w-2xl text-sm md:text-base mb-8">
 
-              Vamos a poner en práctica los conocimientos adquiridos en esta unidad final de nuestro modulo de marketing y comercialización.
+              Vamos a poner en práctica los conocimientos adquiridos en esta unidad final de nuestro módulo de marketing y comercialización.
 
             </p>
 
@@ -1399,7 +1409,7 @@ return (
 
             <p className="text-gray-700 leading-relaxed mb-4">
 
-              Vamos a poner en práctica los conocimientos adquiridos en esta unidad final de nuestro modulo de marketing y comercialización.
+              Vamos a poner en práctica los conocimientos adquiridos en esta unidad final de nuestro módulo de marketing y comercialización.
 
             </p>
 

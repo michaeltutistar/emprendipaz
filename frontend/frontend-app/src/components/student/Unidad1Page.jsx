@@ -206,7 +206,7 @@ const Unidad1Page = () => {
 
           >
 
-            Modulos
+            Módulos
 
           </button>
 

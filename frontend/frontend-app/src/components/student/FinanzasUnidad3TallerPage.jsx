@@ -35,7 +35,7 @@ const acciones = [
 
     { id: 'accion2', texto: 'Revisar resultados y corregir errores' },
 
-    { id: 'accion3', texto: 'Definir metas de ventas para el próximo trimástre' },
+    { id: 'accion3', texto: 'Definir metas de ventas para el próximo trimestre' },
 
     { id: 'accion4', texto: 'Asignar tareas específicas a cada empleado' }
 
@@ -254,6 +254,28 @@ const handleReiniciar = () => {
     setDraggedItem(null);
 
     localStorage.removeItem('finanzas_u3_taller_respuestas_drag');
+
+  };
+
+const handleReintentarIncorrectas = () => {
+
+    // Solo limpiar las respuestas incorrectas, mantener las correctas
+
+    const nuevasRespuestas = {};
+
+    estrategias.forEach(e => {
+
+      if (esCorrecta(e.id)) {
+
+        nuevasRespuestas[e.id] = respuestas[e.id];
+
+      }
+
+    });
+
+    setRespuestas(nuevasRespuestas);
+
+    setValidado(false);
 
   };
 
@@ -591,7 +613,7 @@ return (
 
             <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#006837] transition-colors">
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -988,7 +1010,7 @@ return (
 
 {/* Botones de acción */}
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6 flex-wrap">
 
             <Button
 
@@ -1001,6 +1023,22 @@ return (
               Reiniciar
 
             </Button>
+
+            {validado && !completado && (
+
+              <Button
+
+                onClick={handleReintentarIncorrectas}
+
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-8 py-4 flex items-center gap-2 text-base font-semibold shadow-lg"
+
+              >
+
+                Reintentar incorrectas
+
+              </Button>
+
+            )}
 
             <Button
 

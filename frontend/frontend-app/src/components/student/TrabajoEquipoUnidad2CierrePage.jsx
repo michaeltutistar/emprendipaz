@@ -848,7 +848,7 @@ const TrabajoEquipoUnidad2CierrePage = () => {
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 

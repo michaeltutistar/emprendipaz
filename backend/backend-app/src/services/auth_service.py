@@ -108,6 +108,20 @@ def admin_required(f):
     
     return decorated
 
+def admin_or_instructor_required(f):
+    """Decorador para verificar que el usuario es administrador o instructor"""
+    @wraps(f)
+    def decorated(current_user, *args, **kwargs):
+        if current_user.rol not in ['admin', 'instructor']:
+            return jsonify({
+                'success': False,
+                'error': 'Acceso denegado. Se requiere rol de administrador o instructor'
+            }), 403
+
+        return f(current_user, *args, **kwargs)
+
+    return decorated
+
 def evaluador_required(f):
     """Decorador para verificar que el usuario es evaluador"""
     @wraps(f)

@@ -583,6 +583,16 @@ return (
 
                     )}
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -685,7 +695,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#006837] transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -933,7 +943,7 @@ return (
 
             <p className="text-gray-700 mb-4 text-sm md:text-base leading-relaxed">
 
-              El ciclo de vida de un producto (CVP) es una herramienta clave del marketing que permite comprender las etapas por las que pasa un producto desde su creación hasta su salida del mercado. Este modulo utiliza la idea de negocio "Taller: Desarrollando mi Producto" para que el estudiante aplique los conceptos de manera práctica y contextualizada.
+              El ciclo de vida de un producto (CVP) es una herramienta clave del marketing que permite comprender las etapas por las que pasa un producto desde su creación hasta su salida del mercado. Este módulo utiliza la idea de negocio "Taller: Desarrollando mi Producto" para que el estudiante aplique los conceptos de manera práctica y contextualizada.
 
             </p>
 

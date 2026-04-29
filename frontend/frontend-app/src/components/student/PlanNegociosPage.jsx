@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { motion } from 'framer-motion';
 
@@ -15,8 +15,16 @@ import { getFormData } from '@/utils/offline-storage';
 const PlanNegociosPage = () => {
 
   const navigate = useNavigate();
+  const { estudianteId } = useParams();
+  const [searchParams] = useSearchParams();
+  const isInstructorView = Boolean(estudianteId);
+  const autoPrint = searchParams.get('print') === '1';
+  const shouldAutoClose = searchParams.get('close') === '1';
+  const requestedTab = searchParams.get('tab') === 'formulario' ? 'formulario' : 'fundamentacion';
 
-  const [activeTab, setActiveTab] = useState('fundamentacion');
+  const [activeTab, setActiveTab] = useState(requestedTab);
+  const [planLoaded, setPlanLoaded] = useState(false);
+  const [didAutoPrint, setDidAutoPrint] = useState(false);
 
   const [formData, setFormData] = useState({
 
@@ -150,7 +158,7 @@ const getOfflineFinanzasData = async () => {
 
   };
 
-React.useEffect(() => {
+useEffect(() => {
 
     const fetchData = async () => {
 
@@ -158,7 +166,11 @@ React.useEffect(() => {
 
         const token = getAuthToken();
 
-        const response = await fetch(`${API_BASE_URL}/get-respuestas-plan`, {
+        const endpoint = isInstructorView
+          ? `${API_BASE_URL}/get-respuestas-plan?usuario_id=${encodeURIComponent(estudianteId)}`
+          : `${API_BASE_URL}/get-respuestas-plan`;
+
+        const response = await fetch(endpoint, {
 
           headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
 
@@ -304,13 +316,39 @@ if (data.success && data.respuestas) {
         if (trabajoOffline) setTrabajoEquipoData(trabajoOffline);
         if (finanzasOffline) setFinanzasData(finanzasOffline);
 
+      } finally {
+        setPlanLoaded(true);
       }
 
     };
 
 fetchData();
 
-  }, []);
+  }, [estudianteId, isInstructorView]);
+
+useEffect(() => {
+  if (!autoPrint || !planLoaded || didAutoPrint) return;
+  setDidAutoPrint(true);
+
+  const finishPrint = () => {
+    if (shouldAutoClose) {
+      window.setTimeout(() => {
+        window.close();
+      }, 200);
+    }
+  };
+
+  window.addEventListener('afterprint', finishPrint, { once: true });
+  const timeoutId = window.setTimeout(() => {
+    window.focus();
+    window.print();
+  }, 700);
+
+  return () => {
+    window.clearTimeout(timeoutId);
+    window.removeEventListener('afterprint', finishPrint);
+  };
+}, [autoPrint, didAutoPrint, planLoaded, shouldAutoClose]);
 
 const handleInputChange = (unidad, value) => {
 
@@ -636,7 +674,7 @@ return (
 
                         icon: '⚖️',
 
-                        content: 'Organigrama funcional, roles claros y cumplimiento de requisitos legales (RUT, Matrícula Mercantil, Permásos Sanitarios y Obligaciones Laborales).'
+                        content: 'Organigrama funcional, roles claros y cumplimiento de requisitos legales (RUT, Matrícula Mercantil, Permisos Sanitarios y Obligaciones Laborales).'
 
                       },
 
@@ -904,7 +942,7 @@ return (
 
                         <h4 className="font-bold text-lg text-purple-900 mb-2">Ejecución y Monitoreo</h4>
 
-                        <p className="text-gray-600">El plan no es estático. Revísalo trimástralmente, ajusta metas según resultados reales y mantén la coherencia entre lo planeado y lo ejecutado.</p>
+                        <p className="text-gray-600">El plan no es estático. Revísalo trimestralmente, ajusta metas según resultados reales y mantén la coherencia entre lo planeado y lo ejecutado.</p>
 
                       </div>
 
@@ -1044,7 +1082,7 @@ return (
 
                 </div>
 
-{/* Resultados de Modulos (Descubrimiento de Oportunidades) */}
+{/* Resultados de Módulos (Descubrimiento de Oportunidades) */}
 
                 {descubrimientoData && (
 
@@ -1086,7 +1124,7 @@ return (
 
                       <div className="space-y-4">
 
-                        <h4 className="font-bold text-[#006837] text-lg px-2">1. Ciclo de vida de más productos</h4>
+                        <h4 className="font-bold text-[#006837] text-lg px-2">1. Ciclo de vida de mis productos</h4>
 
                         <div className="overflow-hidden rounded-3xl border-2 border-gray-100 shadow-sm">
 
@@ -1196,7 +1234,7 @@ return (
 
                 )}
 
-                {/* Resultados de Modulos (Modelo de Negocios) */}
+                {/* Resultados de Módulos (Modelo de Negocios) */}
 
                 {modeloData && (
 
@@ -1330,7 +1368,7 @@ return (
 
                 )}
 
-{/* Resultados de Modulos (Marketing y Comercialización) */}
+{/* Resultados de Módulos (Marketing y Comercialización) */}
 
                 {marketingData && (
 
@@ -1424,7 +1462,7 @@ return (
 
                 )}
 
-{/* Resultados de Modulos (Marketing Digital) */}
+{/* Resultados de Módulos (Marketing Digital) */}
 
                 {marketingDigitalData && (
 
@@ -1646,7 +1684,7 @@ return (
 
                 )}
 
-{/* Resultados de Modulos (Atención al Cliente) */}
+{/* Resultados de Módulos (Atención al Cliente) */}
 
                 {atenciónClienteData && (
 
@@ -1748,7 +1786,7 @@ return (
 
                 )}
 
-{/* Resultados de Modulos (Trabajo en Equipo) */}
+{/* Resultados de Módulos (Trabajo en Equipo) */}
 
                 {trabajoEquipoData && (
 
@@ -2030,7 +2068,7 @@ return (
 
                 )}
 
-{/* Resultados de Modulos (Finanzas) */}
+{/* Resultados de Módulos (Finanzas) */}
 
                 {finanzasData && (() => {
 
@@ -2238,7 +2276,7 @@ return (
 
             window.scrollTo(0, 0);
 
-            navigate('/student/dashboard');
+            navigate(isInstructorView ? '/instructor/dashboard' : '/student/dashboard');
 
           }}
 

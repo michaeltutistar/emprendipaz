@@ -12,11 +12,11 @@ import { toast } from 'sonner'
 import logoGobernacion from '../assets/logo-gobernacion.png'
 import { MUNICIPIOS_POR_SUBREGION } from '@/constants/municipios'
 import API_BASE_URL from '@/config/api'
-const RegisterPageMultiStep = () => {
+const RegisterPageMultiStep = ({ embedded = false, forceAdminMode = false }) => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isDemoMode = searchParams.get('demo') === 'true'
-  const isAdminMode = searchParams.get('admin') === 'true' // Modo admin para habilitar edici?n
+  const isAdminMode = forceAdminMode || searchParams.get('admin') === 'true' // Modo admin para habilitar edici?n
   const [currentStep, setCurrentStep] = useState(1)
   const [userId, setUserId] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -138,25 +138,37 @@ const RegisterPageMultiStep = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  // Estado para video de presentaci?n
+  // Estado para video de presentacion
   const [videoPresentacion, setVideoPresentacion] = useState(null)
 
-  // Definici?n de pasos
+  // Definicion de pasos
   const steps = [
-    { number: 1, title: 'Datos Generales', description: 'Informaci?n personal y del emprendimiento' },
-    { number: 2, title: 'Poblaci?n Diferencial', description: 'Condiciones especiales y vulnerabilidad' },
+    { number: 1, title: 'Datos Generales', description: 'Informacion personal y del emprendimiento' },
+    { number: 2, title: 'Población Diferencial', description: 'Condiciones especiales y vulnerabilidad' },
     { number: 3, title: 'Emprendimiento', description: 'Tiempo funcionamiento, empleos y mercados' },
-    { number: 4, title: 'Video Presentaci?n', description: 'Video de presentaci?n del emprendimiento' },
+    { number: 4, title: 'Video Presentacion', description: 'Video de presentacion del emprendimiento' },
     { number: 5, title: 'Documentos Obligatorios', description: 'TDR, Uso de imagen, Plan de negocio, Vecindad' },
-    { number: 6, title: 'Documentos por Tipo', description: 'Seg?n persona natural o jur?dica' },
-    { number: 7, title: 'Documentos Diferenciales', description: 'RUV, SISBEN, Grupo ?tnico (opcionales)' },
+    { number: 6, title: 'Documentos por Tipo', description: 'Según persona natural o jurídica' },
+    { number: 7, title: 'Documentos Diferenciales', description: 'RUV, SISBEN, Grupo etnico (opcionales)' },
     { number: 8, title: 'Documentos de Control', description: 'Antecedentes y certificados subsanables' },
-    { number: 9, title: 'Funcionamiento', description: 'Certificaci?n de funcionamiento del emprendimiento' },
-    { number: 10, title: 'Financiaci?n', description: 'Financiaci?n de otras fuentes estatales' },
-    { number: 11, title: 'Declaraciones', description: 'Declaraciones y aceptaci?n de t?rminos' }
+    { number: 9, title: 'Funcionamiento', description: 'Certificacion de funcionamiento del emprendimiento' },
+    { number: 10, title: 'Financiación', description: 'Financiación de otras fuentes estatales' },
+    { number: 11, title: 'Declaraciones', description: 'Declaraciones y aceptación de términos' }
   ]
 
   const progressPercentage = (currentStep / steps.length) * 100
+  const hasUploadedVideo = Boolean(
+    videoPresentacion ||
+    videoUrl ||
+    formData.video_url ||
+    formData.video_presentacion ||
+    uploadedFiles.has('video_presentacion') ||
+    uploadedFiles.has('video_url')
+  )
+
+  const hasUploadedDocument = (fileState, fieldName) => {
+    return Boolean(fileState || uploadedFiles.has(fieldName) || formData[fieldName])
+  }
 
   // Funciones de utilidad (copiadas del original)
   const validateEmail = (email) => {
@@ -282,19 +294,19 @@ const RegisterPageMultiStep = () => {
         }
 
         setIsStep1Complete(true) // ? Habilitar navegaci?n libre al retomar proceso
-        setSuccessMessage('? Proceso cargado exitosamente. Puede continuar donde lo dej?.')
+        setSuccessMessage('✓ Proceso cargado exitosamente. Puede continuar donde lo dejó.')
         setTimeout(() => setSuccessMessage(''), 5000)
       } else {
-        setErrors({ resume: result.error || 'No se encontr? un proceso iniciado con este documento' })
+        setErrors({ resume: result.error || 'No se encontró un proceso iniciado con este documento' })
       }
     } catch (err) {
-      setErrors({ resume: 'Error de conexi?n al cargar el proceso' })
+      setErrors({ resume: 'Error de conexión al cargar el proceso' })
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Funci?n espec?fica para compprobantes de ventas con URL pre-firmada (15MB)
+  // Flujo específico para comprobantes de ventas usando el mismo endpoint estable del resto de documentos.
   const handleComprobantesVentasChange = async (file, setter, fieldName) => {
     try {
       if (!file) return
@@ -308,7 +320,7 @@ const RegisterPageMultiStep = () => {
       // L?mite de 10MB para comprobantes de ventas (l?mite de API Gateway)
       const maxSize = 10 * 1024 * 1024
       if (file.size > maxSize) {
-        setErrors(prev => ({ ...prev, [fieldName]: `El archivo no puede superar 10MB. Tama?o actual: ${(file.size / (1024 * 1024)).toFixed(2)}MB` }))
+        setErrors(prev => ({ ...prev, [fieldName]: `El archivo no puede superar 10MB. Tamaño actual: ${(file.size / (1024 * 1024)).toFixed(2)}MB` }))
         setter(null)
         return
       }
@@ -318,100 +330,15 @@ const RegisterPageMultiStep = () => {
         setErrors(prev => ({ ...prev, [fieldName]: '' }))
       }
 
-      setIsLoading(true)
+      setter(file)
 
-      // Obtener URL pre-firmada
-      const response = await fetch(`${API_BASE_URL}/get-pdf-upload-url`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          numero_documento: formData.numero_documento,
-          filename: file.name,
-          content_type: file.type,
-          file_size: file.size,
-          campo: fieldName,
-          admin_mode: isAdminMode
-        })
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al obtener URL de subida')
-      }
-
-      // Si el backend sugiere usar m?todo tradicional, usar handleFileChange normal
-      if (result.use_traditional_upload) {
-        console.log('Usando m?todo tradicional para archivo grande')
-        // Usar el m?todo normal pero con l?mite de 10MB
-        await handleFileChange(file, setter, fieldName, ['application/pdf'], 10 * 1024 * 1024)
+      // Reusar el flujo estándar evita depender de endpoints no disponibles para este campo.
+      if (!formData.numero_documento || !userId) {
+        setPendingUploads(prev => ({ ...prev, [fieldName]: file }))
         return
       }
 
-      // Subir archivo directamente a S3 usando XMLHttpRequest para evitar problemas de CORS
-      console.log('Subiendo archivo directamente a S3 con URL pre-firmada')
-
-      const uploadResponse = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-
-        xhr.addEventListener('load', () => {
-          if (xhr.status === 200) {
-            resolve({ ok: true, status: 200 })
-          } else {
-            reject(new Error(`Error ${xhr.status}: ${xhr.statusText}`))
-          }
-        })
-
-        xhr.addEventListener('error', () => reject(new Error('Error de red al subir a S3')))
-
-        xhr.open('PUT', result.upload_url)
-        xhr.setRequestHeader('Content-Type', file.type)
-        xhr.send(file)
-      })
-
-      if (!uploadResponse.ok) {
-        throw new Error('Error al subir archivo a S3')
-      }
-
-      console.log('? Archivo subido exitosamente a S3')
-
-      // Notificar al backend que el archivo fue subido (guardar referencia en BD)
-      const notifyResponse = await fetch(`${API_BASE_URL}/notify-file-uploaded`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          numero_documento: formData.numero_documento,
-          campo: fieldName,
-          file_key: result.file_key,
-          filename: file.name
-        })
-      })
-
-      if (!notifyResponse.ok) {
-        console.warn('?? Advertencia: No se pudo notificar al backend sobre el archivo subido')
-        // No lanzamos error aqu? porque el archivo YA est? en S3
-      } else {
-        console.log('? Backend notificado sobre archivo subido')
-      }
-
-      // Actualizar estado
-      setter(file)
-      setUploadedFiles(prev => new Set([...prev, fieldName]))
-
-      // Guardar en sessionStorage
-      try {
-        const currentFiles = JSON.parse(sessionStorage.getItem('uploadedFiles') || '[]')
-        const updatedFiles = [...new Set([...currentFiles, fieldName])]
-        sessionStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles))
-      } catch (e) {
-        console.warn('No se pudo guardar en sessionStorage:', e)
-      }
-
-      console.log(`? Archivo ${fieldName} subido exitosamente`)
+      await uploadSingleFileInternal(file, fieldName, setter)
 
     } catch (error) {
       console.error(`Error subiendo archivo ${fieldName}:`, error)
@@ -427,13 +354,13 @@ const RegisterPageMultiStep = () => {
       if (!file) return
 
       if (!allowedTypes.includes(file.type)) {
-        setErrors(prev => ({ ...prev, [fieldName]: `Tipo de archivo no v?lido. Se requiere: ${allowedTypes.join(', ')}` }))
+        setErrors(prev => ({ ...prev, [fieldName]: `Tipo de archivo no válido. Se requiere: ${allowedTypes.join(', ')}` }))
         setter(null)
         return
       }
 
       if (file.size > maxSize) {
-        setErrors(prev => ({ ...prev, [fieldName]: `El archivo no puede superar ${Math.round(maxSize / (1024 * 1024))}MB. Tama?o actual: ${(file.size / (1024 * 1024)).toFixed(2)}MB` }))
+        setErrors(prev => ({ ...prev, [fieldName]: `El archivo no puede superar ${Math.round(maxSize / (1024 * 1024))}MB. Tamaño actual: ${(file.size / (1024 * 1024)).toFixed(2)}MB` }))
         setter(null)
         return
       }
@@ -483,7 +410,7 @@ const RegisterPageMultiStep = () => {
 
     try {
       if (!formData.numero_documento) {
-        throw new Error('Falta n?mero de documento para cargar el archivo')
+        throw new Error('Falta número de documento para cargar el archivo')
       }
 
       const base64Data = await convertFileToBase64(file)
@@ -691,14 +618,14 @@ const RegisterPageMultiStep = () => {
     }
   }
 
-  // Funci?n para descargar documentos desde la p?gina de t?rminos
+  // Función para descargar documentos desde la página de términos
   const handleDownloadFormat = (documentName) => {
     const documentMappings = {
       'Certificado de Compromiso': '3. Certificado de Compromiso.pdf',
-      'Formato de autorizaci?n de datos': '4. Autorizaci?n.pdf',
-      'Formato de Plan de Negocio (Excel)': '6. FORMATO PLAN DE NEGOCIO INSCRIPCI?N.xlsx',
+      'Formato de autorización de datos': '4. Autorización.pdf',
+      'Formato de Plan de Negocio (Excel)': '6. FORMATO PLAN DE NEGOCIO INSCRIPCIÓN.xlsx',
       'Certificado de vecindad con anexos': '5.Certificado de Vecindad.pdf',
-      'Declaraci?n Juramentada de Capacidad Legal': '7. DECLARACI?N JURAMENTADA DE CAPACIDAD LEGAL.pdf'
+      'Declaración Juramentada de Capacidad Legal': '7. DECLARACIÓN JURAMENTADA DE CAPACIDAD LEGAL.pdf'
     }
 
     const fileName = documentMappings[documentName]
@@ -727,7 +654,7 @@ const RegisterPageMultiStep = () => {
       <div className="space-y-2">
         <Label htmlFor={fieldName}>{label} {!isOptional && '*'}</Label>
 
-        {/* Bot?n de descarga del formato - solo para Paso 5 */}
+        {/* Botón de descarga del formato - solo para Paso 5 */}
         {showDownloadButton && (
           <div className="mb-3">
             <Button
@@ -738,7 +665,7 @@ const RegisterPageMultiStep = () => {
               className="text-blue-600 border-blue-300 hover:bg-blue-50 flex items-center space-x-2"
             >
               <FileText className="h-4 w-4" />
-              <span>Desc?rgalo aqu?</span>
+              <span>Descárgalo aquí</span>
             </Button>
           </div>
         )}
@@ -752,8 +679,7 @@ const RegisterPageMultiStep = () => {
               rel="noopener noreferrer"
               className="text-blue-600 hover:text-blue-800 text-sm underline flex items-center space-x-1"
             >
-              <span>??</span>
-              <span>Obtener documento aqu?</span>
+              <span>Obtener documento aquí</span>
             </a>
           </div>
         )}
@@ -764,7 +690,7 @@ const RegisterPageMultiStep = () => {
               <div className="flex items-center">
                 <FileText className="h-5 w-5 text-green-600 mr-2" />
                 <span className="text-sm text-green-700 font-medium">
-                  {isUploading ? 'Subiendo...' : `?? ${file.name}`}
+                  {isUploading ? 'Subiendo...' : file.name}
                 </span>
               </div>
               <Button
@@ -806,7 +732,7 @@ const RegisterPageMultiStep = () => {
               <p className="text-xs text-gray-500 mt-1">
                 {allowedTypes.includes('application/pdf') && 'PDF'}
                 {allowedTypes.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') && ' Excel'}
-                (m?x. 10MB)
+                (máx. 10MB)
               </p>
               {isUploading && (
                 <p className="text-sm text-blue-600 mt-1 flex items-center gap-2">
@@ -814,27 +740,27 @@ const RegisterPageMultiStep = () => {
                 </p>
               )}
               {isSuccess && (
-                <p className="text-sm text-green-600 mt-1">? Documento subido correctamente</p>
+                <p className="text-sm text-green-600 mt-1">Documento subido correctamente</p>
               )}
               {alreadyUploaded && !isUploading && !isSuccess && (
                 <div className="mt-1">
-                  <p className="text-sm text-green-600 font-medium">? Documento ya cargado anteriormente</p>
+                  <p className="text-sm text-green-600 font-medium">Documento ya cargado anteriormente</p>
                   {existingFileName && (
                     <p className="text-xs text-gray-600 mt-1 bg-gray-50 p-2 rounded border border-gray-200">
-                      ?? {existingFileName}
+                      {existingFileName}
                     </p>
                   )}
                   <p className="text-xs text-gray-500 mt-1">Puedes subir un nuevo archivo para reemplazarlo</p>
                 </div>
               )}
               {hasError && (
-                <p className="text-sm text-red-600 mt-1">? {uploadStatus?.error || 'Error al subir el documento'}</p>
+                <p className="text-sm text-red-600 mt-1">{uploadStatus?.error || 'Error al subir el documento'}</p>
               )}
               {!file && !isOptional && !alreadyUploaded && !isUploading && errors[validationName] && (
-                <p className="text-sm text-red-600 mt-1">? Falta documento obligatorio</p>
+                <p className="text-sm text-red-600 mt-1">Falta documento obligatorio</p>
               )}
               {!file && isOptional && !alreadyUploaded && !isUploading && (
-                <p className="text-sm text-yellow-600 mt-1">?? Documento no cargado (subsanable)</p>
+                <p className="text-sm text-yellow-600 mt-1">Documento no cargado (subsanable)</p>
               )}
             </div>
           )}
@@ -859,13 +785,13 @@ const RegisterPageMultiStep = () => {
       if (currentStep === 1) {
         if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio'
         if (!formData.email.trim()) {
-          newErrors.email = 'El correo electr?nico es obligatorio'
+          newErrors.email = 'El correo electrónico es obligatorio'
         } else if (!validateEmail(formData.email)) {
-          newErrors.email = 'El formato del correo electr?nico no es v?lido'
+          newErrors.email = 'El formato del correo electrónico no es válido'
         }
         // Solo validar contrase?a si NO es un usuario existente
         if (!isExistingUser && !formData.password) {
-          newErrors.password = 'La contrase?a es obligatoria'
+          newErrors.password = 'La contraseña es obligatoria'
         }
       }
       // Para los dem?s pasos en demo, no validar documentos
@@ -878,75 +804,75 @@ const RegisterPageMultiStep = () => {
         if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio'
         if (!formData.apellido.trim()) newErrors.apellido = 'El apellido es obligatorio'
         if (!formData.email.trim()) {
-          newErrors.email = 'El correo electr?nico es obligatorio'
+          newErrors.email = 'El correo electrónico es obligatorio'
         } else if (!validateEmail(formData.email)) {
-          newErrors.email = 'El formato del correo electr?nico no es v?lido'
+          newErrors.email = 'El formato del correo electrónico no es válido'
         }
         if (!formData.tipo_documento.trim()) newErrors.tipo_documento = 'El tipo de documento es obligatorio'
-        if (!formData.numero_documento.trim()) newErrors.numero_documento = 'El n?mero de documento es obligatorio'
+        if (!formData.numero_documento.trim()) newErrors.numero_documento = 'El número de documento es obligatorio'
         if (!formData.fecha_nacimiento) {
           newErrors.fecha_nacimiento = 'La fecha de nacimiento es obligatoria'
         } else {
           const age = calcAge(formData.fecha_nacimiento)
           if (age === null) {
-            newErrors.fecha_nacimiento = 'Fecha de nacimiento inv?lida'
+            newErrors.fecha_nacimiento = 'Fecha de nacimiento inválida'
           } else if (age < 18 || age > 32) {
-            newErrors.fecha_nacimiento = 'Debe tener entre 18 y 32 a?os para participar'
+            newErrors.fecha_nacimiento = 'Debe tener entre 18 y 32 años para participar'
           }
         }
         if (!formData.sexo) newErrors.sexo = 'El sexo es obligatorio'
         if (!formData.estado_civil) newErrors.estado_civil = 'El estado civil es obligatorio'
-        if (!formData.telefono.trim()) newErrors.telefono = 'El tel?fono es obligatorio'
-        if (!formData.direccion.trim()) newErrors.direccion = 'La direcci?n es obligatoria'
+        if (!formData.telefono.trim()) newErrors.telefono = 'El teléfono es obligatorio'
+        if (!formData.direccion.trim()) newErrors.direccion = 'La dirección es obligatoria'
         if (!formData.municipio) newErrors.municipio = 'El municipio es obligatorio'
         if (!formData.emprendimiento_nombre.trim()) newErrors.emprendimiento_nombre = 'El nombre del emprendimiento es obligatorio'
-        if (!formData.emprendimiento_sector) newErrors.emprendimiento_sector = 'El sector econ?mico es obligatorio'
+        if (!formData.emprendimiento_sector) newErrors.emprendimiento_sector = 'El sector económico es obligatorio'
         if (!formData.tipo_persona) newErrors.tipo_persona = 'El tipo de persona es obligatorio'
         if (!formData.convocatoria) newErrors.convocatoria = 'La convocatoria es obligatoria'
         // Solo validar contrase?a si NO es un usuario existente
         if (!isExistingUser) {
           if (!formData.password) {
-            newErrors.password = 'La contrase?a es obligatoria'
+            newErrors.password = 'La contraseña es obligatoria'
           } else if (!validatePassword(formData.password)) {
-            newErrors.password = 'La contrase?a debe tener al menos 8 caracteres, incluir letras y n?meros'
+            newErrors.password = 'La contraseña debe tener al menos 8 caracteres, incluir letras y números'
           }
           if (!formData.confirm_password) {
-            newErrors.confirm_password = 'Confirmar contrase?a es obligatorio'
+            newErrors.confirm_password = 'Confirmar contraseña es obligatorio'
           } else if (formData.password !== formData.confirm_password) {
-            newErrors.confirm_password = 'Las contrase?as no coinciden'
+            newErrors.confirm_password = 'Las contraseñas no coinciden'
           }
         }
         break
 
-      case 2: // Poblaci?n Diferencial
+      case 2: // Población Diferencial
         // No hay validaciones obligatorias - todos los campos son opcionales
         break
 
       case 3: // Emprendimiento
         if (!formData.tiempo_funcionamiento) newErrors.tiempo_funcionamiento = 'El tiempo de funcionamiento es obligatorio'
-        if (!formData.empleos_generados) newErrors.empleos_generados = 'El n?mero de empleos generados es obligatorio'
+        if (!formData.empleos_generados) newErrors.empleos_generados = 'El número de empleos generados es obligatorio'
         if (!formData.acceso_mercados) newErrors.acceso_mercados = 'El nivel de acceso a mercados es obligatorio'
         break
 
-      case 4: // Video Presentaci?n
-        if (!videoPresentacion) newErrors.video_presentacion = 'El video de presentaci?n es obligatorio'
+      case 4: // Video Presentación
+        if (!hasUploadedVideo) newErrors.video_presentacion = 'El video de presentación es obligatorio'
         break
 
       case 5: // Documentos Obligatorios
-        if (!docTerminosPdf) newErrors.doc_terminos_pdf = 'El documento TDR es obligatorio'
-        if (!docUsoImagenPdf) newErrors.doc_uso_imagen_pdf = 'La autorizaci?n de uso de imagen es obligatoria'
-        if (!docPlanNegocioXls) newErrors.doc_plan_negocio_xls = 'El plan de negocio es obligatorio'
-        if (!docVecindadPdf) newErrors.doc_vecindad_pdf = 'El certificado de vecindad es obligatorio'
-        if (!declaracionCapacidadPdf) newErrors.declaracion_capacidad_legal_pdf = 'La declaraci?n juramentada de capacidad legal es obligatoria'
+        if (!hasUploadedDocument(docTerminosPdf, 'doc_terminos_pdf')) newErrors.doc_terminos_pdf = 'El documento TDR es obligatorio'
+        if (!hasUploadedDocument(docUsoImagenPdf, 'doc_uso_imagen_pdf')) newErrors.doc_uso_imagen_pdf = 'La autorización de uso de imagen es obligatoria'
+        if (!hasUploadedDocument(docPlanNegocioXls, 'doc_plan_negocio_xls')) newErrors.doc_plan_negocio_xls = 'El plan de negocio es obligatorio'
+        if (!hasUploadedDocument(docVecindadPdf, 'doc_vecindad_pdf')) newErrors.doc_vecindad_pdf = 'El certificado de vecindad es obligatorio'
+        if (!hasUploadedDocument(declaracionCapacidadPdf, 'declaracion_capacidad_legal_pdf')) newErrors.declaracion_capacidad_legal_pdf = 'La declaración juramentada de capacidad legal es obligatoria'
         break
 
       case 6: // Documentos por Tipo
         if (!rutPdf) newErrors.rut_pdf = 'El RUT es obligatorio'
         if (formData.tipo_persona === 'natural') {
-          if (!cedulaPdf) newErrors.cedula_pdf = 'La c?dula es obligatoria para Persona Natural'
+          if (!cedulaPdf) newErrors.cedula_pdf = 'La cédula es obligatoria para Persona Natural'
         } else if (formData.tipo_persona === 'juridica') {
-          if (!cedulaRepresentantePdf) newErrors.cedula_representante_pdf = 'La c?dula del representante legal es obligatoria para Persona Jur?dica'
-          if (!certExistenciaPdf) newErrors.cert_existencia_pdf = 'El certificado de existencia o matr?cula mercantil es obligatorio para Persona Jur?dica'
+          if (!cedulaRepresentantePdf) newErrors.cedula_representante_pdf = 'La cédula del representante legal es obligatoria para Persona Jurídica'
+          if (!certExistenciaPdf) newErrors.cert_existencia_pdf = 'El certificado de existencia o matrícula mercantil es obligatorio para Persona Jurídica'
         }
         break
 
@@ -964,17 +890,17 @@ const RegisterPageMultiStep = () => {
         // No hay validaciones obligatorias en este paso
         break
 
-      case 10: // Financiaci?n
+      case 10: // Financiación
         // Solo validar el texto de "otro" si est? marcado
         if (formData.financiado_otro && !formData.financiado_otro_texto.trim()) {
-          newErrors.financiado_otro_texto = 'Si selecciona "Otro" como fuente de financiaci?n, debe especificar cu?l'
+          newErrors.financiado_otro_texto = 'Si selecciona "Otro" como fuente de financiación, debe especificar cuál'
         }
         break
 
       case 11: // Declaraciones
-        if (!formData.declara_veraz) newErrors.declara_veraz = 'Debe declarar que la informaci?n suministrada es veraz'
-        if (!formData.declara_no_beneficiario) newErrors.declara_no_beneficiario = 'Debe confirmar que la informaci?n sobre financiaci?n declarada es correcta y completa'
-        if (!formData.acepta_terminos) newErrors.acepta_terminos = 'Debe aceptar los t?rminos y condiciones de la convocatoria'
+        if (!formData.declara_veraz) newErrors.declara_veraz = 'Debe declarar que la información suministrada es veraz'
+        if (!formData.declara_no_beneficiario) newErrors.declara_no_beneficiario = 'Debe confirmar que la información sobre financiación declarada es correcta y completa'
+        if (!formData.acepta_terminos) newErrors.acepta_terminos = 'Debe aceptar los términos y condiciones de la convocatoria'
         break
     }
 
@@ -985,7 +911,7 @@ const RegisterPageMultiStep = () => {
   // Guardado parcial - SOLO datos del formulario (textos, checkboxes, selects)
   const savePartialProgress = async () => {
     if (!formData.numero_documento) {
-      setErrors({ general: 'El n?mero de documento es requerido para guardar el progreso' })
+      setErrors({ general: 'El número de documento es requerido para guardar el progreso' })
       return false
     }
 
@@ -1069,7 +995,7 @@ const RegisterPageMultiStep = () => {
       return true
     } catch (err) {
       console.error('Error en savePartialProgress:', err)
-      setErrors({ general: 'Error de conexi?n al guardar progreso' })
+      setErrors({ general: 'Error de conexión al guardar progreso' })
       return false
     } finally {
       setIsSaving(false)
@@ -1089,7 +1015,7 @@ const RegisterPageMultiStep = () => {
       if (!saved) return
 
       // mostrar mensaje de ?xito solo si se guard? correctamente
-      setSuccessMessage('? Progreso guardado exitosamente')
+      setSuccessMessage('✓ Progreso guardado exitosamente')
       setTimeout(() => setSuccessMessage(''), 3000)
     }
 
@@ -1143,7 +1069,7 @@ const RegisterPageMultiStep = () => {
       if (isDemoMode) {
         await new Promise(resolve => setTimeout(resolve, 1000)) // Simular delay
         setUserId('demo-user-123')
-        setSuccessMessage('? Usuario creado. Puede continuar completando el formulario.')
+        setSuccessMessage('✓ Usuario creado. Puede continuar completando el formulario.')
         setTimeout(() => setSuccessMessage(''), 3000)
         return true
       }
@@ -1165,7 +1091,7 @@ const RegisterPageMultiStep = () => {
       const result = await response.json()
       if (response.ok) {
         setUserId(result.user_id)
-        setSuccessMessage('? Usuario creado. Puede continuar completando el formulario.')
+        setSuccessMessage('✓ Usuario creado. Puede continuar completando el formulario.')
         setTimeout(() => setSuccessMessage(''), 3000)
         return true
       } else {
@@ -1173,7 +1099,7 @@ const RegisterPageMultiStep = () => {
         return false
       }
     } catch (err) {
-      setErrors({ general: 'Error de conexi?n' })
+      setErrors({ general: 'Error de conexión' })
       return false
     } finally {
       setIsLoading(false)
@@ -1194,7 +1120,7 @@ const RegisterPageMultiStep = () => {
   // Env?o final del formulario - Solo finalizar proceso
   const submitCompleteForm = async () => {
     // ?? DEBUG: Ver estado de documentos antes de validar
-    console.log('=== DEBUG VALIDACI?N DE DOCUMENTOS ===')
+    console.log('=== DEBUG VALIDACIÓN DE DOCUMENTOS ===')
     console.log('videoUrl:', videoUrl)
     console.log('uploadedFiles tiene video_presentacion:', uploadedFiles.has('video_presentacion'))
     console.log('uploadedFiles tiene video_url:', uploadedFiles.has('video_url'))
@@ -1219,26 +1145,26 @@ const RegisterPageMultiStep = () => {
 
     // Paso 4: Video de presentaci?n (obligatorio para todos)
     // Verificar tanto el estado como si est? en uploadedFiles o formData (con OR para aceptar cualquiera)
-    if (!videoUrl && !uploadedFiles.has('video_presentacion') && !formData.video_url && !uploadedFiles.has('video_url')) {
-      mandatoryErrors.video_presentacion = 'El video de presentaci?n es obligatorio'
+    if (!hasUploadedVideo) {
+      mandatoryErrors.video_presentacion = 'El video de presentación es obligatorio'
     }
 
     // Paso 5: Documentos obligatorios (para todos los tipos de persona)
     // Verificar tanto el estado como si est? en uploadedFiles o formData (con OR para aceptar cualquiera)
-    if (!docVecindadPdf && !uploadedFiles.has('doc_vecindad_pdf') && !formData.doc_vecindad_pdf) {
+    if (!hasUploadedDocument(docVecindadPdf, 'doc_vecindad_pdf')) {
       mandatoryErrors.doc_vecindad_pdf = 'El certificado de vecindad con anexos es obligatorio'
     }
-    if (!docTerminosPdf && !uploadedFiles.has('doc_terminos_pdf') && !formData.doc_terminos_pdf) {
+    if (!hasUploadedDocument(docTerminosPdf, 'doc_terminos_pdf')) {
       mandatoryErrors.doc_terminos_pdf = 'El certificado de compromiso es obligatorio'
     }
-    if (!docPlanNegocioXls && !uploadedFiles.has('doc_plan_negocio_xls') && !formData.doc_plan_negocio_xls) {
+    if (!hasUploadedDocument(docPlanNegocioXls, 'doc_plan_negocio_xls')) {
       mandatoryErrors.doc_plan_negocio_xls = 'El formato de plan de negocio (Excel) es obligatorio'
     }
-    if (!docUsoImagenPdf && !uploadedFiles.has('doc_uso_imagen_pdf') && !formData.doc_uso_imagen_pdf) {
-      mandatoryErrors.doc_uso_imagen_pdf = 'El formato de autorizaci?n de datos es obligatorio'
+    if (!hasUploadedDocument(docUsoImagenPdf, 'doc_uso_imagen_pdf')) {
+      mandatoryErrors.doc_uso_imagen_pdf = 'El formato de autorización de datos es obligatorio'
     }
-    if (!declaracionCapacidadPdf && !uploadedFiles.has('declaracion_capacidad_legal_pdf') && !formData.declaracion_capacidad_legal_pdf) {
-      mandatoryErrors.declaracion_capacidad_legal_pdf = 'La declaraci?n juramentada de capacidad legal es obligatoria'
+    if (!hasUploadedDocument(declaracionCapacidadPdf, 'declaracion_capacidad_legal_pdf')) {
+      mandatoryErrors.declaracion_capacidad_legal_pdf = 'La declaración juramentada de capacidad legal es obligatoria'
     }
 
     if (Object.keys(mandatoryErrors).length > 0) {
@@ -1255,19 +1181,19 @@ const RegisterPageMultiStep = () => {
 
       // Verificar tanto el estado como si est? en uploadedFiles o formData
       if (!rutPdf && !uploadedFiles.has('rut_pdf') && !formData.rut_pdf) {
-        juridicaErrors.rut_pdf = 'El RUT actualizado 2025 es obligatorio para Persona Jur?dica'
+        juridicaErrors.rut_pdf = 'El RUT actualizado 2025 es obligatorio para Persona Jurídica'
       }
       if (!cedulaRepresentantePdf && !uploadedFiles.has('cedula_representante_pdf') && !formData.cedula_representante_pdf) {
-        juridicaErrors.cedula_representante_pdf = 'La c?dula del representante legal es obligatoria para Persona Jur?dica'
+        juridicaErrors.cedula_representante_pdf = 'La cédula del representante legal es obligatoria para Persona Jurídica'
       }
       if (!certExistenciaPdf && !uploadedFiles.has('cert_existencia_pdf') && !formData.cert_existencia_pdf) {
-        juridicaErrors.cert_existencia_pdf = 'El certificado de existencia o matr?cula mercantil es obligatorio para Persona Jur?dica'
+        juridicaErrors.cert_existencia_pdf = 'El certificado de existencia o matrícula mercantil es obligatorio para Persona Jurídica'
       }
 
       if (Object.keys(juridicaErrors).length > 0) {
         setErrors(juridicaErrors)
         setShowFinalizeConfirmation(false)
-        setValidationErrorMessage('Debe completar todos los documentos obligatorios para Persona Jur?dica en el Paso 6')
+        setValidationErrorMessage('Debe completar todos los documentos obligatorios para Persona Jurídica en el Paso 6')
         setShowValidationError(true)
         return
       }
@@ -1282,7 +1208,7 @@ const RegisterPageMultiStep = () => {
         naturalErrors.rut_pdf = 'El RUT actualizado 2025 es obligatorio para Persona Natural'
       }
       if (!cedulaPdf && !uploadedFiles.has('cedula_pdf') && !formData.cedula_pdf) {
-        naturalErrors.cedula_pdf = 'La c?dula de ciudadan?a es obligatoria para Persona Natural'
+        naturalErrors.cedula_pdf = 'La cédula de ciudadanía es obligatoria para Persona Natural'
       }
 
       if (Object.keys(naturalErrors).length > 0) {
@@ -1351,10 +1277,10 @@ const RegisterPageMultiStep = () => {
       // Modo demo: simular env?o exitoso
       if (isDemoMode) {
         await new Promise(resolve => setTimeout(resolve, 1500)) // Simular delay
-        // mostrar mensaje de ?xito y luego redirigir a una p?gina de ?xito
-        setSuccessMessage('?? �FELICITACIONES! Su inscripci?n ha sido completada exitosamente. �Bienvenido al programa EmprendiPaz!')
+        // mostrar mensaje de éxito y luego redirigir a una página de éxito
+        setSuccessMessage('¡FELICITACIONES! Su inscripción ha sido completada exitosamente. ¡Bienvenido al programa EmprendiPaz!')
         setTimeout(() => {
-          // Crear una p?gina de ?xito temporal
+          // Crear una página de éxito temporal
           const successPage = `
             <div style="
               position: fixed;
@@ -1372,16 +1298,16 @@ const RegisterPageMultiStep = () => {
               font-family: system-ui, -apple-system, sans-serif;
             ">
               <div style="text-align: center; max-width: 600px; padding: 40px;">
-                <div style="font-size: 80px; margin-bottom: 20px;">??</div>
+                <div style="font-size: 80px; margin-bottom: 20px;">✓</div>
                 <h1 style="font-size: 48px; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
-                  �FELICITACIONES!
+                  ¡FELICITACIONES!
                 </h1>
                 <h2 style="font-size: 24px; margin-bottom: 30px; opacity: 0.9;">
-                  Su inscripci?n ha sido completada exitosamente
+                  Su inscripción ha sido completada exitosamente
                 </h2>
                 <p style="font-size: 18px; margin-bottom: 40px; opacity: 0.8;">
-                  �Bienvenido al programa EmprendiPaz!<br>
-                  Su solicitud ha sido recibida y ser? procesada.
+                  ¡Bienvenido al programa EmprendiPaz!<br>
+                  Su solicitud ha sido recibida y será procesada.
                 </p>
                 <div style="
                   background: rgba(255,255,255,0.2);
@@ -1390,7 +1316,7 @@ const RegisterPageMultiStep = () => {
                   margin-bottom: 30px;
                 ">
                   <p style="font-size: 16px; margin: 0;">
-                    <strong>Modo Demo:</strong> Esta es una simulaci?n del proceso de registro.
+                    <strong>Modo Demo:</strong> Esta es una simulación del proceso de registro.
                   </p>
                 </div>
                 <button onclick="window.location.href='/login'" style="
@@ -1410,7 +1336,7 @@ const RegisterPageMultiStep = () => {
             </div>
           `;
           document.body.insertAdjacentHTML('beforeend', successPage);
-        }, 2000) // mostrar mensaje por 2 segundos, luego p?gina de ?xito
+        }, 2000) // mostrar mensaje por 2 segundos, luego página de éxito
         return
       }
 
@@ -1455,12 +1381,12 @@ const RegisterPageMultiStep = () => {
               box-shadow: 0 20px 40px rgba(0,0,0,0.3);
               animation: fadeInScale 0.5s ease-out;
             ">
-              <div style="font-size: 60px; margin-bottom: 20px;">?</div>
+              <div style="font-size: 60px; margin-bottom: 20px;">✓</div>
               <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 20px; margin-top: 0;">
-                ?Inscripci?n Exitosa!
+                ¡Inscripción Exitosa!
               </h2>
               <p style="font-size: 16px; line-height: 1.5; margin-bottom: 30px; opacity: 0.95;">
-                ${result.message || 'La inscripci?n se ha registrado con ?xito. Espere a la aprobaci?n del administrador. Le informaremos al correo registrado.'}
+                ${result.message || 'La inscripción se ha registrado con éxito. Espere a la aprobación del administrador. Le informaremos al correo registrado.'}
               </p>
               <button onclick="this.parentElement.parentElement.remove(); window.location.href='/login'" style="
                 background: white;
@@ -1493,10 +1419,10 @@ const RegisterPageMultiStep = () => {
         `;
         document.body.insertAdjacentHTML('beforeend', successPopup);
       } else {
-        setErrors({ general: result.error || 'Error al completar inscripci?n' })
+        setErrors({ general: result.error || 'Error al completar inscripción' })
       }
     } catch (err) {
-      setErrors({ general: 'Error de conexi?n' })
+      setErrors({ general: 'Error de conexión' })
     } finally {
       setIsLoading(false)
     }
@@ -1535,7 +1461,7 @@ const RegisterPageMultiStep = () => {
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Paso 1: Datos Generales</h2>
-              <p className="text-gray-600">Informaci?n personal y del emprendimiento</p>
+              <p className="text-gray-600">Informacion personal y del emprendimiento</p>
             </div>
 
             {/* Campo para retomar proceso existente */}
@@ -1548,16 +1474,16 @@ const RegisterPageMultiStep = () => {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-medium text-blue-800 mb-2">
-                    ?Ya iniciaste tu proceso de registro?
+                    Ya iniciaste tu proceso de registro?
                   </h3>
                   <p className="text-sm text-blue-700 mb-3">
-                    Si ya comenzaste a llenar el formulario anteriormente, ingresa tu n?mero de documento y contrase?a para continuar donde lo dejaste.
+                    Si ya comenzaste a llenar el formulario anteriormente, ingresa tu numero de documento y contraseña para continuar donde lo dejaste.
                   </p>
                   <div className="space-y-3">
                     <div className="flex space-x-3">
                       <Input
                         type="text"
-                        placeholder="N?mero de documento"
+                        placeholder="Numero de documento"
                         className="flex-1"
                         value={resumeDocument}
                         onChange={(e) => setResumeDocument(e.target.value)}
@@ -1591,10 +1517,10 @@ const RegisterPageMultiStep = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-sm font-medium text-yellow-800 mb-1">
-                      Periodo de inscripci?n cerrado
+                      Periodo de inscripcion cerrado
                     </h3>
                     <p className="text-sm text-yellow-700">
-                      El periodo de inscripci?n ha finalizado. Solo puedes acceder para subsanar documentos si ya iniciaste tu proceso de registro.
+                      El periodo de inscripcion ha finalizado. Solo puedes acceder para subsanar documentos si ya iniciaste tu proceso de registro.
                     </p>
                   </div>
                 </div>
@@ -1638,7 +1564,7 @@ const RegisterPageMultiStep = () => {
 
               {/* Email */}
               <div className="space-y-2">
-                <Label htmlFor="email">Correo Electr?nico *</Label>
+                <Label htmlFor="email">Correo Electronico *</Label>
                 <Input
                   id="email"
                   name="email"
@@ -1668,16 +1594,16 @@ const RegisterPageMultiStep = () => {
                     <SelectValue placeholder="Selecciona el tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cedula">C?dula de Ciudadan?a</SelectItem>
-                    <SelectItem value="cedula_extranjeria">C?dula de Extranjer?a</SelectItem>
+                    <SelectItem value="cedula">Cedula de Ciudadania</SelectItem>
+                    <SelectItem value="cedula_extranjeria">Cedula de Extranjeria</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.tipo_documento && <p className="text-sm text-red-600">{errors.tipo_documento}</p>}
               </div>
 
-              {/* N?mero de documento */}
+              {/* Numero de documento */}
               <div className="space-y-2">
-                <Label htmlFor="numero_documento">N?mero de Documento *</Label>
+                <Label htmlFor="numero_documento">Numero de Documento *</Label>
                 <Input
                   id="numero_documento"
                   name="numero_documento"
@@ -1748,7 +1674,7 @@ const RegisterPageMultiStep = () => {
                   <SelectContent>
                     <SelectItem value="soltero">Soltero(a)</SelectItem>
                     <SelectItem value="casado">Casado(a)</SelectItem>
-                    <SelectItem value="union_libre">Uni?n Libre</SelectItem>
+                    <SelectItem value="union_libre">Unión Libre</SelectItem>
                     <SelectItem value="separado">Separado(a)</SelectItem>
                     <SelectItem value="divorciado">Divorciado(a)</SelectItem>
                     <SelectItem value="viudo">Viudo(a)</SelectItem>
@@ -1757,9 +1683,9 @@ const RegisterPageMultiStep = () => {
                 {errors.estado_civil && <p className="text-sm text-red-600">{errors.estado_civil}</p>}
               </div>
 
-              {/* Tel?fono */}
+              {/* Telefono */}
               <div className="space-y-2">
-                <Label htmlFor="telefono">Tel?fono Celular *</Label>
+                <Label htmlFor="telefono">Telefono Celular *</Label>
                 <Input
                   id="telefono"
                   name="telefono"
@@ -1774,9 +1700,9 @@ const RegisterPageMultiStep = () => {
                 {errors.telefono && <p className="text-sm text-red-600">{errors.telefono}</p>}
               </div>
 
-              {/* Direcci?n */}
+              {/* Direccion */}
               <div className="space-y-2">
-                <Label htmlFor="direccion">Direcci?n de Residencia *</Label>
+                <Label htmlFor="direccion">Direccion de Residencia *</Label>
                 <Input
                   id="direccion"
                   name="direccion"
@@ -1852,9 +1778,9 @@ const RegisterPageMultiStep = () => {
                 {errors.emprendimiento_nombre && <p className="text-sm text-red-600">{errors.emprendimiento_nombre}</p>}
               </div>
 
-              {/* Emprendimiento: Sector Econ?mico */}
+              {/* Emprendimiento: Sector Economico */}
               <div className="space-y-2">
-                <Label>Sector Econ?mico *</Label>
+                <Label>Sector Economico *</Label>
                 <Select
                   value={formData.emprendimiento_sector}
                   onValueChange={(value) => {
@@ -1892,7 +1818,7 @@ const RegisterPageMultiStep = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="natural">Natural</SelectItem>
-                    <SelectItem value="juridica">Jur?dica</SelectItem>
+                    <SelectItem value="juridica">Juridica</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.tipo_persona && <p className="text-sm text-red-600">{errors.tipo_persona}</p>}
@@ -1917,9 +1843,9 @@ const RegisterPageMultiStep = () => {
                 {errors.convocatoria && <p className="text-sm text-red-600">{errors.convocatoria}</p>}
               </div>
 
-              {/* Contrase?a */}
+              {/* Contrasena */}
               <div className="space-y-2">
-                <Label htmlFor="password">Contrase?a *</Label>
+                <Label htmlFor="password">Contrasena *</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -1928,7 +1854,7 @@ const RegisterPageMultiStep = () => {
                     value={formData.password}
                     onChange={handleInputChange}
                     className={`${errors.password ? 'border-red-500 pr-10' : 'pr-10'} ${isExistingUser ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                    placeholder="M?nimo 8 caracteres, letras y n?meros"
+                    placeholder="Minimo 8 caracteres, letras y numeros"
                     autoComplete="new-password"
                     disabled={isExistingUser}
                     readOnly={isExistingUser}
@@ -1945,15 +1871,15 @@ const RegisterPageMultiStep = () => {
                 </div>
                 {isExistingUser && (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                    ?? La contrase?a no se puede modificar durante el proceso de inscripci?n. Gu?rdela en un lugar seguro.
+                    La contraseña no se puede modificar durante el proceso de inscripcion. Guardela en un lugar seguro.
                   </p>
                 )}
                 {errors.password && <p className="text-sm text-red-600">{errors.password}</p>}
               </div>
 
-              {/* Confirmar Contrase?a */}
+              {/* Confirmar contraseña */}
               <div className="space-y-2">
-                <Label htmlFor="confirm_password">Confirmar Contrase?a *</Label>
+                <Label htmlFor="confirm_password">Confirmar Contraseña *</Label>
                 <div className="relative">
                   <Input
                     id="confirm_password"
@@ -1962,7 +1888,7 @@ const RegisterPageMultiStep = () => {
                     value={formData.confirm_password}
                     onChange={handleInputChange}
                     className={`${errors.confirm_password ? 'border-red-500 pr-10' : 'pr-10'} ${isExistingUser ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                    placeholder="Repite tu contrase?a"
+                    placeholder="Repite tu contraseña"
                     autoComplete="new-password"
                     disabled={isExistingUser}
                     readOnly={isExistingUser}
@@ -1979,7 +1905,7 @@ const RegisterPageMultiStep = () => {
                 </div>
                 {isExistingUser && (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                    ?? La contrase?a no se puede modificar durante el proceso de inscripci?n. Gu?rdela en un lugar seguro.
+                    La contraseña no se puede modificar durante el proceso de inscripcion. Guardela en un lugar seguro.
                   </p>
                 )}
                 {errors.confirm_password && <p className="text-sm text-red-600">{errors.confirm_password}</p>}
@@ -1992,13 +1918,13 @@ const RegisterPageMultiStep = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Paso 2: Poblaci?n Diferencial</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Paso 2: Población Diferencial</h2>
               <p className="text-gray-600">Condiciones especiales y vulnerabilidad (opcional)</p>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-700">
-                ?? <strong>Informaci?n opcional:</strong> Estos campos son opcionales pero pueden otorgar puntos adicionales en la evaluaci?n.
+                <strong>Información opcional:</strong> Estos campos son opcionales pero pueden otorgar puntos adicionales en la evaluación.
               </p>
             </div>
 
@@ -2018,13 +1944,13 @@ const RegisterPageMultiStep = () => {
                       Mujer cabeza de familia o cuidadora
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      <strong>Puntos:</strong> 9 puntos | <strong>Documento:</strong> Certificado de autoridad local, departamental o declaraci?n juramentada
+                      <strong>Puntos:</strong> 9 puntos | <strong>Documento:</strong> Certificado de autoridad local, departamental o declaración juramentada
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Persona en reincorporaci?n */}
+              {/* Persona en reincorporación */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <input
@@ -2036,16 +1962,16 @@ const RegisterPageMultiStep = () => {
                   />
                   <div>
                     <label htmlFor="persona_reincorporacion" className="text-sm font-medium text-gray-700">
-                      Persona en proceso de reincorporaci?n
+                      Persona en proceso de reincorporación
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      <strong>Puntos:</strong> 6 puntos | <strong>Documento:</strong> Certificado de la ARN (Agencia para la Reincorporaci?n y Normalizaci?n)
+                      <strong>Puntos:</strong> 6 puntos | <strong>Documento:</strong> Certificado de la ARN (Agencia para la Reincorporación y Normalización)
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* V?ctima del conflicto */}
+              {/* Víctima del conflicto */}
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <input
@@ -2057,10 +1983,10 @@ const RegisterPageMultiStep = () => {
                   />
                   <div>
                     <label htmlFor="victima_conflicto" className="text-sm font-medium text-gray-700">
-                      V?ctima del conflicto armado
+                      Víctima del conflicto armado
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      <strong>Puntos:</strong> 6 puntos | <strong>Documento:</strong> Registro ?nico de V?ctimas (RUV)
+                      <strong>Puntos:</strong> 6 puntos | <strong>Documento:</strong> Registro Único de Víctimas (RUV)
                     </p>
                   </div>
                 </div>
@@ -2078,16 +2004,16 @@ const RegisterPageMultiStep = () => {
                   />
                   <div>
                     <label htmlFor="persona_discapacidad" className="text-sm font-medium text-gray-700">
-                      Persona en situaci?n de discapacidad
+                      Persona en situación de discapacidad
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      <strong>Puntos:</strong> 6 puntos | <strong>Documento:</strong> Certificado m?dico o del Registro de Localizaci?n y Caracterizaci?n
+                      <strong>Puntos:</strong> 6 puntos | <strong>Documento:</strong> Certificado médico o del Registro de Localización y Caracterización
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Pertenencia ?tnica */}
+              {/* Pertenencia étnica */}
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <input
@@ -2099,10 +2025,10 @@ const RegisterPageMultiStep = () => {
                   />
                   <div>
                     <label htmlFor="pertenencia_etnica" className="text-sm font-medium text-gray-700">
-                      Pertenencia a comunidad ?tnica
+                      Pertenencia a comunidad étnica
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      <strong>Puntos:</strong> 6 puntos | <strong>Documento:</strong> Certificado de autoridad ?tnica reconocida por el ministerio del interior
+                      <strong>Puntos:</strong> 6 puntos | <strong>Documento:</strong> Certificado de autoridad étnica reconocida por el ministerio del interior
                     </p>
                   </div>
                 </div>
@@ -2132,7 +2058,7 @@ const RegisterPageMultiStep = () => {
                         Pertenece a SISBEN Grupo A, B o C
                       </label>
                       <p className="text-xs text-gray-500 mt-1">
-                        <strong>Puntos:</strong> 2 puntos | <strong>Documento:</strong> Documento del sistema de focalizaci?n del DNP
+                        <strong>Puntos:</strong> 2 puntos | <strong>Documento:</strong> Documento del sistema de focalización del DNP
                       </p>
                     </div>
                   </div>
@@ -2160,15 +2086,15 @@ const RegisterPageMultiStep = () => {
             </div>
 
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">?? Sistema de Puntuaci?n</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Sistema de Puntuación</h3>
               <p className="text-xs text-gray-600">
-                <strong>Total m?ximo de puntos por poblaci?n diferencial:</strong> 38 puntos<br />
-                ? Mujer cabeza de familia: 9 puntos<br />
-                ? Persona en reincorporaci?n: 6 puntos<br />
-                ? V?ctima del conflicto: 6 puntos<br />
-                ? Persona con discapacidad: 6 puntos<br />
-                ? Pertenencia ?tnica: 6 puntos<br />
-                ? SISBEN A, B o C: 2 puntos
+                <strong>Total máximo de puntos por población diferencial:</strong> 38 puntos<br />
+                Mujer cabeza de familia: 9 puntos<br />
+                Persona en reincorporación: 6 puntos<br />
+                Víctima del conflicto: 6 puntos<br />
+                Persona con discapacidad: 6 puntos<br />
+                Pertenencia étnica: 6 puntos<br />
+                SISBEN A, B o C: 2 puntos
               </p>
             </div>
           </div>
@@ -2179,12 +2105,12 @@ const RegisterPageMultiStep = () => {
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Paso 3: Emprendimiento</h2>
-              <p className="text-gray-600">Informaci?n sobre el funcionamiento y caracter?sticas del emprendimiento</p>
+              <p className="text-gray-600">Información sobre el funcionamiento y características del emprendimiento</p>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-700">
-                ?? <strong>Nivel de Madurez del Emprendimiento:</strong> Esta informaci?n es obligatoria y determina puntos adicionales en la evaluaci?n.
+                <strong>Nivel de Madurez del Emprendimiento:</strong> Esta información es obligatoria y determina puntos adicionales en la evaluación.
               </p>
             </div>
 
@@ -2201,12 +2127,12 @@ const RegisterPageMultiStep = () => {
                     }`}
                 >
                   <option value="">Selecciona el tiempo de funcionamiento</option>
-                  <option value="6-12">6 - 12 meses de operaci?n</option>
-                  <option value="13-24">13 - 24 meses de operaci?n</option>
-                  <option value="24+">M?s de 24 meses de operaci?n</option>
+                  <option value="6-12">6 - 12 meses de operación</option>
+                  <option value="13-24">13 - 24 meses de operación</option>
+                  <option value="24+">Más de 24 meses de operación</option>
                 </select>
                 {errors.tiempo_funcionamiento && <p className="text-sm text-red-600">{errors.tiempo_funcionamiento}</p>}
-                <p className="text-xs text-gray-500">M?nimo 6 meses de funcionamiento requerido</p>
+                <p className="text-xs text-gray-500">Mínimo 6 meses de funcionamiento requerido</p>
               </div>
 
               {/* Empleos generados */}
@@ -2220,11 +2146,11 @@ const RegisterPageMultiStep = () => {
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.empleos_generados ? 'border-red-500' : 'border-gray-300'
                     }`}
                 >
-                  <option value="">Selecciona el n?mero de empleos</option>
+                  <option value="">Selecciona el número de empleos</option>
                   <option value="0">No genera empleos (solo autoempleo)</option>
                   <option value="1-2">1 - 2 empleos directos o indirectos</option>
                   <option value="3-5">3 - 5 empleos directos o indirectos</option>
-                  <option value="5+">M?s de 5 empleos</option>
+                  <option value="5+">Más de 5 empleos</option>
                 </select>
                 {errors.empleos_generados && <p className="text-sm text-red-600">{errors.empleos_generados}</p>}
               </div>
@@ -2251,16 +2177,16 @@ const RegisterPageMultiStep = () => {
             </div>
 
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">?? Sistema de Puntuaci?n - Nivel de Madurez</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Sistema de Puntuación - Nivel de Madurez</h3>
               <p className="text-xs text-gray-600">
-                <strong>Total m?ximo de puntos por nivel de madurez:</strong> 18 puntos<br />
-                ? 6-12 meses: 5 puntos<br />
-                ? 13-24 meses: 10 puntos<br />
-                ? M?s de 24 meses: 18 puntos<br />
+                <strong>Total máximo de puntos por nivel de madurez:</strong> 18 puntos<br />
+                6-12 meses: 5 puntos<br />
+                13-24 meses: 10 puntos<br />
+                Más de 24 meses: 18 puntos<br />
                 <br />
                 <strong>Documentos requeridos:</strong><br />
-                ? Emprendimientos recientes: Publicaciones de redes sociales + comprobantes de ventas<br />
-                ? Emprendimientos consolidados: Registro de ventas, facturas o certificaci?n de C?mara de Comercio
+                Emprendimientos recientes: Publicaciones de redes sociales + comprobantes de ventas<br />
+                Emprendimientos consolidados: Registro de ventas, facturas o certificación de Cámara de Comercio
               </p>
             </div>
           </div>
@@ -2270,20 +2196,20 @@ const RegisterPageMultiStep = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Paso 4: Video Presentaci?n</h2>
-              <p className="text-gray-600">Video de presentaci?n del emprendimiento</p>
+              <h2 className="text-2xl font-bold text-gray-900">Paso 4: Video Presentación</h2>
+              <p className="text-gray-600">Video de presentación del emprendimiento</p>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-700">
-                ?? <strong>Requisitos del video:</strong> M?ximo 5 minutos, orientaci?n horizontal, formato MP4, MOV o AVI.
+                <strong>Requisitos del video:</strong> Máximo 5 minutos, orientación horizontal, formato MP4, MOV o AVI.
               </p>
             </div>
 
             <div className="space-y-4">
               {/* Subida de video */}
               <div className="space-y-2">
-                <Label htmlFor="video_presentacion" className="text-sm font-medium">Video de presentaci?n *</Label>
+                <Label htmlFor="video_presentacion" className="text-sm font-medium">Video de presentación *</Label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-400 transition-colors">
                   <input
                     type="file"
@@ -2292,9 +2218,9 @@ const RegisterPageMultiStep = () => {
                     onChange={(e) => {
                       const file = e.target.files[0]
                       if (file) {
-                        // Validar tama?o (100MB m?ximo)
+                        // Validar tamaño (100MB máximo)
                         if (file.size > 100 * 1024 * 1024) {
-                          setErrors(prev => ({ ...prev, video_presentacion: 'El archivo es demasiado grande. M?ximo 100MB.' }))
+                          setErrors(prev => ({ ...prev, video_presentacion: 'El archivo es demasiado grande. Máximo 100MB.' }))
                           return
                         }
                         // Usar nueva funci?n para subir video con pre-signed URL
@@ -2314,38 +2240,37 @@ const RegisterPageMultiStep = () => {
                         </div>
                       ) : uploadingStatuses.video_presentacion?.status === 'success' ? (
                         <div>
-                          <p className="text-green-600 font-medium">? Video subido correctamente</p>
+                          <p className="text-green-600 font-medium">Video subido correctamente</p>
                           <p className="text-sm">{videoPresentacion?.name}</p>
                           <p className="text-xs text-gray-500">
-                            Tama?o: {videoPresentacion ? (videoPresentacion.size / (1024 * 1024)).toFixed(2) : '0'} MB
+                            Tamaño: {videoPresentacion ? (videoPresentacion.size / (1024 * 1024)).toFixed(2) : '0'} MB
                           </p>
                         </div>
                       ) : uploadingStatuses.video_presentacion?.status === 'error' ? (
                         <div>
-                          <p className="text-red-600 font-medium">? Error al subir video</p>
+                          <p className="text-red-600 font-medium">Error al subir video</p>
                           <p className="text-xs text-red-500">{uploadingStatuses.video_presentacion.message}</p>
                         </div>
                       ) : videoUrl ? (
                         <div>
-                          <p className="text-green-600 font-medium">? Video ya cargado anteriormente</p>
+                          <p className="text-green-600 font-medium">Video ya cargado anteriormente</p>
                           <p className="text-xs text-gray-600 mt-1 bg-gray-50 p-2 rounded border border-gray-200">
-                            ?? {videoUrl.split('/').pop()}
+                            {videoUrl.split('/').pop()}
                           </p>
                           <p className="text-xs text-gray-500 mt-1">Puedes subir un nuevo video para reemplazarlo</p>
                         </div>
                       ) : videoPresentacion ? (
                         <div>
-                          <p className="text-green-600 font-medium">? Video seleccionado</p>
+                          <p className="text-green-600 font-medium">Video seleccionado</p>
                           <p className="text-sm">{videoPresentacion.name}</p>
                           <p className="text-xs text-gray-500">
-                            Tama?o: {(videoPresentacion.size / (1024 * 1024)).toFixed(2)} MB
+                            Tamaño: {(videoPresentacion.size / (1024 * 1024)).toFixed(2)} MB
                           </p>
                         </div>
                       ) : (
                         <div>
-                          <p className="text-lg">??</p>
                           <p className="font-medium">Haz clic para subir tu video</p>
-                          <p className="text-sm text-gray-500">MP4, MOV o AVI - M?ximo 100MB</p>
+                          <p className="text-sm text-gray-500">MP4, MOV o AVI - Máximo 100MB</p>
                         </div>
                       )}
                     </div>
@@ -2353,8 +2278,8 @@ const RegisterPageMultiStep = () => {
                 </div>
                 {errors.video_presentacion && <p className="text-sm text-red-600">{errors.video_presentacion}</p>}
                 <p className="text-xs text-gray-500">
-                  El video debe incluir: presentaci?n personal, descripci?n del emprendimiento,
-                  motivaci?n para participar y proyecci?n a futuro.
+                  El video debe incluir: presentación personal, descripción del emprendimiento,
+                  motivación para participar y proyección a futuro.
                 </p>
               </div>
             </div>
@@ -2371,7 +2296,7 @@ const RegisterPageMultiStep = () => {
 
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-red-700 font-medium">
-                ?? <strong>Documentos obligatorios:</strong> Estos documentos son requeridos para todos los participantes y bloquean el env?o si no se suben.
+                <strong>Documentos obligatorios:</strong> Estos documentos son requeridos para todos los participantes y bloquean el envío si no se suben.
               </p>
             </div>
 
@@ -2388,10 +2313,10 @@ const RegisterPageMultiStep = () => {
                 true
               )}
 
-              {/* Formato de autorizaci?n de datos */}
+              {/* Formato de autorización de datos */}
               {renderDocumentUpload(
                 'doc_uso_imagen_pdf',
-                'Formato de autorizaci?n de datos',
+                'Formato de autorización de datos',
                 docUsoImagenPdf,
                 setDocUsoImagenPdf,
                 'doc_uso_imagen_pdf',
@@ -2424,10 +2349,10 @@ const RegisterPageMultiStep = () => {
                 true
               )}
 
-              {/* Declaraci?n Juramentada de Capacidad Legal */}
+              {/* Declaración Juramentada de Capacidad Legal */}
               {renderDocumentUpload(
                 'declaracion_capacidad_legal_pdf',
-                'Declaraci?n Juramentada de Capacidad Legal',
+                'Declaración Juramentada de Capacidad Legal',
                 declaracionCapacidadPdf,
                 setDeclaracionCapacidadPdf,
                 'declaracion_capacidad_legal_pdf',
@@ -2444,12 +2369,12 @@ const RegisterPageMultiStep = () => {
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Paso 6: Documentos por Tipo</h2>
-              <p className="text-gray-600">Documentos seg?n persona natural o jur?dica</p>
+              <p className="text-gray-600">Documentos según persona natural o jurídica</p>
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-yellow-700 font-medium">
-                ?? <strong>Documentos condicionales:</strong> Los documentos requeridos dependen del tipo de persona seleccionado en el Paso 1.
+                <strong>Documentos condicionales:</strong> Los documentos requeridos dependen del tipo de persona seleccionado en el Paso 1.
               </p>
             </div>
 
@@ -2467,12 +2392,12 @@ const RegisterPageMultiStep = () => {
                 'https://www.dian.gov.co/impuestos/RUT/Paginas/Consultas-RUT.aspx'
               )}
 
-              {/* Documentos condicionales seg?n tipo de persona */}
+              {/* Documentos condicionales según tipo de persona */}
               {formData.tipo_persona === 'natural' && (
                 <>
                   {renderDocumentUpload(
                     'cedula_pdf',
-                    'C?dula de ciudadan?a (o denuncia de p?rdida)',
+                    'Cédula de ciudadanía (o denuncia de pérdida)',
                     cedulaPdf,
                     setCedulaPdf,
                     'cedula_pdf'
@@ -2484,7 +2409,7 @@ const RegisterPageMultiStep = () => {
                 <>
                   {renderDocumentUpload(
                     'cedula_representante_pdf',
-                    'C?dula del representante legal (o denuncia de p?rdida)',
+                    'Cédula del representante legal (o denuncia de pérdida)',
                     cedulaRepresentantePdf,
                     setCedulaRepresentantePdf,
                     'cedula_representante_pdf'
@@ -2492,7 +2417,7 @@ const RegisterPageMultiStep = () => {
 
                   {renderDocumentUpload(
                     'cert_existencia_pdf',
-                    'Certificado de existencia o matr?cula mercantil (no mayor a 30 d?as)',
+                    'Certificado de existencia o matrícula mercantil (no mayor a 30 días)',
                     certExistenciaPdf,
                     setCertExistenciaPdf,
                     'cert_existencia_pdf',
@@ -2505,7 +2430,7 @@ const RegisterPageMultiStep = () => {
                   {/* TEMPORAL: Comentado hasta resolver migraci?n de BD
                   {renderDocumentUpload(
                     'camara_comercio_pdf',
-                    'Certificado de C?mara de Comercio (no mayor a 30 d?as)',
+                    'Certificado de Cámara de Comercio (no mayor a 30 días)',
                     camaraComercio,
                     setCamaraComercio,
                     'camara_comercio_pdf'
@@ -2530,13 +2455,13 @@ const RegisterPageMultiStep = () => {
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Paso 7: Documentos Diferenciales</h2>
-              <p className="text-gray-600">Documentos opcionales que son subsanables (no bloquean el env?o)</p>
+              <p className="text-gray-600">Documentos opcionales que son subsanables (no bloquean el envío)</p>
             </div>
 
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-green-700 font-medium">
-                ?? <strong>Estos documentos son opcionales.</strong> Si no los tiene ahora, puede subirlos despu?s (subsanables).
-                No bloquean el env?o de su inscripci?n.
+                <strong>📌 Estos documentos son opcionales.</strong> Si no los tiene ahora, puede subirlos después (subsanables).
+                No bloquean el envío de su inscripción.
               </p>
             </div>
 
@@ -2544,7 +2469,7 @@ const RegisterPageMultiStep = () => {
               {/* RUV */}
               {renderDocumentUpload(
                 'ruv_pdf',
-                'Certificado del Registro ?nico de V?ctimas (RUV)',
+                'Certificado del Registro Único de Víctimas (RUV)',
                 ruvPdf,
                 setRuvPdf,
                 'ruv_pdf',
@@ -2570,7 +2495,7 @@ const RegisterPageMultiStep = () => {
               {/* Grupo �tnico */}
               {renderDocumentUpload(
                 'grupo_etnico_pdf',
-                'Certificado de pertenencia a grupo ?tnico',
+                'Certificado de pertenencia a grupo étnico',
                 grupoEtnicoPdf,
                 setGrupoEtnicoPdf,
                 'grupo_etnico_pdf',
@@ -2580,7 +2505,7 @@ const RegisterPageMultiStep = () => {
               {/* ARN */}
               {renderDocumentUpload(
                 'arn_pdf',
-                'Certificado de proceso de reincorporaci?n (ARN)',
+                'Certificado de proceso de reincorporación (ARN)',
                 arnPdf,
                 setArnPdf,
                 'arn_pdf',
@@ -2593,7 +2518,7 @@ const RegisterPageMultiStep = () => {
               {/* Mujer Cabeza de Familia */}
               {renderDocumentUpload(
                 'mujer_cabeza_familia_pdf',
-                'Mujer cabeza de familia - Certificado de autoridad local, departamental o declaraci?n juramentada',
+                'Mujer cabeza de familia - Certificado de autoridad local, departamental o declaración juramentada',
                 mujerCabezaFamiliaPdf,
                 setMujerCabezaFamiliaPdf,
                 'mujer_cabeza_familia_pdf',
@@ -2605,7 +2530,7 @@ const RegisterPageMultiStep = () => {
               {/* Persona en Situaci?n de Discapacidad */}
               {renderDocumentUpload(
                 'persona_discapacidad_pdf',
-                'Persona en situaci?n de discapacidad - Certificado m?dico o del Registro de Localizaci?n y Caracterizaci?n',
+                'Persona en situación de discapacidad - Certificado médico o del Registro de Localización y Caracterización',
                 personaDiscapacidadPdf,
                 setPersonaDiscapacidadPdf,
                 'persona_discapacidad_pdf',
@@ -2622,10 +2547,10 @@ const RegisterPageMultiStep = () => {
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Paso 8: Documentos de Control</h2>
-              <p className="text-gray-600">Documentos subsanables de control y verificaci?n</p>
+              <p className="text-gray-600">Documentos subsanables de control y verificación</p>
             </div>
 
-            {/* Aviso importante sobre rechazo autom?tico */}
+            {/* Aviso importante sobre rechazo automático */}
             <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
               <div className="flex">
                 <div className="flex-shrink-0">
@@ -2635,14 +2560,14 @@ const RegisterPageMultiStep = () => {
                 </div>
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-green-800">
-                    ?? INFORMACI?N IMPORTANTE
+                    INFORMACIÓN IMPORTANTE
                   </h3>
                   <div className="mt-2 text-sm text-green-700">
                     <p>
-                      <strong>Si se evidencian antecedentes disciplinarios, judiciales, REDAM o inhabilidades por delitos sexuales, la solicitud ser? rechazada autom?ticamente.</strong>
+                      <strong>Si se evidencian antecedentes disciplinarios, judiciales, REDAM o inhabilidades por delitos sexuales, la solicitud será rechazada automáticamente.</strong>
                     </p>
                     <p className="mt-2">
-                      Aseg?rese de que todos los certificados est?n limpios antes de continuar con el proceso.
+                      Asegúrese de que todos los certificados estén limpios antes de continuar con el proceso.
                     </p>
                   </div>
                 </div>
@@ -2657,7 +2582,7 @@ const RegisterPageMultiStep = () => {
                 <>
                   Antecedentes Judiciales
                   <div className="text-blue-600 text-xs mt-1">
-                    Desc?rgalo desde: <a href="https://antecedentes.policia.gov.co:7005/WebJudicial/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://antecedentes.policia.gov.co:7005/WebJudicial/</a>
+                    Descárgalo desde: <a href="https://antecedentes.policia.gov.co:7005/WebJudicial/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://antecedentes.policia.gov.co:7005/WebJudicial/</a>
                   </div>
                 </>,
                 antecedentesJudicialesPdf,
@@ -2665,13 +2590,13 @@ const RegisterPageMultiStep = () => {
                 'antecedentes_judiciales_pdf'
               )}
 
-              {/* Antecedentes Contralor?a */}
+              {/* Antecedentes Contraloría */}
               {renderDocumentUpload(
                 'antecedentes_contraloria_pdf',
                 <>
-                  Antecedentes Contralor?a General de la Rep?blica
+                  Antecedentes Contraloría General de la República
                   <div className="text-blue-600 text-xs mt-1">
-                    Desc?rgalo desde: <a href="https://www.contraloria.gov.co/es/web/guest/control-fiscal/responsabilidad-fiscal/certificado-de-antecedentes-fiscales" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.contraloria.gov.co/es/web/guest/control-fiscal/responsabilidad-fiscal/certificado-de-antecedentes-fiscales</a>
+                    Descárgalo desde: <a href="https://www.contraloria.gov.co/es/web/guest/control-fiscal/responsabilidad-fiscal/certificado-de-antecedentes-fiscales" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.contraloria.gov.co/es/web/guest/control-fiscal/responsabilidad-fiscal/certificado-de-antecedentes-fiscales</a>
                   </div>
                 </>,
                 antecedentesContraloriaPdf,
@@ -2679,13 +2604,13 @@ const RegisterPageMultiStep = () => {
                 'antecedentes_contraloria_pdf'
               )}
 
-              {/* Antecedentes Procuradur?a */}
+              {/* Antecedentes Procuraduría */}
               {renderDocumentUpload(
                 'antecedentes_procuraduria_pdf',
                 <>
-                  Antecedentes Procuradur?a General de la Naci?n
+                  Antecedentes Procuraduría General de la Nación
                   <div className="text-blue-600 text-xs mt-1">
-                    Desc?rgalo desde: <a href="https://www.procuraduria.gov.co/Pages/Generacion-de-antecedentes.aspx" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.procuraduria.gov.co/Pages/Generacion-de-antecedentes.aspx</a>
+                    Descárgalo desde: <a href="https://www.procuraduria.gov.co/Pages/Generacion-de-antecedentes.aspx" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.procuraduria.gov.co/Pages/Generacion-de-antecedentes.aspx</a>
                   </div>
                 </>,
                 antecedentesProcuraduriaPdf,
@@ -2699,7 +2624,7 @@ const RegisterPageMultiStep = () => {
                 <>
                   Registro Nacional de Medidas Correctivas (RNMC)
                   <div className="text-blue-600 text-xs mt-1">
-                    Desc?rgalo desde: <a href="https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx" target="_blank" rel="noopener noreferrer" className="underline break-all">https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx</a>
+                    Descárgalo desde: <a href="https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx" target="_blank" rel="noopener noreferrer" className="underline break-all">https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx</a>
                   </div>
                 </>,
                 rnmcPdf,
@@ -2713,7 +2638,7 @@ const RegisterPageMultiStep = () => {
                 <>
                   Certificado del Registro de Deudores Alimentarios Morosos (REDAM)
                   <div className="text-blue-600 text-xs mt-1">
-                    Desc?rgalo desde: <a href="https://www.redam.gov.co/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.redam.gov.co/</a>
+                    Descárgalo desde: <a href="https://www.redam.gov.co/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.redam.gov.co/</a>
                   </div>
                 </>,
                 redamPdf,
@@ -2729,7 +2654,7 @@ const RegisterPageMultiStep = () => {
                   <>
                     Consulta de Inhabilidades por Delitos Sexuales
                     <div className="text-blue-600 text-xs mt-1">
-                      Desc?rgalo desde: <a href="https://inhabilidades.policia.gov.co:8080/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://inhabilidades.policia.gov.co:8080/</a>
+                      Descárgalo desde: <a href="https://inhabilidades.policia.gov.co:8080/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://inhabilidades.policia.gov.co:8080/</a>
                     </div>
                   </>,
                   inhabSexualesPdf,
@@ -2753,7 +2678,7 @@ const RegisterPageMultiStep = () => {
             {/* Nota informativa sobre documentos subsanables */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-700">
-                ?? <strong>Nota:</strong> Todos los documentos de funcionamiento son <strong>subsanables</strong> (opcionales).
+                <strong>Nota:</strong> Todos los documentos de funcionamiento son <strong>subsanables</strong> (opcionales).
                 Puede avanzar sin subirlos y completarlos posteriormente.
               </p>
             </div>
@@ -2784,19 +2709,19 @@ const RegisterPageMultiStep = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Paso 10: Financiaci?n de Otras Fuentes</h2>
-              <p className="text-gray-600">Declarar si ha recibido financiaci?n estatal previa</p>
+              <h2 className="text-2xl font-bold text-gray-900">Paso 10: Financiación de Otras Fuentes</h2>
+              <p className="text-gray-600">Declarar si ha recibido financiación estatal previa</p>
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-yellow-700 font-medium">
-                ?? <strong>Importante:</strong> Debe declarar si ha recibido recursos del Fondo Emprender SENA o de otras fuentes estatales.
+                <strong>Importante:</strong> Debe declarar si ha recibido recursos del Fondo Emprender SENA o de otras fuentes estatales.
               </p>
             </div>
 
             <div className="space-y-4">
               <p className="text-sm font-medium text-gray-700 mb-4">
-                Marque las fuentes de financiaci?n estatal que ha recibido (opcional):
+                Marque las fuentes de financiación estatal que ha recibido (opcional):
               </p>
 
               <div className="flex items-center space-x-3">
@@ -2808,7 +2733,7 @@ const RegisterPageMultiStep = () => {
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="financiado_regalias" className="text-sm font-medium text-gray-700">
-                  He recibido financiaci?n de regal?as
+                  He recibido financiación de regalías
                 </label>
               </div>
 
@@ -2822,7 +2747,7 @@ const RegisterPageMultiStep = () => {
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="financiado_camara_comercio" className="text-sm font-medium text-gray-700">
-                  He recibido financiaci?n de C?mara de Comercio
+                  He recibido financiación de Cámara de Comercio
                 </label>
               </div>
 
@@ -2835,7 +2760,7 @@ const RegisterPageMultiStep = () => {
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="financiado_incubadoras" className="text-sm font-medium text-gray-700">
-                  He recibido financiaci?n de incubadoras
+                  He recibido financiación de incubadoras
                 </label>
               </div>
 
@@ -2848,7 +2773,7 @@ const RegisterPageMultiStep = () => {
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="financiado_otro" className="text-sm font-medium text-gray-700">
-                  He recibido financiaci?n de otra fuente estatal
+                  He recibido financiación de otra fuente estatal
                 </label>
               </div>
 
@@ -2863,7 +2788,7 @@ const RegisterPageMultiStep = () => {
                     value={formData.financiado_otro_texto}
                     onChange={(e) => setFormData({ ...formData, financiado_otro_texto: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ej: Fondo de Ciencia, Tecnolog?a e Innovaci?n"
+                    placeholder="Ej: Fondo de Ciencia, Tecnología e Innovación"
                   />
                 </div>
               )}
@@ -2875,12 +2800,12 @@ const RegisterPageMultiStep = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Paso 11: Declaraciones y T?rminos</h2>
-              <p className="text-gray-600">Declaraciones finales y aceptaci?n de t?rminos</p>
+              <h2 className="text-2xl font-bold text-gray-900">Paso 11: Declaraciones y Términos</h2>
+              <p className="text-gray-600">Declaraciones finales y aceptación de términos</p>
             </div>
 
             <div className="space-y-6">
-              {/* Declaraci?n de Veracidad */}
+              {/* Declaración de Veracidad */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <input
@@ -2892,16 +2817,16 @@ const RegisterPageMultiStep = () => {
                   />
                   <div>
                     <label htmlFor="declara_veraz" className="text-sm font-medium text-gray-700">
-                      Declaro bajo la gravedad del juramento que la informaci?n suministrada es veraz y completa
+                      Declaro bajo la gravedad del juramento que la información suministrada es veraz y completa
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      Esta declaraci?n es obligatoria para continuar con el proceso
+                      Esta declaración es obligatoria para continuar con el proceso
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Declaraci?n de Financiaci?n */}
+              {/* Declaración de Financiación */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <input
@@ -2913,16 +2838,16 @@ const RegisterPageMultiStep = () => {
                   />
                   <div>
                     <label htmlFor="declara_no_beneficiario" className="text-sm font-medium text-gray-700">
-                      Declaro que la informaci?n sobre financiaci?n estatal declarada en el paso anterior es correcta y completa
+                      Declaro que la información sobre financiación estatal declarada en el paso anterior es correcta y completa
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      Si no he recibido financiaci?n estatal, confirmo que no he sido beneficiario de otros programas de financiaci?n estatal para este emprendimiento
+                      Si no he recibido financiación estatal, confirmo que no he sido beneficiario de otros programas de financiación estatal para este emprendimiento
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Aceptaci?n de T?rminos */}
+              {/* Aceptación de Términos */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <input
@@ -2934,21 +2859,21 @@ const RegisterPageMultiStep = () => {
                   />
                   <div>
                     <label htmlFor="acepta_terminos" className="text-sm font-medium text-gray-700">
-                      Acepto los t?rminos y condiciones de la convocatoria
+                      Acepto los términos y condiciones de la convocatoria
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      He le?do y acepto los t?rminos de referencia de la convocatoria
+                      He leído y acepto los términos de referencia de la convocatoria
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Informaci?n de Contacto */}
+              {/* Información de Contacto */}
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Informaci?n de Contacto</h3>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Información de Contacto</h3>
                 <p className="text-xs text-gray-500">
-                  Una vez enviada su inscripci?n, recibir? un correo de confirmaci?n.
-                  Mantenga su informaci?n de contacto actualizada para recibir notificaciones sobre el proceso.
+                  Una vez enviada su inscripción, recibirá un correo de confirmación.
+                  Mantenga su información de contacto actualizada para recibir notificaciones sobre el proceso.
                 </p>
               </div>
 
@@ -2963,17 +2888,17 @@ const RegisterPageMultiStep = () => {
                     </div>
                   </div>
                   <h3 className="text-2xl font-bold text-green-800 mb-3">
-                    ?Felicidades, Joven Emprendedor!
+                    ¡Felicidades, Joven Emprendedor!
                   </h3>
                   <div className="text-green-700 space-y-2">
                     <p className="text-lg font-medium">
-                      Has subsanado con ?xito todos los documentos necesarios.
+                      Has subsanado con éxito todos los documentos necesarios.
                     </p>
                     <p className="text-base">
                       Tu proceso de registro ha finalizado y tus documentos han sido cargados correctamente.
                     </p>
                     <p className="text-base font-semibold">
-                      No necesitas realizar ninguna acci?n adicional. Tu postulaci?n est? completa.
+                      No necesitas realizar ninguna acción adicional. Tu postulación está completa.
                     </p>
                   </div>
                 </div>
@@ -3042,39 +2967,54 @@ const RegisterPageMultiStep = () => {
     uploadPendingFiles()
   }, [pendingUploads, formData.numero_documento, userId])
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header de la Landing Page */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center py-4 space-y-4 lg:space-y-0">
-            <div className="flex items-center space-x-2 sm:space-x-4 flex-wrap justify-center lg:justify-start min-h-[3rem] header-logos">
-              <img src="/emprendipaz.png" alt="EmprendiPaz" className="h-10 sm:h-12 object-contain" />
-              <img src="/logo-gobernacion.png" alt="Gobernaci?n de Nari?o" className="h-10 sm:h-12 object-contain" />
-              <img src="/fundacion.png" alt="Fundaci?n" className="h-10 sm:h-12 object-contain" />
-              <img src="/consorcio.png" alt="Consorcio" className="h-10 sm:h-12 object-contain" />
-            </div>
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-4 w-full sm:w-auto">
-              <Button
-                onClick={() => navigate('/')}
-                className="bg-gray-600 hover:bg-gray-700 text-white w-full sm:w-auto text-sm"
-              >
-                Volver al Inicio
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+  useEffect(() => {
+    if (!hasUploadedVideo || !errors.video_presentacion) return
 
-      <div className="py-8">
-        <div className="max-w-4xl mx-auto px-4">
+    setErrors(prev => {
+      if (!prev.video_presentacion) return prev
+      const nextErrors = { ...prev }
+      delete nextErrors.video_presentacion
+      return nextErrors
+    })
+  }, [hasUploadedVideo, errors.video_presentacion])
+
+  return (
+    <div className={embedded ? '' : 'min-h-screen bg-gray-50'}>
+      {!embedded && (
+        <>
+          {/* Header de la Landing Page */}
+          <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col lg:flex-row justify-between items-center py-4 space-y-4 lg:space-y-0">
+                <div className="flex items-center space-x-2 sm:space-x-4 flex-wrap justify-center lg:justify-start min-h-[3rem] header-logos">
+                  <img src="/emprendipaz.png" alt="EmprendiPaz" className="h-10 sm:h-12 object-contain" />
+                  <img src="/logo-gobernacion.png" alt="Gobernación de Nariño" className="h-10 sm:h-12 object-contain" />
+                  <img src="/fundacion.png" alt="Fundación" className="h-10 sm:h-12 object-contain" />
+                  <img src="/consorcio.png" alt="Consorcio" className="h-10 sm:h-12 object-contain" />
+                </div>
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-4 w-full sm:w-auto">
+                  <Button
+                    onClick={() => navigate('/')}
+                    className="bg-gray-600 hover:bg-gray-700 text-white w-full sm:w-auto text-sm"
+                  >
+                    Volver al Inicio
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </header>
+        </>
+      )}
+
+      <div className={embedded ? '' : 'py-8'}>
+        <div className={embedded ? '' : 'max-w-4xl mx-auto px-4'}>
           {/* Header del formulario */}
           <div className="bg-white rounded-lg shadow-md mb-6 p-6">
             <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
               Formulario de Registro - EmprendiPaz
             </h1>
             <p className="text-center text-gray-600">
-              Complete todos los pasos para enviar su inscripci?n
+              Complete todos los pasos para enviar su inscripcion
             </p>
           </div>
 
@@ -3088,17 +3028,17 @@ const RegisterPageMultiStep = () => {
               </div>
               <div className="ml-3">
                 <h3 className="text-lg font-bold text-green-800 mb-3">
-                  IMPORTANTE - PROCESO DE VERIFICACI?N
+                  IMPORTANTE - PROCESO DE VERIFICACIÓN
                 </h3>
                 <div className="text-sm text-green-900 space-y-2">
                   <p>
-                    <strong>Su inscripci?n ser? sometida a reserva y verificaci?n exhaustiva.</strong>
-                    Se validar? toda la informaci?n y documentaci?n proporcionada.
+                    <strong>Su inscripción será sometida a reserva y verificación exhaustiva.</strong>
+                    Se validará toda la información y documentación proporcionada.
                   </p>
                   <p>
                     <strong>Si se encuentra cualquier inconsistencia o falsedad</strong> en los datos
-                    o documentos presentados, <strong>quedar? autom?ticamente excluido del programa
-                      sin derecho a apelaci?n.</strong>
+                    o documentos presentados, <strong>quedará automáticamente excluido del programa
+                      sin derecho a apelación.</strong>
                   </p>
                   <p className="font-medium">
                     Las declaraciones legales correspondientes se encuentran en el paso final del formulario.
@@ -3126,26 +3066,9 @@ const RegisterPageMultiStep = () => {
               ></div>
             </div>
 
-            <div className="grid grid-cols-11 gap-1">
+            <div className="-mx-1 overflow-x-auto pb-2">
+              <div className="grid min-w-[44rem] grid-cols-11 gap-1 px-1">
               {steps.map((step) => {
-                // ?conos para cada paso
-                const getStepIcon = (stepNumber) => {
-                  switch (stepNumber) {
-                    case 1: return '??' // Datos Generales
-                    case 2: return '??' // Poblaci?n Diferencial
-                    case 3: return '??' // Emprendimiento
-                    case 4: return '??' // Video Presentaci?n
-                    case 5: return '??' // Documentos Obligatorios
-                    case 6: return '??' // Documentos por Tipo
-                    case 7: return '??' // Documentos Diferenciales
-                    case 8: return '??' // Documentos de Control
-                    case 9: return '??' // Funcionamiento
-                    case 10: return '??' // Financiaci?n
-                    case 11: return '?' // Declaraciones
-                    default: return '??'
-                  }
-                }
-
                 // Deshabilitar pasos 2-11 si no se ha completado el Paso 1
                 const isStepDisabled = step.number > 1 && !isStep1Complete
 
@@ -3161,10 +3084,9 @@ const RegisterPageMultiStep = () => {
                             : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-2 border-blue-300 cursor-pointer'
                       }`}
                     onClick={() => !isStepDisabled && setCurrentStep(step.number)}
-                    title={isStepDisabled ? '?? Complete el Paso 1 primero para navegar libremente' : step.title}
+                    title={isStepDisabled ? 'Complete el Paso 1 primero para navegar libremente' : step.title}
                   >
                     <div className="text-lg font-bold">{step.number}</div>
-                    <div className="text-sm">{getStepIcon(step.number)}</div>
 
                     {/* Tooltip que aparece al hacer hover */}
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
@@ -3174,6 +3096,7 @@ const RegisterPageMultiStep = () => {
                   </div>
                 )
               })}
+              </div>
             </div>
           </div>
 
@@ -3208,7 +3131,7 @@ const RegisterPageMultiStep = () => {
                   Procesando...
                 </>
               ) : currentStep === steps.length ? (
-                'Finalizar Inscripci?n'
+                'Finalizar Inscripción'
               ) : (
                 <>
                   Siguiente
@@ -3255,13 +3178,13 @@ const RegisterPageMultiStep = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-900 mb-2">
-                      ?Est?s seguro de finalizar el proceso de inscripci?n?
+                      ¿Estás seguro de finalizar el proceso de inscripción?
                     </h3>
                     <p className="text-sm text-gray-700 mb-4">
-                      Recuerde que <strong>si finaliza la inscripci?n, ya no podr? subir documentos ni modificar la informaci?n ingresada.</strong>
+                      Recuerde que <strong>si finaliza la inscripción, ya no podrá subir documentos ni modificar la información ingresada.</strong>
                     </p>
                     <p className="text-xs text-gray-600">
-                      Si a?n necesita revisar o subir alg?n documento, seleccione "No, guardar avance".
+                      Si aún necesita revisar o subir algún documento, seleccione "No, guardar avance".
                     </p>
                   </div>
                 </div>
@@ -3273,7 +3196,7 @@ const RegisterPageMultiStep = () => {
                     disabled={isLoading}
                     className="w-full px-4 py-3 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
                   >
-                    {isLoading ? 'Enviando...' : 'S?, finalizar inscripci?n'}
+                    {isLoading ? 'Enviando...' : 'Sí, finalizar inscripción'}
                   </button>
                   <button
                     type="button"
@@ -3314,7 +3237,7 @@ const RegisterPageMultiStep = () => {
                       {validationErrorMessage}
                     </p>
                     <p className="text-xs text-gray-600">
-                      Por favor, complete todos los documentos requeridos antes de finalizar la inscripci?n.
+                      Por favor, complete todos los documentos requeridos antes de finalizar la inscripción.
                     </p>
                   </div>
                 </div>

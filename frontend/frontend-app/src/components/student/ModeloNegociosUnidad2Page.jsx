@@ -202,7 +202,7 @@ const ModeloNegociosUnidad2Page = () => {
 
           >
 
-            Modulos
+            Módulos
 
           </button>
 

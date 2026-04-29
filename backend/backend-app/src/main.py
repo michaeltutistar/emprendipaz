@@ -115,6 +115,14 @@ app.register_blueprint(forum_bp, url_prefix='/api')
 # Inicializar base de datos
 db.init_app(app)
 
+# Foro: columna parent_reply_id (respuestas anidadas). Idempotente; no tumba el arranque si falla RDS.
+try:
+    from src.routes.db_migration import ensure_forum_reply_parent_column
+
+    ensure_forum_reply_parent_column(app, db)
+except Exception as e:
+    print(f'Arranque: migración foro parent_reply_id no aplicada (no fatal): {e}')
+
 # ELIMINADO: El siguiente bloque intentaba crear las tablas automáticamente y
 # causaba un error 502 si la base de datos no estaba accesible al iniciar.
 # with app.app_context():

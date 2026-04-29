@@ -16,7 +16,8 @@ import {
   FileText,
   User,
   ChevronRight,
-  MessageSquareMore
+  MessageSquareMore,
+  Download
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,8 +26,84 @@ import * as XLSX from 'xlsx';
 
 import InstructorHeader from './instructor/InstructorHeader';
 import API_BASE_URL from '@/config/api'
+import { getForumNodes, resolveForumNodeByMunicipio } from '@/constants/forumNodes'
 
-const InstructorDashboard = () => {
+/** Misma lógica que el useEffect del dashboard: CSV público → mapas id/nombre → municipio */
+function buildMunicipiosMapsFromCsvText(csvText) {
+  const mapById = {};
+  const mapByName = {};
+  const normalizeName = (s) => {
+    return (s || '')
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  };
+  const lines = csvText.split(/\r?\n/).filter(Boolean);
+  for (let i = 1; i < lines.length; i += 1) {
+    const parts = lines[i].split(';');
+    if (parts.length < 4) continue;
+    const idStr = (parts[0] || '').trim();
+    const nombre = (parts[1] || '').trim();
+    const apellido = (parts[2] || '').trim();
+    const municipio = (parts[3] || '').trim();
+    if (!idStr || !municipio) continue;
+    mapById[idStr] = municipio;
+    const fullName = `${nombre} ${apellido}`.replace(/\s+/g, ' ').trim();
+    const keyName = normalizeName(fullName);
+    if (keyName) mapByName[keyName] = municipio;
+  }
+  return { mapById, mapByName };
+}
+
+/** Agrupa progreso por municipio (misma lógica que el useMemo del dashboard). */
+function agruparProgresoPorMunicipio(progresoEstudiantes, municipiosMapById, municipiosMapByName) {
+  const normalizeName = (s) => {
+    return (s || '')
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  };
+  const isSinMunicipio = (m) => String(m ?? '').trim().toLowerCase() === 'sin municipio';
+  const grupos = {};
+  for (const p of progresoEstudiantes || []) {
+    const id = p?.estudiante_id ?? p?.estudianteId ?? p?.user_id ?? p?.usuario_id;
+    let municipio = 'Sin municipio';
+    if (typeof p?.municipio === 'string' && p.municipio.trim()) {
+      municipio = p.municipio.trim();
+    } else if (id != null && municipiosMapById[String(id)]) {
+      municipio = municipiosMapById[String(id)];
+    } else {
+      const keyName = normalizeName(p?.estudiante);
+      if (keyName && municipiosMapByName[keyName]) {
+        municipio = municipiosMapByName[keyName];
+      }
+    }
+    if (!grupos[municipio]) grupos[municipio] = [];
+    grupos[municipio].push(p);
+  }
+  const entries = Object.entries(grupos).sort(([a], [b]) => {
+    if (isSinMunicipio(a) && !isSinMunicipio(b)) return 1;
+    if (isSinMunicipio(b) && !isSinMunicipio(a)) return -1;
+    return a.localeCompare(b, 'es');
+  });
+  return entries;
+}
+
+const NODE_ACTIVITY_DATE_LABELS = {
+  centro: 'Desde el 9 al 18 de febrero',
+  'costa-pacifica': 'Desde el 23 de febrero al 4 de marzo',
+  telembi: 'Desde el 5 al 14 de marzo',
+  'exprovincia-obando': 'Desde el 16 al 25 de marzo',
+  abades: 'Desde el 6 al 15 de abril',
+};
+
+const InstructorDashboard = ({ embedded = false }) => {
   const [cursos, setCursos] = useState([]);
   const [estadisticas, setEstadisticas] = useState({
     totalCursos: 0,
@@ -56,11 +133,25 @@ const InstructorDashboard = () => {
   const [municipiosMapById, setMunicipiosMapById] = useState({});
   const [municipiosMapByName, setMunicipiosMapByName] = useState({});
   const [municipiosOpen, setMunicipiosOpen] = useState({});
+  const [nodosOpen, setNodosOpen] = useState({});
   const [municipioSeleccionado, setMunicipioSeleccionado] = useState('');
   const navigate = useNavigate();
 
   const tutorBalanceFormUrl =
     'https://docs.google.com/forms/d/e/1FAIpQLSdaJT_6w0wXN8uFNsjYQiSjHGooMFpUKAWRFUszpfZ4DBAj7A/viewform';
+
+  const MODULES_EXPORT_ORDER = [
+    'Atención al Cliente',
+    'Descubrimiento de Oportunidades',
+    'Finanzas',
+    'Liderazgo',
+    'Marketing Digital',
+    'Marketing y Comercialización',
+    'Modelo de Negocios',
+    'Plan de Inversión',
+    'Proyecto de vida',
+    'Trabajo en Equipo'
+  ];
 
   useEffect(() => {
     // Restaurar posición del scroll
@@ -101,32 +192,7 @@ const InstructorDashboard = () => {
         const res = await fetch('/municipios.csv', { cache: 'no-store' });
         if (!res.ok) return;
         const csvText = await res.text();
-        const lines = csvText.split(/\r?\n/).filter(Boolean);
-        // Formato: ID;Nombre ;Apellido;Municipio
-        const mapById = {};
-        const mapByName = {};
-        const normalizeName = (s) => {
-          return (s || '')
-            .toString()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .toLowerCase();
-        };
-        for (let i = 1; i < lines.length; i += 1) {
-          const parts = lines[i].split(';');
-          if (parts.length < 4) continue;
-          const idStr = (parts[0] || '').trim();
-          const nombre = (parts[1] || '').trim();
-          const apellido = (parts[2] || '').trim();
-          const municipio = (parts[3] || '').trim();
-          if (!idStr || !municipio) continue;
-          mapById[idStr] = municipio;
-          const fullName = `${nombre} ${apellido}`.replace(/\s+/g, ' ').trim();
-          const keyName = normalizeName(fullName);
-          if (keyName) mapByName[keyName] = municipio;
-        }
+        const { mapById, mapByName } = buildMunicipiosMapsFromCsvText(csvText);
         if (!cancelled) {
           setMunicipiosMapById(mapById);
           setMunicipiosMapByName(mapByName);
@@ -294,6 +360,25 @@ const InstructorDashboard = () => {
     }
   };
 
+  const descargarPlanNegocioEstudiante = async (eid, nombreEstudiante) => {
+    const tid = toast.loading('Abriendo vista de impresión…');
+    try {
+      const url = `/instructor/plan-estudiante/${encodeURIComponent(eid)}?print=1&tab=formulario&close=1`;
+      const printWindow = window.open(url, '_blank', 'width=1280,height=900,noopener=no,noreferrer=no');
+      toast.dismiss(tid);
+      if (!printWindow) {
+        toast.error('El navegador bloqueó la ventana de impresión. Permite popups e inténtalo de nuevo.');
+        return;
+      }
+      printWindow.focus();
+      toast.success(`Preparando impresión para ${nombreEstudiante}…`);
+    } catch (err) {
+      toast.dismiss(tid);
+      console.error(err);
+      toast.error('Error al abrir la vista de impresión del plan.');
+    }
+  };
+
   const cargarProgresoEstudiantes = async () => {
     try {
       // Guardar posición del scroll antes de actualizar
@@ -344,6 +429,7 @@ const InstructorDashboard = () => {
               window.scrollTo(0, parseInt(savedScroll, 10));
             }
           }, 50);
+          return { ok: true, datos: resultado.datos };
         }
       } else {
         console.error("❌ Error en respuesta:", progresoResponse.status, await progresoResponse.text());
@@ -351,6 +437,7 @@ const InstructorDashboard = () => {
     } catch (error) {
       console.error("Error al cargar progreso de estudiantes:", error);
     }
+    return { ok: false, datos: null };
   };
 
   const cargarDatosInstructor = async () => {
@@ -390,38 +477,6 @@ const InstructorDashboard = () => {
     }
   };
 
-  const formatearFecha = (fecha) => {
-    if (!fecha) return '';
-
-    // Crear objeto Date desde el string
-    let fechaObj = new Date(fecha);
-
-    // Si la fecha es inválida, retornar string vacío
-    if (isNaN(fechaObj.getTime())) return '';
-
-    // Si la fecha viene sin timezone info (como string ISO sin Z), JavaScript la interpreta como hora local
-    // Si viene con Z (UTC), JavaScript la convierte correctamente
-    // Para asegurarnos de que siempre muestre la hora de Colombia, restamos 5 horas si es necesario
-    // O mejor, convertimos explícitamente a la zona horaria de Colombia
-
-    // Obtener la hora UTC de la fecha
-    const horaUTC = fechaObj.getTime();
-
-    // Convertir a hora de Colombia (UTC-5) restando 5 horas en milisegundos
-    const offsetColombia = -5 * 60 * 60 * 1000; // -5 horas en milisegundos
-    const fechaColombia = new Date(horaUTC + offsetColombia);
-
-    // Formatear en español
-    return fechaColombia.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-  };
-
   // Función para calcular puntos basados en intentos
   const calcularPuntos = (intentos) => {
     if (!intentos || intentos === 0) return 0;
@@ -444,9 +499,16 @@ const InstructorDashboard = () => {
       return total + puntosModulo;
     }, 0);
 
-    // Puntos por asistencia (jornadas) usando el id del estudiante (si existe)
+    // Puntos por asistencia (jornadas): priorizar datos del objeto progreso (API), luego estado local
     const estudianteId = progreso.estudiante_id;
-    const jornadasEstudiante = (estudianteId && jornadasMarcadas[estudianteId]) ? jornadasMarcadas[estudianteId] : {};
+    const jornadasDesdeProgreso =
+      progreso?.jornadas && typeof progreso.jornadas === 'object' ? progreso.jornadas : {};
+    const jornadasEstudiante =
+      Object.keys(jornadasDesdeProgreso).length > 0
+        ? jornadasDesdeProgreso
+        : estudianteId && jornadasMarcadas[estudianteId]
+          ? jornadasMarcadas[estudianteId]
+          : {};
     const puntosAsistencia = Object.values(jornadasEstudiante).filter(Boolean).length;
 
     return puntosModulos + puntosAsistencia;
@@ -461,14 +523,68 @@ const InstructorDashboard = () => {
       .replace(/'/g, '&#039;');
   };
 
-  const descargarInformeExcel = () => {
+  const normalizarModuloExport = (modulo) => {
+    const value = (modulo || '').toString().trim();
+    const alias = {
+      'Finanzas y Gestión Empresarial': 'Finanzas',
+      'Atención al Cliente y Resolución de Conflictos': 'Atención al Cliente'
+    };
+    return alias[value] || value;
+  };
+
+  const formatearPorcentajeExcel = (value) => {
+    const numero = Number(value || 0);
+    if (!Number.isFinite(numero)) return '0%';
+    const redondeado = Math.round(numero * 100) / 100;
+    return Number.isInteger(redondeado) ? `${redondeado}%` : `${redondeado.toFixed(2)}%`;
+  };
+
+  /** CSV + API alineados con el dashboard (evita Excel con datos viejos por cierre React). */
+  const obtenerMapsYProgresoFrescos = async () => {
+    let maps = { mapById: municipiosMapById, mapByName: municipiosMapByName };
+    try {
+      const res = await fetch('/municipios.csv', { cache: 'no-store' });
+      if (res.ok) {
+        const text = await res.text();
+        maps = buildMunicipiosMapsFromCsvText(text);
+        setMunicipiosMapById(maps.mapById);
+        setMunicipiosMapByName(maps.mapByName);
+      }
+    } catch {
+      // usar maps del estado
+    }
+    const prog = await cargarProgresoEstudiantes();
+    if (!prog?.ok || !prog.datos) {
+      return { ok: false, agrupado: null, maps };
+    }
+    const agrupado = agruparProgresoPorMunicipio(prog.datos, maps.mapById, maps.mapByName);
+    return { ok: true, agrupado, maps };
+  };
+
+  const descargarInformeExcel = async () => {
     if (!municipioSeleccionado) {
       toast.error('Selecciona un municipio antes de descargar el informe.');
       return;
     }
 
-    const entry = progresoAgrupadoPorMunicipio.find(([m]) => m === municipioSeleccionado);
-    const estudiantes = entry ? entry[1] : [];
+    const tid = toast.loading('Sincronizando datos para el informe…');
+    let estudiantes;
+    try {
+      const { ok, agrupado } = await obtenerMapsYProgresoFrescos();
+      toast.dismiss(tid);
+      if (!ok || !agrupado?.length) {
+        toast.error('No hay datos de estudiantes para el informe.');
+        return;
+      }
+      const entry = agrupado.find(([m]) => m === municipioSeleccionado);
+      estudiantes = entry ? entry[1] : [];
+    } catch (e) {
+      toast.dismiss(tid);
+      console.error(e);
+      toast.error('No se pudieron cargar los datos.');
+      return;
+    }
+
     if (!estudiantes || estudiantes.length === 0) {
       toast.error('No hay estudiantes para el municipio seleccionado.');
       return;
@@ -531,62 +647,157 @@ const InstructorDashboard = () => {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    toast.success('Informe descargado (datos actualizados).');
   };
 
-  const MUNICIPIOS_CON_INICIO = [
-    'Pasto', 'Chachagui', 'La florida', 'Nariño', 'Tangua', 'Yaquanquer',
-    'Barbacoas', 'Magui', 'Roberto Payan', 'San Andres de Tumaco', 'El charco',
-    'La Tola', 'Mosquera', 'Olaya Herrera', 'Santa Barbara'
-  ];
-
-  const descargarEstudiantesSinCompletar = () => {
-    if (!progresoAgrupadoPorMunicipio || progresoAgrupadoPorMunicipio.length === 0) {
-      toast.error('No hay datos de estudiantes para generar el informe.');
-      return;
-    }
-
-    const normalizar = (s) => (s || '').toString().trim().toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const municipiosNorm = new Set(MUNICIPIOS_CON_INICIO.map(m => normalizar(m)));
-
-    const rows = [];
-    for (const [municipio, estudiantes] of progresoAgrupadoPorMunicipio) {
-      if (!municipio || !municipiosNorm.has(normalizar(municipio))) continue;
-
-      for (const p of estudiantes) {
-        const pct = p.porcentaje_total ?? p.porcentaje ?? 0;
-        if (pct >= 100) continue;
-
-        const nombre = p.estudiante ?? (`${p.nombre || ''} ${p.apellido || ''}`.trim() || 'Sin nombre');
-        rows.push({
-          Municipio: municipio,
-          'Nombre del estudiante': nombre,
-          'Porcentaje de la barra de progreso': `${Math.round(pct * 100) / 100}%`
-        });
+  const descargarEstadisticasMunicipios = async () => {
+    const tid = toast.loading('Sincronizando datos para estadísticas por municipio…');
+    let agrupadoFuente;
+    try {
+      const { ok, agrupado } = await obtenerMapsYProgresoFrescos();
+      toast.dismiss(tid);
+      if (!ok || !agrupado?.length) {
+        toast.error('No hay datos por municipio para generar el archivo.');
+        return;
       }
+      agrupadoFuente = agrupado;
+    } catch (e) {
+      toast.dismiss(tid);
+      console.error(e);
+      toast.error('No se pudieron cargar los datos.');
+      return;
     }
 
-    rows.sort((a, b) => {
-      const cmpM = (a.Municipio || '').localeCompare(b.Municipio || '', 'es');
-      if (cmpM !== 0) return cmpM;
-      return (a['Nombre del estudiante'] || '').localeCompare(b['Nombre del estudiante'] || '', 'es');
-    });
+    const municipiosValidos = agrupadoFuente
+      .filter(([municipio]) => municipio && municipio !== 'Sin municipio');
 
-    if (rows.length === 0) {
-      toast.info('No hay estudiantes sin completar en los municipios seleccionados.');
+    if (!municipiosValidos.length) {
+      toast.error('No hay municipios válidos para exportar.');
       return;
+    }
+
+    const resumenRows = [];
+    const intentosPorModuloRows = [];
+
+    for (const [municipio, estudiantes] of municipiosValidos) {
+      const totalEstudiantes = estudiantes.length;
+      let intentosTotales = 0;
+      let sumaPorcentajeTotal = 0;
+      let jornadasMarcadasTotal = 0;
+      const intentosPorModulo = Object.fromEntries(MODULES_EXPORT_ORDER.map((modulo) => [modulo, 0]));
+
+      for (const progreso of estudiantes) {
+        const porcentaje = Number(progreso?.porcentaje_total ?? progreso?.porcentaje ?? 0);
+        sumaPorcentajeTotal += Number.isFinite(porcentaje) ? porcentaje : 0;
+
+        const estudianteId = progreso?.estudiante_id;
+        const jornadasDesdeProgreso = progreso?.jornadas && typeof progreso.jornadas === 'object'
+          ? progreso.jornadas
+          : {};
+        const jornadasEstudiante =
+          Object.keys(jornadasDesdeProgreso).length > 0
+            ? jornadasDesdeProgreso
+            : estudianteId && jornadasMarcadas[estudianteId]
+              ? jornadasMarcadas[estudianteId]
+              : {};
+        jornadasMarcadasTotal += Object.values(jornadasEstudiante || {}).filter(Boolean).length;
+
+        for (const moduloData of (progreso.modulos || [progreso])) {
+          const modulo = normalizarModuloExport(moduloData.modulo || progreso.modulo);
+          const progresoPasos = moduloData.progreso_pasos || progreso.progreso_pasos || [];
+          const intentosModulo = progresoPasos.reduce((total, paso) => total + (paso.intentos || 0), 0);
+          intentosTotales += intentosModulo;
+          if (Object.prototype.hasOwnProperty.call(intentosPorModulo, modulo)) {
+            intentosPorModulo[modulo] += intentosModulo;
+          }
+        }
+      }
+
+      const pctFinalizacion = totalEstudiantes > 0 ? (sumaPorcentajeTotal / totalEstudiantes) : 0;
+      const pctAsistencia = totalEstudiantes > 0 ? ((jornadasMarcadasTotal / (totalEstudiantes * 10)) * 100) : 0;
+
+      resumenRows.push({
+        'Municipio': municipio,
+        'Total estudiantes': totalEstudiantes,
+        'Intentos totales': intentosTotales,
+        '% finalización módulos': formatearPorcentajeExcel(pctFinalizacion),
+        '% asistencia': formatearPorcentajeExcel(pctAsistencia)
+      });
+
+      const filaIntentos = { Municipio: municipio };
+      MODULES_EXPORT_ORDER.forEach((modulo) => {
+        filaIntentos[modulo] = intentosPorModulo[modulo] || 0;
+      });
+      intentosPorModuloRows.push(filaIntentos);
     }
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, 'Sin completar');
+    const resumenSheet = XLSX.utils.json_to_sheet(resumenRows);
+    const intentosSheet = XLSX.utils.json_to_sheet(intentosPorModuloRows);
+    XLSX.utils.book_append_sheet(wb, resumenSheet, 'Resumen por municipio');
+    XLSX.utils.book_append_sheet(wb, intentosSheet, 'Intentos por módulo');
 
     const fecha = new Date();
     const yyyy = fecha.getFullYear();
     const mm = String(fecha.getMonth() + 1).padStart(2, '0');
     const dd = String(fecha.getDate()).padStart(2, '0');
-    XLSX.writeFile(wb, `estudiantes_sin_completar_${yyyy}-${mm}-${dd}.xlsx`);
-    toast.success(`${rows.length} estudiante(s) sin completar descargados.`);
+    XLSX.writeFile(wb, `estadisticas_municipios_${yyyy}-${mm}-${dd}.xlsx`);
+    toast.success(`Archivo generado para ${resumenRows.length} municipio(s) (datos actualizados).`);
+  };
+
+  const descargarEstudiantesSinCompletar = async () => {
+    const tid = toast.loading('Sincronizando datos del servidor y municipios…');
+    try {
+      const { ok, agrupado } = await obtenerMapsYProgresoFrescos();
+      toast.dismiss(tid);
+      if (!ok || !agrupado?.length) {
+        toast.error('No hay datos de estudiantes para generar el informe.');
+        return;
+      }
+
+      const rows = [];
+      for (const [municipio, estudiantes] of agrupado) {
+        if (!municipio || String(municipio).trim().toLowerCase() === 'sin municipio') continue;
+
+        for (const p of estudiantes) {
+          const pct = p.porcentaje_total ?? p.porcentaje ?? 0;
+          if (pct >= 100) continue;
+
+          const nombre = p.estudiante ?? (`${p.nombre || ''} ${p.apellido || ''}`.trim() || 'Sin nombre');
+          rows.push({
+            Municipio: municipio,
+            'Nombre del estudiante': nombre,
+            'Porcentaje de la barra de progreso': `${Math.round(pct * 100) / 100}%`
+          });
+        }
+      }
+
+      rows.sort((a, b) => {
+        const cmpM = (a.Municipio || '').localeCompare(b.Municipio || '', 'es');
+        if (cmpM !== 0) return cmpM;
+        return (a['Nombre del estudiante'] || '').localeCompare(b['Nombre del estudiante'] || '', 'es');
+      });
+
+      if (rows.length === 0) {
+        toast.info('No hay estudiantes sin completar (todos al 100% o sin municipio asignado).');
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'Sin completar');
+
+      const fecha = new Date();
+      const yyyy = fecha.getFullYear();
+      const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+      const dd = String(fecha.getDate()).padStart(2, '0');
+      XLSX.writeFile(wb, `estudiantes_sin_completar_${yyyy}-${mm}-${dd}.xlsx`);
+      toast.success(`${rows.length} estudiante(s) sin completar descargados (datos actualizados).`);
+    } catch (e) {
+      toast.dismiss(tid);
+      console.error(e);
+      toast.error('No se pudo generar el informe.');
+    }
   };
 
   const obtenerIconoActividad = (accion) => {
@@ -605,42 +816,52 @@ const InstructorDashboard = () => {
     }
   };
 
-  const progresoAgrupadoPorMunicipio = useMemo(() => {
-    const normalizeName = (s) => {
-      return (s || '')
-        .toString()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .toLowerCase();
+  const progresoAgrupadoPorMunicipio = useMemo(
+    () => agruparProgresoPorMunicipio(progresoEstudiantes, municipiosMapById, municipiosMapByName),
+    [progresoEstudiantes, municipiosMapById, municipiosMapByName]
+  );
+
+  const progresoAgrupadoPorNodo = useMemo(() => {
+    const baseNodes = getForumNodes().map((node) => ({
+      ...node,
+      fechaActividad: NODE_ACTIVITY_DATE_LABELS[node.slug] || null,
+      municipiosAgrupados: [],
+      totalEstudiantes: 0,
+    }));
+    const nodeBySlug = new Map(baseNodes.map((node) => [node.slug, node]));
+    const fallbackNode = {
+      slug: 'sin-nodo',
+      name: 'Sin nodo asignado',
+      central: '',
+      municipios: [],
+      fechaActividad: null,
+      municipiosAgrupados: [],
+      totalEstudiantes: 0,
+      isFallback: true,
     };
-    const isSinMunicipio = (m) => String(m ?? '').trim().toLowerCase() === 'sin municipio';
-    const grupos = {};
-    for (const p of progresoEstudiantes || []) {
-      const id = p?.estudiante_id ?? p?.estudianteId ?? p?.user_id ?? p?.usuario_id;
-      let municipio = 'Sin municipio';
-      if (typeof p?.municipio === 'string' && p.municipio.trim()) {
-        municipio = p.municipio.trim();
-      } else if (id != null && municipiosMapById[String(id)]) {
-        municipio = municipiosMapById[String(id)];
-      } else {
-        const keyName = normalizeName(p?.estudiante);
-        if (keyName && municipiosMapByName[keyName]) {
-          municipio = municipiosMapByName[keyName];
-        }
-      }
-      if (!grupos[municipio]) grupos[municipio] = [];
-      grupos[municipio].push(p);
+
+    for (const [municipio, estudiantes] of progresoAgrupadoPorMunicipio) {
+      const resolvedNode = resolveForumNodeByMunicipio(municipio);
+      const targetNode = resolvedNode ? nodeBySlug.get(resolvedNode.slug) : fallbackNode;
+      if (!targetNode) continue;
+      targetNode.municipiosAgrupados.push([municipio, estudiantes]);
+      targetNode.totalEstudiantes += estudiantes.length;
     }
-    // Ordenar municipios alfabéticamente, dejando "Sin municipio" al final
-    const entries = Object.entries(grupos).sort(([a], [b]) => {
-      if (isSinMunicipio(a) && !isSinMunicipio(b)) return 1;
-      if (isSinMunicipio(b) && !isSinMunicipio(a)) return -1;
-      return a.localeCompare(b, 'es');
-    });
-    return entries;
-  }, [progresoEstudiantes, municipiosMapById, municipiosMapByName]);
+
+    const result = baseNodes.map((node) => ({
+      ...node,
+      totalMunicipiosConProgreso: node.municipiosAgrupados.length,
+    }));
+
+    if (fallbackNode.municipiosAgrupados.length > 0) {
+      result.push({
+        ...fallbackNode,
+        totalMunicipiosConProgreso: fallbackNode.municipiosAgrupados.length,
+      });
+    }
+
+    return result;
+  }, [progresoAgrupadoPorMunicipio]);
 
   const municipiosOpciones = useMemo(() => {
     return progresoAgrupadoPorMunicipio
@@ -701,14 +922,17 @@ const InstructorDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InstructorHeader
-        title="Dashboard del Instructor"
-        subtitle="Gestiona tus cursos y contenido educativo"
-      />
+    <div className={embedded ? '' : 'min-h-screen bg-gray-50'}>
+      {!embedded && (
+        <InstructorHeader
+          title="Dashboard del Instructor"
+          subtitle="Gestiona tus cursos y contenido educativo"
+        />
+      )}
 
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-6">
+      <div className={embedded ? '' : 'max-w-7xl mx-auto p-6'}>
+        {!embedded && (
+          <div className="mb-6">
           <Card>
             <CardContent className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
@@ -723,7 +947,8 @@ const InstructorDashboard = () => {
               </Button>
             </CardContent>
           </Card>
-        </div>
+          </div>
+        )}
 
         {/* Contenido principal */}
 
@@ -735,7 +960,12 @@ const InstructorDashboard = () => {
           </TabsList>
 
           <TabsContent value="actividad" className="space-y-6">
-            <h2 className="text-xl font-semibold">Progreso de Estudiantes</h2>
+            <div className="flex flex-col gap-2">
+              <h2 className="text-xl font-semibold">Progreso de Estudiantes por nodo</h2>
+              <p className="text-sm text-gray-600">
+                Primero se agrupan los municipios por nodo territorial. Al abrir un nodo aparecen sus municipios y luego el detalle de estudiantes.
+              </p>
+            </div>
 
             <Card>
               <CardContent className="p-6">
@@ -748,119 +978,193 @@ const InstructorDashboard = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {progresoAgrupadoPorMunicipio.map(([municipio, estudiantes]) => {
-                        const isOpen = municipiosOpen[municipio] || false;
+                      {progresoAgrupadoPorNodo.map((nodo) => {
+                        const isNodeOpen = nodosOpen[nodo.slug] || false;
                         return (
-                          <div key={municipio} className="space-y-4">
+                          <div key={nodo.slug} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                             <button
                               type="button"
-                              className="w-full flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 hover:bg-gray-100 transition-colors"
-                              onClick={() => setMunicipiosOpen(prev => ({ ...prev, [municipio]: !prev[municipio] }))}
-                              aria-expanded={isOpen}
+                              className="w-full flex items-center justify-between rounded-lg border border-gray-200 bg-gradient-to-r from-slate-50 to-white px-4 py-4 text-left hover:bg-gray-50 transition-colors"
+                              onClick={() => setNodosOpen(prev => ({ ...prev, [nodo.slug]: !prev[nodo.slug] }))}
+                              aria-expanded={isNodeOpen}
                             >
-                              <div className="flex flex-col items-start">
-                                <span className="text-sm font-semibold text-gray-900">{municipio}</span>
-                                <span className="text-xs text-gray-600">
-                                  {estudiantes.length} estudiante{estudiantes.length !== 1 ? 's' : ''}
-                                </span>
+                              <div className="flex flex-col items-start gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-base font-semibold text-gray-900">
+                                    {nodo.isFallback ? nodo.name : `Nodo ${nodo.name}`}
+                                  </span>
+                                  <Badge
+                                    variant="outline"
+                                    className={nodo.fechaActividad
+                                      ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                      : 'border-gray-200 bg-gray-50 text-gray-600'}
+                                  >
+                                    {nodo.fechaActividad || 'Fecha pendiente'}
+                                  </Badge>
+                                </div>
+                                <div className="space-y-1">
+                                  {!nodo.isFallback && (
+                                    <p className="text-xs text-gray-600">
+                                      Cabecera: {nodo.central}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-gray-600">
+                                    {nodo.totalMunicipiosConProgreso} municipio{nodo.totalMunicipiosConProgreso !== 1 ? 's' : ''} con progreso visible
+                                    {!nodo.isFallback && ` de ${nodo.municipios.length}`}
+                                  </p>
+                                </div>
                               </div>
-                              <ChevronRight
-                                className={`w-5 h-5 text-gray-600 transition-transform ${isOpen ? 'rotate-90' : ''}`}
-                              />
+                              <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                  <div className="text-xl font-bold text-blue-600">{nodo.totalEstudiantes}</div>
+                                  <p className="text-xs text-gray-500">estudiante{nodo.totalEstudiantes !== 1 ? 's' : ''}</p>
+                                </div>
+                                <ChevronRight
+                                  className={`w-5 h-5 text-gray-600 transition-transform ${isNodeOpen ? 'rotate-90' : ''}`}
+                                />
+                              </div>
                             </button>
 
-                            {isOpen && (
-                              <div className="space-y-6">
-                                {estudiantes.map((progreso, index) => {
-                                  const moduloKey = `${progreso.estudiante}-${progreso.modulo}`;
-                                  const isModuloExpanded = expandedModulos[moduloKey] || false;
-                                  const progresoId = obtenerIdProgreso(progreso);
+                            {isNodeOpen && (
+                              <div className="space-y-4 border-t border-gray-100 pt-4">
+                                {nodo.totalMunicipiosConProgreso === 0 ? (
+                                  <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                                    Aún no hay municipios con progreso visible en este nodo.
+                                  </div>
+                                ) : (
+                                  nodo.municipiosAgrupados.map(([municipio, estudiantes]) => {
+                                    const isOpen = municipiosOpen[municipio] || false;
+                                    return (
+                                      <div key={municipio} className="space-y-4">
+                                        <button
+                                          type="button"
+                                          className="w-full flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 hover:bg-gray-100 transition-colors"
+                                          onClick={() => setMunicipiosOpen(prev => ({ ...prev, [municipio]: !prev[municipio] }))}
+                                          aria-expanded={isOpen}
+                                        >
+                                          <div className="flex flex-col items-start">
+                                            <span className="text-sm font-semibold text-gray-900">{municipio}</span>
+                                            <span className="text-xs text-gray-600">
+                                              {estudiantes.length} estudiante{estudiantes.length !== 1 ? 's' : ''}
+                                            </span>
+                                          </div>
+                                          <ChevronRight
+                                            className={`w-5 h-5 text-gray-600 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+                                          />
+                                        </button>
 
-                                  // Calcular gran total de puntos sumando todos los puntos de todos los módulos
-                                  const puntosModulos = (progreso.modulos || [progreso]).reduce((total, moduloData) => {
-                                    const progresoPasos = moduloData.progreso_pasos || progreso.progreso_pasos || [];
-                                    const puntosModulo = progresoPasos.reduce((suma, paso) => {
-                                      if (paso.nombre === 'Plan de Negocio') {
-                                        return suma + (paso.puntos_plan_negocio || 0);
-                                      }
-                                      return suma + calcularPuntos(paso.intentos || 0);
-                                    }, 0);
-                                    return total + puntosModulo;
-                                  }, 0);
+                                        {isOpen && (
+                                          <div className="space-y-6">
+                                            {estudiantes.map((progreso) => {
+                                              const progresoId = obtenerIdProgreso(progreso);
 
-                                  // Obtener jornadas marcadas para este estudiante usando su ID
-                                  const estudianteId = progreso.estudiante_id;
-                                  const jornadasEstudiante = jornadasMarcadas[estudianteId] || {};
-                                  const puntosAsistencia = Object.values(jornadasEstudiante).filter(Boolean).length;
+                                              // Calcular gran total de puntos sumando todos los puntos de todos los módulos
+                                              const puntosModulos = (progreso.modulos || [progreso]).reduce((total, moduloData) => {
+                                                const progresoPasos = moduloData.progreso_pasos || progreso.progreso_pasos || [];
+                                                const puntosModulo = progresoPasos.reduce((suma, paso) => {
+                                                  if (paso.nombre === 'Plan de Negocio') {
+                                                    return suma + (paso.puntos_plan_negocio || 0);
+                                                  }
+                                                  return suma + calcularPuntos(paso.intentos || 0);
+                                                }, 0);
+                                                return total + puntosModulo;
+                                              }, 0);
 
-                                  // Calcular gran total incluyendo puntos de asistencia
-                                  const granTotalPuntos = puntosModulos + puntosAsistencia;
+                                              // Obtener jornadas marcadas para este estudiante usando su ID
+                                              const estudianteId = progreso.estudiante_id;
+                                              const jornadasEstudiante = jornadasMarcadas[estudianteId] || {};
+                                              const puntosAsistencia = Object.values(jornadasEstudiante).filter(Boolean).length;
 
-                                  // Función para manejar cambio de jornada
-                                  const handleJornadaChange = async (jornadaNum, checked) => {
-                                    if (!estudianteId) return;
+                                              // Calcular gran total incluyendo puntos de asistencia
+                                              const granTotalPuntos = puntosModulos + puntosAsistencia;
 
-                                    const nuevasJornadas = {
-                                      ...(jornadasMarcadas[estudianteId] || {}),
-                                      [jornadaNum]: checked
-                                    };
+                                              // Función para manejar cambio de jornada
+                                              const handleJornadaChange = async (jornadaNum, checked) => {
+                                                if (!estudianteId) return;
 
-                                    const nuevoEstado = {
-                                      ...jornadasMarcadas,
-                                      [estudianteId]: nuevasJornadas
-                                    };
+                                                const nuevasJornadas = {
+                                                  ...(jornadasMarcadas[estudianteId] || {}),
+                                                  [jornadaNum]: checked
+                                                };
 
-                                    setJornadasMarcadas(nuevoEstado);
+                                                const nuevoEstado = {
+                                                  ...jornadasMarcadas,
+                                                  [estudianteId]: nuevasJornadas
+                                                };
 
-                                    // Guardar en el backend
-                                    await guardarJornadasEstudiante(estudianteId, nuevasJornadas);
-                                  };
+                                                setJornadasMarcadas(nuevoEstado);
 
-                                  return (
-                                    <div key={progresoId} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+                                                // Guardar en el backend
+                                                await guardarJornadasEstudiante(estudianteId, nuevasJornadas);
+                                              };
+
+                                              return (
+                                                <div key={progresoId} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
                                       {/* Header del estudiante */}
-                                      <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center space-x-4 flex-1">
-                                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                            <User className="w-5 h-5 text-white" />
+                                      <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="flex min-w-0 items-center space-x-4">
+                                              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                                <User className="w-5 h-5 text-white" />
+                                              </div>
+                                              <div className="min-w-0">
+                                                <h3 className="text-lg font-semibold text-gray-900 break-words">{progreso.estudiante}</h3>
+                                                <p className="text-sm text-gray-600">{progreso.total_modulos || progreso.modulos?.length || 0} módulo{(progreso.total_modulos || progreso.modulos?.length || 0) !== 1 ? 's' : ''}</p>
+                                              </div>
+                                            </div>
+                                            {estudianteId ? (
+                                              <div className="flex-shrink-0">
+                                                <Button
+                                                  type="button"
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="w-full bg-gradient-to-r from-[#AA27B9] to-[#8E1FA3] text-white border-0 hover:opacity-90 hover:text-white shadow-sm text-xs sm:text-sm px-2 sm:px-3 py-2 h-auto whitespace-nowrap sm:w-auto"
+                                                  onClick={() => descargarPlanNegocioEstudiante(estudianteId, progreso.estudiante)}
+                                                  title="Abre el mismo flujo de impresión del botón Generar Plan de Negocio"
+                                                >
+                                                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5 shrink-0" />
+                                                  <span className="hidden sm:inline">Generar plan de negocio</span>
+                                                  <span className="sm:hidden">Plan negocio</span>
+                                                </Button>
+                                              </div>
+                                            ) : null}
                                           </div>
-                                          <div className="flex-1">
-                                            <h3 className="text-lg font-semibold text-gray-900">{progreso.estudiante}</h3>
-                                            <p className="text-sm text-gray-600">{progreso.total_modulos || progreso.modulos?.length || 0} módulo{(progreso.total_modulos || progreso.modulos?.length || 0) !== 1 ? 's' : ''}</p>
-                                          </div>
+
                                           {/* Casillas de jornadas */}
-                                          <div className="flex items-center space-x-1 mx-4">
-                                            <span className="text-xs font-medium text-gray-600 mr-2">Jornadas:</span>
-                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((jornadaNum) => (
-                                              <label
-                                                key={jornadaNum}
-                                                className="relative inline-flex items-center cursor-pointer"
-                                                title={`Jornada ${jornadaNum}`}
-                                              >
-                                                <input
-                                                  type="checkbox"
-                                                  checked={jornadasEstudiante[jornadaNum] || false}
-                                                  onChange={(e) => handleJornadaChange(jornadaNum, e.target.checked)}
-                                                  className="sr-only peer"
-                                                />
-                                                <div className="w-10 h-10 border-2 border-gray-300 rounded-md flex items-center justify-center text-xs font-semibold text-gray-600 bg-white peer-checked:bg-purple-600 peer-checked:border-purple-600 peer-checked:text-white transition-all duration-200 hover:border-purple-400 hover:bg-purple-50 peer-checked:hover:bg-purple-700">
-                                                  {jornadaNum}
-                                                </div>
-                                              </label>
-                                            ))}
+                                          <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50/70 p-3">
+                                            <span className="mb-2 block text-xs font-medium text-gray-600">Jornadas:</span>
+                                            <div className="grid grid-cols-5 gap-2 sm:flex sm:flex-wrap">
+                                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((jornadaNum) => (
+                                                <label
+                                                  key={jornadaNum}
+                                                  className="relative inline-flex items-center justify-center cursor-pointer"
+                                                  title={`Jornada ${jornadaNum}`}
+                                                >
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={jornadasEstudiante[jornadaNum] || false}
+                                                    onChange={(e) => handleJornadaChange(jornadaNum, e.target.checked)}
+                                                    className="sr-only peer"
+                                                  />
+                                                  <div className="h-10 w-full min-w-0 rounded-md border-2 border-gray-300 flex items-center justify-center text-xs font-semibold text-gray-600 bg-white transition-all duration-200 hover:border-purple-400 hover:bg-purple-50 peer-checked:border-purple-600 peer-checked:bg-purple-600 peer-checked:text-white peer-checked:hover:bg-purple-700 sm:w-10">
+                                                    {jornadaNum}
+                                                  </div>
+                                                </label>
+                                              ))}
+                                            </div>
                                           </div>
                                         </div>
-                                        <div className="text-right">
-                                          <div className="flex flex-col items-end space-y-1">
-                                            <div className="flex items-center space-x-3">
-                                              <div>
-                                                <div className="text-2xl font-bold text-blue-600">{progreso.porcentaje_total || progreso.porcentaje || 0}%</div>
-                                                <p className="text-sm text-gray-500">Progreso general</p>
-                                              </div>
-                                              <div className="ml-4 pl-4 border-l border-gray-200">
-                                                <div className="text-2xl font-bold text-purple-600">{granTotalPuntos}</div>
-                                                <p className="text-sm text-purple-600 font-medium">Gran total de puntos</p>
-                                              </div>
+
+                                        <div className="xl:pl-4">
+                                          <div className="flex flex-row items-start justify-between gap-4 sm:justify-end">
+                                            <div className="min-w-0">
+                                              <div className="text-2xl font-bold text-blue-600">{progreso.porcentaje_total || progreso.porcentaje || 0}%</div>
+                                              <p className="text-sm text-gray-500">Progreso general</p>
+                                            </div>
+                                            <div className="border-l border-gray-200 pl-4 min-w-0">
+                                              <div className="text-2xl font-bold text-purple-600">{granTotalPuntos}</div>
+                                              <p className="text-sm text-purple-600 font-medium">Gran total de puntos</p>
                                             </div>
                                           </div>
                                         </div>
@@ -1010,25 +1314,7 @@ const InstructorDashboard = () => {
                                                                     </svg>
                                                                   )}
                                                                 </div>
-                                                                {paso.fecha && (
-                                                                  <p className="text-xs text-gray-500">
-                                                                    {(() => {
-                                                                      const fechaObj = new Date(paso.fecha);
-                                                                      if (isNaN(fechaObj.getTime())) return '';
-                                                                      // Convertir a hora de Colombia (UTC-5)
-                                                                      const horaUTC = fechaObj.getTime();
-                                                                      const offsetColombia = -5 * 60 * 60 * 1000;
-                                                                      const fechaColombia = new Date(horaUTC + offsetColombia);
-                                                                      return fechaColombia.toLocaleDateString('es-ES', {
-                                                                        day: 'numeric',
-                                                                        month: 'short',
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit',
-                                                                        hour12: false
-                                                                      });
-                                                                    })()}
-                                                                  </p>
-                                                                )}
+                                                                {/* Fecha/hora del intento: no se muestra en UI; el API sigue enviando paso.fecha */}
                                                                 <div className="flex items-center justify-between mt-1">
                                                                   {tieneIntentos && !isExpanded && esUnidad && (
                                                                     <p className="text-xs text-blue-600 font-semibold">
@@ -1095,8 +1381,14 @@ const InstructorDashboard = () => {
                                           })}
                                       </div>
                                     </div>
-                                  );
-                                })}
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })
+                                )}
                               </div>
                             )}
                           </div>
@@ -1119,11 +1411,10 @@ const InstructorDashboard = () => {
 
             <Card>
               <CardContent className="p-6 space-y-4">
-                {/* Oculto temporalmente - volver a mostrar cuando se necesite */}
-                <div className="space-y-3 hidden">
+                <div className="space-y-3">
                   <h3 className="text-sm font-medium text-gray-700">Estudiantes sin completar (progreso &lt; 100%)</h3>
                   <p className="text-xs text-gray-500">
-                    Listado de estudiantes que no llegaron al 100% en la barra de progreso. Solo municipios con inicio: Pasto, Chachagui, La florida, Nariño, Tangua, Yaquanquer, Barbacoas, Magui, Roberto Payan, San Andrés de Tumaco, El Charco, La Tola, Mosquera, Olaya Herrera, Santa Bárbara.
+                    Listado de estudiantes con barra de progreso menor al 100%, agrupados por municipio (excluye &quot;Sin municipio&quot;). Al descargar se sincroniza el progreso con el servidor y el CSV de municipios para incluir los últimos cambios.
                   </p>
                   <Button
                     variant="outline"
@@ -1136,7 +1427,23 @@ const InstructorDashboard = () => {
                   </Button>
                 </div>
 
-                <hr className="my-4 hidden" />
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-700">Estadísticas por municipio</h3>
+                  <p className="text-xs text-gray-500">
+                    Descarga el archivo `estadisticas_municipios` con el resumen por municipio y una segunda hoja con los intentos totales de cada módulo por municipio.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={descargarEstadisticasMunicipios}
+                    disabled={!progresoAgrupadoPorMunicipio?.length}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Descargar estadísticas municipios (Excel)
+                  </Button>
+                </div>
+
+                <hr className="my-4" />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                   <div className="md:col-span-2">

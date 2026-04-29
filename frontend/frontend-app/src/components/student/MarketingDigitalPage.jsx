@@ -46,7 +46,7 @@ const MarketingDigitalPage = () => {
 
       id: 1,
 
-      title: "Programación del modulo",
+      title: "Programación del módulo",
 
       description: "Planificación y estructura del contenido"
 

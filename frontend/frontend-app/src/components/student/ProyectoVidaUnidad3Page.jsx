@@ -204,7 +204,7 @@ const ProyectoVidaUnidad3Page = () => {
 
           >
 
-            Modulos
+            Módulos
 
           </button>
 

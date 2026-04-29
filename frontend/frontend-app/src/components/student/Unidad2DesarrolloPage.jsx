@@ -62,7 +62,7 @@ const casos = [
 
     nombre: 'Emprendimiento gastronómico',
 
-    másion: 'Ofrecer comida artesanal saludable, preparada con ingredientes locales y frescos, para quienes buscan alimentación consciente.',
+    mision: 'Ofrecer comida artesanal saludable, preparada con ingredientes locales y frescos, para quienes buscan alimentación consciente.',
 
     vision: 'Convertirnos en la marca líder de comida saludable rápida en el país en los próximos 7 años.',
 
@@ -688,7 +688,7 @@ return (
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -782,7 +782,7 @@ return (
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 

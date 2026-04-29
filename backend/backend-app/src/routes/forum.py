@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from flask_cors import cross_origin
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from ..models import NodeForumReply, NodeForumThread, User, db
 from ..services.auth_service import instructor_required, token_required
@@ -42,15 +43,33 @@ def _serialize_author(user):
     }
 
 
-def _serialize_reply(reply):
+def _parent_reply_preview(reply):
+    if not reply:
+        return None
+    body = reply.body or ''
+    snip = body[:120]
+    if len(body) > 120:
+        snip += '…'
     return {
         'id': reply.id,
+        'author_nombre': (_serialize_author(reply.author)['nombre'] if reply.author else None) or 'Usuario',
+        'body_preview': snip,
+    }
+
+
+def _serialize_reply(reply):
+    data = {
+        'id': reply.id,
         'thread_id': reply.thread_id,
+        'parent_reply_id': reply.parent_reply_id,
         'body': reply.body,
         'created_at': reply.created_at.isoformat() if reply.created_at else None,
         'updated_at': reply.updated_at.isoformat() if reply.updated_at else None,
         'author': _serialize_author(reply.author) if reply.author else None,
     }
+    if reply.parent_reply_id:
+        data['parent_reply_preview'] = _parent_reply_preview(reply.parent_reply)
+    return data
 
 
 def _serialize_thread(thread, include_replies=False):
@@ -77,6 +96,45 @@ def _serialize_thread(thread, include_replies=False):
 
 def _get_thread_or_404(thread_id):
     return NodeForumThread.query.filter_by(id=thread_id).first()
+
+
+def _get_reply_or_404(reply_id):
+    return NodeForumReply.query.filter_by(id=reply_id).first()
+
+
+def _validated_parent_reply_id(thread, parent_reply_id_raw):
+    """Devuelve (parent_reply_id o None, error_response o None)."""
+    if parent_reply_id_raw is None or parent_reply_id_raw == '':
+        return None, None
+    try:
+        pid = int(parent_reply_id_raw)
+    except (TypeError, ValueError):
+        return None, (
+            jsonify({
+                'success': False,
+                'error': 'Identificador de mensaje padre no válido.',
+            }),
+            400,
+        )
+    parent = NodeForumReply.query.filter_by(id=pid, thread_id=thread.id).first()
+    if not parent:
+        return None, (
+            jsonify({
+                'success': False,
+                'error': 'El mensaje al que respondes no existe en este hilo.',
+            }),
+            404,
+        )
+    return pid, None
+
+
+def _thread_query_with_replies():
+    return NodeForumThread.query.options(
+        selectinload(NodeForumThread.replies).selectinload(NodeForumReply.author),
+        selectinload(NodeForumThread.replies).selectinload(NodeForumReply.parent_reply).selectinload(
+            NodeForumReply.author
+        ),
+    )
 
 
 def _get_student_node_or_error(current_user):
@@ -211,7 +269,7 @@ def get_student_forum_thread(current_user, thread_id):
     if node_error:
         return node_error
 
-    thread = _get_thread_or_404(thread_id)
+    thread = _thread_query_with_replies().filter_by(id=thread_id).first()
     if not thread:
         return jsonify({
             'success': False,
@@ -266,14 +324,27 @@ def create_student_forum_reply(current_user, thread_id):
             'error': 'La respuesta es obligatoria.',
         }), 400
 
+    parent_reply_id, perr = _validated_parent_reply_id(thread, data.get('parent_reply_id'))
+    if perr:
+        return perr
+
     reply = NodeForumReply(
         thread_id=thread.id,
+        parent_reply_id=parent_reply_id,
         author_user_id=current_user.id,
         body=body,
     )
     thread.updated_at = datetime.utcnow()
     db.session.add(reply)
     db.session.commit()
+    reply = (
+        NodeForumReply.query.options(
+            selectinload(NodeForumReply.author),
+            selectinload(NodeForumReply.parent_reply).selectinload(NodeForumReply.author),
+        )
+        .filter_by(id=reply.id)
+        .first()
+    )
 
     return jsonify({
         'success': True,
@@ -313,6 +384,43 @@ def list_instructor_forum_nodes(current_user):
     }), 200
 
 
+@forum_bp.route('/instructor/forum/nodes/<string:node_slug>/export', methods=['GET'])
+@token_required
+@instructor_required
+@cross_origin()
+def export_instructor_forum_node(current_user, node_slug):
+    del current_user
+
+    node = get_forum_node_by_slug(node_slug)
+    if not node:
+        return jsonify({
+            'success': False,
+            'error': 'Nodo no encontrado.',
+        }), 404
+
+    threads = (
+        _thread_query_with_replies()
+        .filter_by(node_slug=node['slug'])
+        .order_by(NodeForumThread.created_at.asc(), NodeForumThread.updated_at.asc())
+        .all()
+    )
+
+    replies_count = sum(len(thread.replies) for thread in threads)
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'node': {
+                **node,
+                'threads_count': len(threads),
+                'replies_count': replies_count,
+            },
+            'exported_at': datetime.utcnow().isoformat(),
+            'threads': [_serialize_thread(thread, include_replies=True) for thread in threads],
+        },
+    }), 200
+
+
 @forum_bp.route('/instructor/forum/threads', methods=['GET'])
 @token_required
 @instructor_required
@@ -344,6 +452,50 @@ def list_instructor_forum_threads(current_user):
     }), 200
 
 
+@forum_bp.route('/instructor/forum/threads', methods=['POST'])
+@token_required
+@instructor_required
+@cross_origin()
+def create_instructor_forum_thread(current_user):
+    data = request.get_json(silent=True) or {}
+    node_slug = _clamp_text(data.get('node_slug'), max_length=80)
+    question = _clamp_text(data.get('question'))
+
+    if not node_slug:
+        return jsonify({
+            'success': False,
+            'error': 'El nodo es obligatorio.',
+        }), 400
+
+    node = get_forum_node_by_slug(node_slug)
+    if not node:
+        return jsonify({
+            'success': False,
+            'error': 'Nodo no encontrado.',
+        }), 404
+
+    if not question:
+        return jsonify({
+            'success': False,
+            'error': 'La pregunta es obligatoria.',
+        }), 400
+
+    thread = NodeForumThread(
+        node_slug=node['slug'],
+        author_user_id=current_user.id,
+        question=question,
+        status='open',
+    )
+    db.session.add(thread)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': 'Pregunta del instructor publicada exitosamente.',
+        'data': _serialize_thread(thread),
+    }), 201
+
+
 @forum_bp.route('/instructor/forum/threads/<int:thread_id>', methods=['GET'])
 @token_required
 @instructor_required
@@ -351,7 +503,7 @@ def list_instructor_forum_threads(current_user):
 def get_instructor_forum_thread(current_user, thread_id):
     del current_user
 
-    thread = _get_thread_or_404(thread_id)
+    thread = _thread_query_with_replies().filter_by(id=thread_id).first()
     if not thread:
         return jsonify({
             'success': False,
@@ -363,6 +515,29 @@ def get_instructor_forum_thread(current_user, thread_id):
         'data': {
             'thread': _serialize_thread(thread, include_replies=True),
         },
+    }), 200
+
+
+@forum_bp.route('/instructor/forum/threads/<int:thread_id>', methods=['DELETE'])
+@token_required
+@instructor_required
+@cross_origin()
+def delete_instructor_forum_thread(current_user, thread_id):
+    del current_user
+
+    thread = _get_thread_or_404(thread_id)
+    if not thread:
+        return jsonify({
+            'success': False,
+            'error': 'Hilo no encontrado.',
+        }), 404
+
+    db.session.delete(thread)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': 'Hilo eliminado exitosamente.',
     }), 200
 
 
@@ -386,17 +561,57 @@ def create_instructor_forum_reply(current_user, thread_id):
             'error': 'La respuesta es obligatoria.',
         }), 400
 
+    parent_reply_id, perr = _validated_parent_reply_id(thread, data.get('parent_reply_id'))
+    if perr:
+        return perr
+
     reply = NodeForumReply(
         thread_id=thread.id,
+        parent_reply_id=parent_reply_id,
         author_user_id=current_user.id,
         body=body,
     )
     thread.updated_at = datetime.utcnow()
     db.session.add(reply)
     db.session.commit()
+    reply = (
+        NodeForumReply.query.options(
+            selectinload(NodeForumReply.author),
+            selectinload(NodeForumReply.parent_reply).selectinload(NodeForumReply.author),
+        )
+        .filter_by(id=reply.id)
+        .first()
+    )
 
     return jsonify({
         'success': True,
         'message': 'Respuesta del instructor publicada exitosamente.',
         'data': _serialize_reply(reply),
     }), 201
+
+
+@forum_bp.route('/instructor/forum/replies/<int:reply_id>', methods=['DELETE'])
+@token_required
+@instructor_required
+@cross_origin()
+def delete_instructor_forum_reply(current_user, reply_id):
+    del current_user
+
+    reply = _get_reply_or_404(reply_id)
+    if not reply:
+        return jsonify({
+            'success': False,
+            'error': 'Respuesta no encontrada.',
+        }), 404
+
+    thread = reply.thread
+    if thread:
+        thread.updated_at = datetime.utcnow()
+
+    db.session.delete(reply)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': 'Respuesta eliminada exitosamente.',
+    }), 200

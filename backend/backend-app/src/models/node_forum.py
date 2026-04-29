@@ -55,6 +55,12 @@ class NodeForumReply(db.Model):
         nullable=False,
         index=True,
     )
+    parent_reply_id = db.Column(
+        db.Integer,
+        db.ForeignKey('node_forum_replies.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+    )
     author_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     body = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -66,11 +72,18 @@ class NodeForumReply(db.Model):
     )
 
     author = db.relationship('User', backref=db.backref('forum_replies', lazy=True))
+    parent_reply = db.relationship(
+        'NodeForumReply',
+        foreign_keys=[parent_reply_id],
+        remote_side=[id],
+        backref=db.backref('child_replies', lazy=True),
+    )
 
     def to_dict(self):
         return {
             'id': self.id,
             'thread_id': self.thread_id,
+            'parent_reply_id': self.parent_reply_id,
             'author_user_id': self.author_user_id,
             'body': self.body,
             'created_at': self.created_at.isoformat() if self.created_at else None,

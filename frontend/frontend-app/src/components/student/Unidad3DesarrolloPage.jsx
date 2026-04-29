@@ -617,6 +617,16 @@ return (
 
                     )}
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -753,7 +763,7 @@ return (
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1099,7 +1109,7 @@ return (
 
                     <td className="px-4 py-3">Carencias básicas del ser humano (alimentación, seguridad, pertenencia).</td>
 
-                    <td className="px-4 py-3">¿Qué necesidades cubrimás?</td>
+                    <td className="px-4 py-3">¿Qué necesidades cubrimos?</td>
 
                   </tr>
 

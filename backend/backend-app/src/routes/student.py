@@ -9,6 +9,7 @@ from src.services.s3_service import S3Service
 from src.services.student_municipio_service import get_preferred_municipio
 import os
 import uuid
+import base64
 import logging
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,47 @@ def _upload_user_image(s3_service: S3Service, user_id: int, folder: str, file_st
     except Exception as e:
         logger.error(f"Error uploading image to S3: {e}")
         return None, "Error al subir la imagen"
+
+
+def _upload_user_image_bytes(s3_service: S3Service, user_id: int, folder: str, data: bytes, filename: str = "image", content_type: str = ""):
+    """Sube bytes de imagen a S3 y retorna URL prefirmada (para dataUrl/base64 desde API Gateway)."""
+    filename = filename or "image"
+    ext = os.path.splitext(filename)[1].lower()
+    ct = (content_type or '').lower()
+
+    if ext not in _IMAGE_EXTS:
+        if ct == 'image/png':
+            ext = '.png'
+        elif ct in ('image/jpeg', 'image/jpg'):
+            ext = '.jpg'
+        elif ct == 'image/webp':
+            ext = '.webp'
+        else:
+            return None, "Tipo de archivo no permitido. Use JPG, PNG o WEBP."
+
+    if not data:
+        return None, "Archivo vacío"
+    if len(data) > _MAX_IMAGE_BYTES:
+        return None, "La imagen es demasiado grande. Máximo 5MB."
+
+    key = f"usuarios/{user_id}/{folder}/{uuid.uuid4().hex}{ext}"
+    try:
+        s3_service.s3_client.put_object(
+            Bucket=s3_service.bucket_name,
+            Key=key,
+            Body=data,
+            ContentType=ct or 'application/octet-stream'
+        )
+        url = s3_service.s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': s3_service.bucket_name, 'Key': key},
+            ExpiresIn=3600
+        )
+        return url, None
+    except Exception as e:
+        logger.error(f"Error uploading image bytes to S3: {e}")
+        return None, "Error al subir la imagen"
+
 
 # Endpoint de prueba para diagnosticar problemas
 @student_bp.route('/test', methods=['GET'])
@@ -851,7 +893,7 @@ def update_student_profile(current_user):
 @token_required
 @cross_origin()
 def upload_foto_perfil(current_user):
-    """Subir foto de perfil del estudiante a S3"""
+    """Subir foto de perfil del estudiante a S3. Acepta multipart (file) o JSON (dataUrl base64)."""
     try:
         user = current_user
         if not user or user.rol not in ['estudiante', 'usuario']:
@@ -859,7 +901,36 @@ def upload_foto_perfil(current_user):
 
         file = request.files.get('file')
         s3_service = S3Service()
-        url, err = _upload_user_image(s3_service, user.id, 'perfil', file)
+        url, err = None, None
+
+        if file:
+            url, err = _upload_user_image(s3_service, user.id, 'perfil', file)
+        else:
+            # Fallback: JSON base64 (dataUrl) para API Gateway y PWA
+            payload = request.get_json(silent=True, force=True) or {}
+            data_url = payload.get('dataUrl') or payload.get('file_base64')
+            filename = payload.get('filename') or 'perfil.png'
+            content_type = payload.get('content_type') or ''
+
+            if isinstance(data_url, str) and data_url.startswith('data:'):
+                try:
+                    header, b64 = data_url.split(',', 1)
+                    if not content_type and ';base64' in header:
+                        content_type = header.split(';', 1)[0].replace('data:', '').strip()
+                    data_url = b64
+                except Exception:
+                    data_url = None
+
+            if not data_url or not isinstance(data_url, str):
+                return jsonify({'success': False, 'error': 'No se proporcionó archivo'}), 400
+
+            try:
+                raw = base64.b64decode(data_url, validate=False)
+            except Exception:
+                return jsonify({'success': False, 'error': 'Archivo inválido'}), 400
+
+            url, err = _upload_user_image_bytes(s3_service, user.id, 'perfil', raw, filename=filename, content_type=content_type)
+
         if err:
             return jsonify({'success': False, 'error': err}), 400
 
@@ -873,7 +944,7 @@ def upload_foto_perfil(current_user):
 @token_required
 @cross_origin()
 def upload_foto_emprendimiento(current_user):
-    """Subir foto/logo del emprendimiento del estudiante a S3"""
+    """Subir foto/logo del emprendimiento del estudiante a S3. Acepta multipart (file) o JSON (dataUrl base64)."""
     try:
         user = current_user
         if not user or user.rol not in ['estudiante', 'usuario']:
@@ -881,7 +952,35 @@ def upload_foto_emprendimiento(current_user):
 
         file = request.files.get('file')
         s3_service = S3Service()
-        url, err = _upload_user_image(s3_service, user.id, 'emprendimiento', file)
+        url, err = None, None
+
+        if file:
+            url, err = _upload_user_image(s3_service, user.id, 'emprendimiento', file)
+        else:
+            payload = request.get_json(silent=True, force=True) or {}
+            data_url = payload.get('dataUrl') or payload.get('file_base64')
+            filename = payload.get('filename') or 'emprendimiento.png'
+            content_type = payload.get('content_type') or ''
+
+            if isinstance(data_url, str) and data_url.startswith('data:'):
+                try:
+                    header, b64 = data_url.split(',', 1)
+                    if not content_type and ';base64' in header:
+                        content_type = header.split(';', 1)[0].replace('data:', '').strip()
+                    data_url = b64
+                except Exception:
+                    data_url = None
+
+            if not data_url or not isinstance(data_url, str):
+                return jsonify({'success': False, 'error': 'No se proporcionó archivo'}), 400
+
+            try:
+                raw = base64.b64decode(data_url, validate=False)
+            except Exception:
+                return jsonify({'success': False, 'error': 'Archivo inválido'}), 400
+
+            url, err = _upload_user_image_bytes(s3_service, user.id, 'emprendimiento', raw, filename=filename, content_type=content_type)
+
         if err:
             return jsonify({'success': False, 'error': err}), 400
 
@@ -889,14 +988,6 @@ def upload_foto_emprendimiento(current_user):
     except Exception as e:
         logger.error(f"Error uploading emprendimiento photo: {e}")
         return jsonify({'success': False, 'error': 'Error al subir foto del emprendimiento'}), 500
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating student profile: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'Error al actualizar perfil del estudiante'
-        }), 500
 
 # Configuración del estudiante
 @student_bp.route('/configuracion', methods=['GET'])
@@ -982,21 +1073,13 @@ def update_student_config():
 
 # Certificados del estudiante
 @student_bp.route('/certificados', methods=['GET'])
+@token_required
 @cross_origin()
-def get_student_certificates():
+def get_student_certificates(current_user):
     """Obtener certificados del estudiante"""
     try:
-        # Verificar sesión
-        user_id = session.get('user_id')
-        if not user_id:
-            return jsonify({
-                'success': False,
-                'error': 'No hay sesión activa'
-            }), 401
-        
-        # Verificar que el usuario es estudiante
-        user = User.query.get(user_id)
-        if not user or user.rol != 'estudiante':
+        user = current_user
+        if not user or user.rol not in ('estudiante', 'usuario'):
             return jsonify({
                 'success': False,
                 'error': 'Acceso denegado. Se requiere rol de estudiante'
@@ -1035,21 +1118,13 @@ def get_student_certificates():
 
 # Estadísticas del estudiante
 @student_bp.route('/estadisticas', methods=['GET'])
+@token_required
 @cross_origin()
-def get_student_statistics():
+def get_student_statistics(current_user):
     """Obtener estadísticas del estudiante"""
     try:
-        # Verificar sesión
-        user_id = session.get('user_id')
-        if not user_id:
-            return jsonify({
-                'success': False,
-                'error': 'No hay sesión activa'
-            }), 401
-        
-        # Verificar que el usuario es estudiante
-        user = User.query.get(user_id)
-        if not user or user.rol != 'estudiante':
+        user = current_user
+        if not user or user.rol not in ('estudiante', 'usuario'):
             return jsonify({
                 'success': False,
                 'error': 'Acceso denegado. Se requiere rol de estudiante'

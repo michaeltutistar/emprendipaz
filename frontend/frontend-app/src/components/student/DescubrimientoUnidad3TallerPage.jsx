@@ -816,6 +816,16 @@ return (
 
                     )}
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -918,7 +928,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#006837] transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1148,7 +1158,7 @@ return (
 
               <p className="text-gray-700 text-sm md:text-base mb-2">
 
-                Vamos a poner en práctica los conocimientos que hemos adquirido en esta unidad final de nuestro modulo de Descubrimiento de oportunidades.
+                Vamos a poner en práctica los conocimientos que hemos adquirido en esta unidad final de nuestro módulo de Descubrimiento de oportunidades.
 
               </p>
 

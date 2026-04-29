@@ -172,7 +172,7 @@ const EstrategiasMarketingDigitalPage = () => {
 
           >
 
-            Modulos
+            Módulos
 
           </button>
 

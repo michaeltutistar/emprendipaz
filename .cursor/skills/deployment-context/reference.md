@@ -77,3 +77,36 @@ Si falta información:
 - Preferir **leer archivos existentes** y reconstruir el flujo.
 - Si aun así no se puede determinar, indicar **qué falta** y **dónde debería estar** (p. ej. “falta `DEPLOYMENT.md` o README con build/start”).
 
+## Despliegue conocido en este proyecto
+
+### Frontend productivo
+
+- Directorio: `frontend/frontend-app`
+- Build:
+  - `pnpm run build`
+- Publicación:
+  - `aws s3 sync dist/ s3://elearning-frontend-prod-v2 --delete`
+- Invalidación:
+  - `aws cloudfront create-invalidation --distribution-id E3QN9WFZXCI4DS --paths "/*"`
+
+### Backend productivo
+
+- Estrategia: ZIP manual a Lambda vía S3
+- Carpeta de empaquetado: `_lambda_patch/`
+- Carpeta de trabajo del código Lambda: `_lambda_patch/out/`
+- ZIP generado: `_lambda_patch/lambda_fixed.zip`
+- Bucket: `elearning-archivos`
+- S3 key: `lambda-deploy/lambda_fixed.zip`
+- Lambda: `elearning-api-dev-api`
+
+Pasos:
+
+1. Copiar los archivos modificados del backend al paquete Lambda.
+2. Ejecutar `python _lambda_patch\make_zip.py`.
+3. Subir el ZIP:
+   - `aws s3 cp _lambda_patch\lambda_fixed.zip s3://elearning-archivos/lambda-deploy/lambda_fixed.zip --region us-east-1`
+4. Actualizar la función:
+   - `aws lambda update-function-code --function-name elearning-api-dev-api --s3-bucket elearning-archivos --s3-key lambda-deploy/lambda_fixed.zip --region us-east-1 --output json`
+5. Esperar el despliegue:
+   - `aws lambda wait function-updated --function-name elearning-api-dev-api --region us-east-1`
+

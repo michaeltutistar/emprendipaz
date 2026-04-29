@@ -205,7 +205,7 @@ return (
 
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center text-green-800">
 
-              ¡Felicitaciones! Has completado el modulo completo de Atención al Cliente y Resolución de Conflictos.
+              ¡Felicitaciones! Has completado el módulo completo de Atención al Cliente y Resolución de Conflictos.
 
             </div>
 
@@ -829,6 +829,16 @@ return (
 
                     )}
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -943,7 +953,7 @@ return (
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -1037,7 +1047,7 @@ return (
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 

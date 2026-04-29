@@ -1288,7 +1288,7 @@ const LandingPage = () => {
                 <p>📍 Pasto, Nariño, Colombia</p>
                 <p>🌐 www.narino.gov.co</p>
               </div>
-              <p className="text-sm font-medium text-gray-200 mt-5 mb-3">Redes sociales</p>
+              <p className="text-sm font-medium text-gray-200 mt-5 mb-3">Redes Sociales Gobernación de Nariño</p>
               <div className="flex flex-wrap items-center gap-5">
                 {LANDING_SOCIAL_LINKS.map(({ href, label, Icon }) => (
                   <a

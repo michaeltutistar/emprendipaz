@@ -734,7 +734,7 @@ const PresentaciónPlanInversionPage = () => {
 
               <button onClick={() => navigate('/student/modulos')} className="hover:text-white transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 

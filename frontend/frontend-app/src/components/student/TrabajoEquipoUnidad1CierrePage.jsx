@@ -845,7 +845,7 @@ return (
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 

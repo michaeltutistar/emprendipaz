@@ -563,6 +563,16 @@ return (
 
                     </div>
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -570,13 +580,6 @@ return (
 {userMenuOpen && (
 
                     <div className="absolute right-full mr-2 top-0 w-48 bg-white rounded-md shadow-lg py-1 z-[9999] border">
-
-                      <div className="px-4 py-2 text-sm text-gray-500 border-b">
-
-                        {userName || 'Usuario'}
-
-                      </div>
-
                       <button
 
                         onClick={async () => {
@@ -687,7 +690,7 @@ return (
 
               <button onClick={() => navigate('/student/modulos')} className="hover:text-white transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -953,7 +956,7 @@ return (
 
             <p className="text-gray-700 leading-relaxed">
 
-              En esta primera unidad del modulo de Proyecto de vida, exploraremos los valores esenciales
+              En esta primera unidad del módulo de Proyecto de vida, exploraremos los valores esenciales
 
               y los intereses que guían tu emprendimiento para trabajar con pasión y propósito.
 

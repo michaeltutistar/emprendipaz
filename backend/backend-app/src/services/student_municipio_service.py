@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, FrozenSet, Optional, Tuple
 
 
 def _normalize_text(value: Optional[str]) -> str:
@@ -71,6 +71,35 @@ def _load_operational_municipio_maps() -> Tuple[Dict[int, str], Dict[str, str]]:
             continue
 
     return by_id, by_name
+
+
+@lru_cache(maxsize=1)
+def get_tutor_csv_estudiante_ids() -> FrozenSet[int]:
+    """
+    IDs del listado oficial municipios.csv (con o sin municipio en la fila).
+    Misma ruta que el mapa operativo (src/data o frontend public en desarrollo).
+    Si no hay archivo o no hay IDs válidos, devuelve frozenset() vacío.
+    """
+    ids: set[int] = set()
+    for candidate in _candidate_csv_paths():
+        if not candidate.exists():
+            continue
+        try:
+            with candidate.open('r', encoding='latin-1', newline='') as handle:
+                reader = csv.DictReader(handle, delimiter=';')
+                for row in reader:
+                    raw_id = (row.get('ID') or '').strip()
+                    if not raw_id:
+                        continue
+                    try:
+                        ids.add(int(raw_id))
+                    except ValueError:
+                        continue
+            if ids:
+                return frozenset(ids)
+        except Exception:
+            continue
+    return frozenset()
 
 
 def get_preferred_municipio(user_id: Optional[int], nombre_completo: Optional[str] = None, fallback_municipio: Optional[str] = None) -> Optional[str]:

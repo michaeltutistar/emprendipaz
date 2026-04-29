@@ -594,7 +594,17 @@ return (
 
                       </div>
 
-                      <ChevronDown className="w-4 h-4 text-white" />
+                                          <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
+                    <ChevronDown className="w-4 h-4 text-white" />
 
                     </button>
 
@@ -732,7 +742,7 @@ return (
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1022,7 +1032,7 @@ return (
 
               La caracterización es el punto de partida para diseñar la misión, la visión y las estrategias comerciales.
 
-              Aprovecha está paso para entender la ruta completa que recorrerás durante el modulo de Marketing y
+              Aprovecha este paso para entender la ruta completa que recorrerás durante el módulo de Marketing y
 
               Comercialización.
 

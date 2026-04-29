@@ -1135,7 +1135,7 @@ const PlanNegocioModeloNegociosPage = () => {
 
               <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#AA27B9] transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1217,7 +1217,7 @@ const PlanNegocioModeloNegociosPage = () => {
 
               <button onClick={() => navigate('/student/modulos')} className="hover:text-white transition-colors">
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1323,7 +1323,7 @@ const PlanNegocioModeloNegociosPage = () => {
 
               <p className="text-gray-700 text-base leading-relaxed">
 
-                Ahora que ya has culminado exitosamente el desarrollo de las 3 unidades del modulo de Modelos de Negocios, es momento de elaborar el aporte de este modulo a tu plan de negocios.
+                Ahora que ya has culminado exitosamente el desarrollo de las 3 unidades del módulo de Modelos de Negocios, es momento de elaborar el aporte de este módulo a tu plan de negocios.
 
               </p>
 
@@ -1978,7 +1978,7 @@ const PlanNegocioModeloNegociosPage = () => {
 
                   localStorage.setItem('modelo_negocios_plan_negocio_completado', 'true');
                   window.dispatchEvent(new Event('progreso-actualizado'));
-                  alert('¡Plan de Negocio completado! El siguiente modulo ha sido desbloqueado.');
+                  alert('¡Plan de Negocio completado! El siguiente módulo ha sido desbloqueado.');
                   navigate('/student/modulos');
                 } catch (error) {
                   console.error('Error al registrar progreso:', error);

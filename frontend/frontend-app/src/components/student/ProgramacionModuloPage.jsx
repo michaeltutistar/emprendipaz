@@ -119,7 +119,7 @@ return (
 
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
 
-              Conoce la metodología y estructura completa del modulo de Marketing Digital
+              Conoce la metodología y estructura completa del módulo de Marketing Digital
 
             </p>
 

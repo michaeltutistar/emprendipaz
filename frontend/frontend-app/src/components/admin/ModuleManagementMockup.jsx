@@ -1,5 +1,5 @@
 import React from 'react'
-import { Bold, BookOpen, CheckCircle2, Clock, FileText, ImagePlus, Link2, Plus, Sparkles, Type, Video } from 'lucide-react'
+import { Bold, BookOpen, CheckCircle2, Clock, FileText, ImagePlus, Link2, Pencil, Plus, Sparkles, Trash2, Type, Video } from 'lucide-react'
 
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
@@ -169,13 +169,27 @@ const ModuleManagementMockup = () => {
 
       <Card className="border-green-100 bg-gradient-to-r from-white to-green-50/60">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-green-600" />
-            Constructor de módulo
-          </CardTitle>
-          <CardDescription>
-            Estructura sugerida para registrar la identidad, contenidos base y recursos del módulo antes de publicarlo.
-          </CardDescription>
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-2">
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-green-600" />
+                Constructor de módulo
+              </CardTitle>
+              <CardDescription>
+                Estructura sugerida para registrar la identidad, contenidos base y recursos del módulo antes de publicarlo.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" className="bg-white">
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar módulo
+              </Button>
+              <Button type="button" variant="outline" className="border-red-200 bg-white text-red-600 hover:bg-red-50 hover:text-red-700">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar módulo
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-8">
           <section className="space-y-4">

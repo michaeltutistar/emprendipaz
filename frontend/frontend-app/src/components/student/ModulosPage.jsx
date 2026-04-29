@@ -364,7 +364,7 @@ const ModulosPage = () => {
         const data = await response.json();
         if (data.success && data.modulos) {
           setModulosDisponibles(data.modulos);
-          console.log('Modulos disponibles cargados:', data.modulos);
+          console.log('Módulos disponibles cargados:', data.modulos);
         }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
@@ -614,7 +614,7 @@ const ModulosPage = () => {
                 transition: 'font-size 0.3s',
               }}
             >
-              Modulos de Aprendizaje
+              Módulos de Aprendizaje
             </h1>
           </motion.div>
 
@@ -651,7 +651,17 @@ const ModulosPage = () => {
                       {userName.charAt(0).toUpperCase() || 'U'}
                     </span>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-white" />
+                                      <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
+                    <ChevronDown className="w-4 h-4 text-white" />
                 </button>
 
                 {userMenuOpen && (
@@ -712,7 +722,7 @@ const ModulosPage = () => {
               <Home className={isScrolled ? 'w-3 h-3' : 'w-4 h-4'} />
             </button>
             <ChevronRight className={isScrolled ? 'w-3 h-3' : 'w-4 h-4'} />
-            <span className="text-[#006837] font-semibold">Modulos</span>
+            <span className="text-[#006837] font-semibold">Módulos</span>
           </motion.div>
         </div>
       </motion.div>
@@ -731,7 +741,7 @@ const ModulosPage = () => {
             <div>
               <h3 className="font-bold text-[#006837] mb-2">Progreso secuencial</h3>
               <p className="text-gray-700 leading-relaxed" style={{ fontFamily: "'Ample Soft Pro', sans-serif", fontWeight: 300 }}>
-                Completa todas las unidades de cada modulo para desbloquear el siguiente. Usa el botón{' '}
+                Completa todas las unidades de cada módulo para desbloquear el siguiente. Usa el botón{' '}
                 <span className="font-semibold">Comenzar</span> para retomar tu avance.
               </p>
             </div>
@@ -771,7 +781,7 @@ const ModulosPage = () => {
                         />
                       </div>
                       <p className="text-center text-xs text-gray-500 mt-3 uppercase tracking-wide">
-                        Modulo {modulo.id}
+                        Módulo {modulo.id}
                       </p>
                     </motion.div>
 
@@ -830,7 +840,7 @@ const ModulosPage = () => {
                       {!moduloEstaDisponible && (
                         <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
                           <p className="text-sm text-yellow-800" style={{ fontFamily: "'Ample Soft Pro', sans-serif", fontWeight: 300 }}>
-                            <strong>🔒 Modulo bloqueado:</strong> Debes completar el modulo anterior para desbloquear este modulo.
+                            <strong>🔒 Módulo bloqueado:</strong> Debes completar el módulo anterior para desbloquear este módulo.
                           </p>
                         </div>
                       )}
@@ -861,7 +871,7 @@ const ModulosPage = () => {
                         return (
                           <div className="mt-6 mb-4">
                             <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm text-gray-600">Progreso del modulo</span>
+                              <span className="text-sm text-gray-600">Progreso del módulo</span>
                               <span className="text-sm font-bold text-[#006837]">
                                 {loadingProgreso ? '...' : `${Math.round(progresoNumerico)}%`}
                               </span>

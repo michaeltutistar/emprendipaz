@@ -65,6 +65,36 @@ Antes de proponer cambios, **capturar el despliegue actual**, y durante el traba
 - Si se detecta que falta documentación, **crear/actualizar `DEPLOYMENT.md`** como parte del trabajo.
 - Si hay múltiples entornos (dev/staging/prod), documentar diferencias clave (variables, URLs, dominios, recursos).
 
+## Flujo de este proyecto
+
+### Frontend
+
+- Ubicación: `frontend/frontend-app`
+- Build: `pnpm run build`
+- Deploy productivo:
+  1. `aws s3 sync dist/ s3://elearning-frontend-prod-v2 --delete`
+  2. `aws cloudfront create-invalidation --distribution-id E3QN9WFZXCI4DS --paths "/*"`
+- Script disponible: `frontend/frontend-app/deploy.ps1`
+
+### Backend
+
+- Tipo: Lambda desplegada manualmente por ZIP vía S3
+- Función: `elearning-api-dev-api`
+- Bucket: `elearning-archivos`
+- Key: `lambda-deploy/lambda_fixed.zip`
+- Carpeta fuente del paquete: `_lambda_patch/out/`
+- Flujo productivo:
+  1. Copiar archivos cambiados del backend al paquete, por ejemplo:
+     `Copy-Item backend\backend-app\src\routes\forum.py _lambda_patch\out\src\routes\forum.py -Force`
+  2. Generar ZIP:
+     `python _lambda_patch\make_zip.py`
+  3. Subir ZIP a S3:
+     `aws s3 cp _lambda_patch\lambda_fixed.zip s3://elearning-archivos/lambda-deploy/lambda_fixed.zip --region us-east-1`
+  4. Actualizar Lambda:
+     `aws lambda update-function-code --function-name elearning-api-dev-api --s3-bucket elearning-archivos --s3-key lambda-deploy/lambda_fixed.zip --region us-east-1 --output json`
+  5. Esperar despliegue:
+     `aws lambda wait function-updated --function-name elearning-api-dev-api --region us-east-1`
+
 ## Recursos
 
 - Checklist extendida y casos comunes: ver [reference.md](reference.md)

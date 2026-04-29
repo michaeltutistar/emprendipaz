@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 import json
 from sqlalchemy import text, inspect
 from ..models import db, User, Curso, Modulo, Leccion, Recurso, Inscripcion, LogActividad, AsistenciaJornada
-from ..services.auth_service import token_required, instructor_required
+from ..services.auth_service import token_required, instructor_required, admin_or_instructor_required
+from ..services.student_municipio_service import get_preferred_municipio
 import logging
 
 # Configurar logging
@@ -16,6 +17,64 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 instructor_bp = Blueprint('instructor', __name__)
+
+
+def _build_full_jornadas_dict():
+    return {str(jornada_num): True for jornada_num in range(1, 11)}
+
+
+def _autocompletar_jornadas_estudiantes_completos(resultado, instructor_id=None):
+    estudiantes_completos = []
+    for entry in resultado or []:
+        estudiante_id = entry.get('estudiante_id')
+        porcentaje_total = entry.get('porcentaje_total') or 0
+        if estudiante_id is None:
+            continue
+        try:
+            if float(porcentaje_total) >= 100:
+                estudiantes_completos.append(int(estudiante_id))
+        except (TypeError, ValueError):
+            continue
+
+    if not estudiantes_completos:
+        return
+
+    asegurar_tabla_asistencia_jornada()
+
+    registros = AsistenciaJornada.query.filter(
+        AsistenciaJornada.estudiante_id.in_(estudiantes_completos)
+    ).all()
+
+    registros_por_estudiante = {}
+    for registro in registros:
+        registros_por_estudiante.setdefault(int(registro.estudiante_id), {})[int(registro.jornada_numero)] = registro
+
+    now = datetime.utcnow()
+    modified = False
+
+    for estudiante_id in estudiantes_completos:
+        jornadas_estudiante = registros_por_estudiante.setdefault(estudiante_id, {})
+        for jornada_num in range(1, 11):
+            registro = jornadas_estudiante.get(jornada_num)
+            if registro:
+                if not registro.marcada:
+                    registro.marcada = True
+                    registro.fecha_marcado = registro.fecha_marcado or now
+                    if instructor_id is not None:
+                        registro.instructor_id = instructor_id
+                    modified = True
+            else:
+                db.session.add(AsistenciaJornada(
+                    estudiante_id=estudiante_id,
+                    jornada_numero=jornada_num,
+                    marcada=True,
+                    fecha_marcado=now,
+                    instructor_id=instructor_id
+                ))
+                modified = True
+
+    if modified:
+        db.session.commit()
 
 # Configuración de S3
 def get_s3_client():
@@ -66,7 +125,7 @@ def upload_to_s3(file, folder='content'):
 
 @instructor_bp.route('/actividad-reciente', methods=['GET'])
 @token_required
-@instructor_required
+@admin_or_instructor_required
 def get_actividad_reciente(current_user):
     """Obtener actividad reciente de los estudiantes"""
     try:
@@ -90,7 +149,7 @@ def get_actividad_reciente(current_user):
 
 @instructor_bp.route('/progreso-estudiantes', methods=['GET'])
 @token_required
-@instructor_required
+@admin_or_instructor_required
 def get_progreso_estudiantes(current_user):
     """Obtener progreso de estudiantes por módulo - Versión simplificada que funciona con todos los módulos"""
     try:
@@ -106,15 +165,35 @@ def get_progreso_estudiantes(current_user):
             except Exception:
                 return uid
 
+        # Solo el padrón del CSV oficial (municipios.csv); si no hay archivo, no se filtra.
+        from ..services.student_municipio_service import get_tutor_csv_estudiante_ids
+        _csv_ids_raw = get_tutor_csv_estudiante_ids()
+        _csv_filter_on = len(_csv_ids_raw) > 0
+        _allowed_csv = frozenset(_alias_id(int(i)) for i in _csv_ids_raw) if _csv_filter_on else None
+
+        def _in_tutor_csv(eid: int) -> bool:
+            if _allowed_csv is None:
+                return True
+            try:
+                return int(eid) in _allowed_csv
+            except (TypeError, ValueError):
+                return False
+
         # ID -> Nombre completo
         # Se usa en varios pasos; declarar antes para evitar NameError.
         estudiante_nombres = {}
 
         # Precargar metadata de usuarios para evitar N+1 (User.query.get en loops).
-        user_rows = db.session.query(User.id, User.nombre, User.apellido, User.rol).all()
-        user_meta = {uid: {'nombre': n or '', 'apellido': a or '', 'rol': r or ''} for uid, n, a, r in user_rows}
+        user_rows = db.session.query(User.id, User.nombre, User.apellido, User.rol, User.municipio).all()
+        user_meta = {
+            uid: {'nombre': n or '', 'apellido': a or '', 'rol': r or '', 'municipio': (mun or '').strip()}
+            for uid, n, a, r, mun in user_rows
+        }
         def _is_student(uid: int) -> bool:
             m = user_meta.get(uid)
+            # Para el dashboard del tutor, la fuente de verdad es el padrón CSV.
+            # En la BD existen cuentas históricas con rol "usuario" que igual
+            # pertenecen al listado oficial y deben verse aquí.
             return bool(m) and m.get('rol') in ('estudiante', 'usuario')
         def _full_name(uid: int) -> str:
             m = user_meta.get(uid) or {}
@@ -179,6 +258,8 @@ def get_progreso_estudiantes(current_user):
                 continue
 
             estudiante_id = _alias_id(int(usuario_id))
+            if not _in_tutor_csv(estudiante_id):
+                continue
             estudiante_nombres[estudiante_id] = _full_name(estudiante_id)
             modulo_normalizado = (modulo_nombre or '').strip()
             paso_normalizado = (paso_nombre or '').strip()
@@ -209,6 +290,8 @@ def get_progreso_estudiantes(current_user):
                 continue
 
             estudiante_id = _alias_id(int(usuario_id))
+            if not _in_tutor_csv(estudiante_id):
+                continue
             estudiante_nombres[estudiante_id] = _full_name(estudiante_id)
             paso = (accion or '').replace('Completó: ', '')
             fecha_actividad = fecha.isoformat() if fecha else None
@@ -276,10 +359,32 @@ def get_progreso_estudiantes(current_user):
             list(modulos_por_estudiante.keys()) + list(progreso_estudiantes_data.keys()) + list(puntos_por_estudiante_id_modulo.keys())
         )
         todos_estudiante_ids = set(_alias_id(eid) for eid in todos_estudiante_ids_raw)
-        
+
+        # Incluir estudiantes del padrón CSV aunque no tengan intentos, logs ni plan de negocio
+        for uid, meta in user_meta.items():
+            if meta.get('rol') not in ('estudiante', 'usuario'):
+                continue
+            eid = _alias_id(int(uid))
+            if not _in_tutor_csv(eid):
+                continue
+            todos_estudiante_ids.add(eid)
+            if not estudiante_nombres.get(eid):
+                estudiante_nombres[eid] = _full_name(eid) or f'Estudiante {eid}'
+
+        if _allowed_csv is not None:
+            todos_estudiante_ids = {eid for eid in todos_estudiante_ids if _in_tutor_csv(eid)}
+
         for eid in todos_estudiante_ids:
             resultado_por_estudiante[eid]['estudiante'] = estudiante_nombres.get(eid, f"Estudiante {eid}")
             resultado_por_estudiante[eid]['estudiante_id'] = eid
+            mun_db = (user_meta.get(eid) or {}).get('municipio')
+            preferred_municipio = get_preferred_municipio(
+                eid,
+                resultado_por_estudiante[eid]['estudiante'],
+                mun_db
+            )
+            if preferred_municipio:
+                resultado_por_estudiante[eid]['municipio'] = preferred_municipio
             modulos_estudiante = modulos_por_estudiante.get(eid, set())
             modulos_estudiante.update(progreso_estudiantes_data.get(eid, {}).keys())
             modulos_estudiante.update(puntos_por_estudiante_id_modulo.get(eid, {}).keys())
@@ -466,6 +571,7 @@ def get_progreso_estudiantes(current_user):
 
         # Incluir jornadas de asistencia para todos los estudiantes (para que aparezcan sin depender del lazy-load)
         try:
+            _autocompletar_jornadas_estudiantes_completos(resultado, getattr(current_user, 'id', None))
             asegurar_tabla_asistencia_jornada()
             ids_resultado = [e.get('estudiante_id') for e in resultado if e.get('estudiante_id') is not None]
             # Incluir IDs incorrectos por si hay registros antiguos (273, 1124)
@@ -485,12 +591,18 @@ def get_progreso_estudiantes(current_user):
                 for entry in resultado:
                     eid = entry.get('estudiante_id')
                     if eid is not None:
-                        entry['jornadas'] = jornadas_por_id.get(eid, {})
+                        if float(entry.get('porcentaje_total') or 0) >= 100:
+                            entry['jornadas'] = _build_full_jornadas_dict()
+                        else:
+                            entry['jornadas'] = jornadas_por_id.get(eid, {})
         except Exception as e:
             logger.warning(f"Error cargando jornadas para progreso: {str(e)}")
             for entry in resultado:
                 if entry.get('estudiante_id') is not None and 'jornadas' not in entry:
-                    entry['jornadas'] = {}
+                    if float(entry.get('porcentaje_total') or 0) >= 100:
+                        entry['jornadas'] = _build_full_jornadas_dict()
+                    else:
+                        entry['jornadas'] = {}
 
         return jsonify({
             'success': True,
@@ -506,7 +618,7 @@ def get_progreso_estudiantes(current_user):
 
 @instructor_bp.route('/dashboard', methods=['GET'])
 @token_required
-@instructor_required
+@admin_or_instructor_required
 def get_instructor_dashboard(current_user):
     """Obtener datos del dashboard del instructor"""
     try:
@@ -2040,7 +2152,7 @@ def buscar_estudiante_por_nombre(nombre_completo):
 
 @instructor_bp.route('/jornadas/<int:estudiante_id>', methods=['GET'])
 @token_required
-@instructor_required
+@admin_or_instructor_required
 def get_jornadas_estudiante(current_user, estudiante_id):
     """Obtener jornadas marcadas de un estudiante"""
     try:
@@ -2075,7 +2187,7 @@ def get_jornadas_estudiante(current_user, estudiante_id):
 
 @instructor_bp.route('/jornadas/<int:estudiante_id>', methods=['POST'])
 @token_required
-@instructor_required
+@admin_or_instructor_required
 def guardar_jornadas_estudiante(current_user, estudiante_id):
     """Guardar jornadas marcadas de un estudiante"""
     try:
@@ -2240,3 +2352,106 @@ def merge_student_ids_edwin_273_to_1465(current_user):
         db.session.rollback()
         logger.error(f"Error merge_student_ids_edwin_273_to_1465: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+
+@instructor_bp.route('/merge-student-ids/carlos-4224-to-4345', methods=['POST'])
+@token_required
+@instructor_required
+def merge_student_ids_carlos_4224_to_4345(current_user):
+    """
+    Migración puntual y segura: mover datos del usuario duplicado 4224 -> 4345
+    para el caso de Carlos Moran / Lácteos Sultana de Sur.
+    """
+    FROM_ID = 4224
+    TO_ID = 4345
+    try:
+        # Safety: permitir únicamente este caso puntual
+        payload = request.get_json(silent=True) or {}
+        if isinstance(payload, dict):
+            req_from = payload.get('from_id')
+            req_to = payload.get('to_id')
+            if req_from is not None and int(req_from) != FROM_ID:
+                return jsonify({'success': False, 'error': 'Operación no permitida'}), 403
+            if req_to is not None and int(req_to) != TO_ID:
+                return jsonify({'success': False, 'error': 'Operación no permitida'}), 403
+
+        from_user = User.query.get(FROM_ID)
+        to_user = User.query.get(TO_ID)
+        if not from_user or not to_user:
+            return jsonify({'success': False, 'error': 'Usuario origen/destino no encontrado'}), 404
+
+        def norm(s: str) -> str:
+            try:
+                import unicodedata
+                return unicodedata.normalize('NFD', (s or '')).encode('ascii', 'ignore').decode('ascii').strip().lower()
+            except Exception:
+                return (s or '').strip().lower()
+
+        # Validación suave para detectar si se está ejecutando sobre usuarios inesperados.
+        expected = norm('Carlos Moran')
+        if norm(f"{from_user.nombre} {from_user.apellido}") != expected:
+            logger.warning(f"[merge] FROM_ID {FROM_ID} no parece Carlos Moran: '{from_user.nombre} {from_user.apellido}'")
+        if norm(f"{to_user.nombre} {to_user.apellido}") != expected:
+            logger.warning(f"[merge] TO_ID {TO_ID} no parece Carlos Moran: '{to_user.nombre} {to_user.apellido}'")
+
+        from ..models import IntentosEvaluacion, PuntosPlanNegocio, RespuestasPlanNegocio, LogActividad, AsistenciaJornada
+
+        counts_before = {
+            'log_actividad': LogActividad.query.filter_by(usuario_id=FROM_ID).count(),
+            'intentos_evaluacion': IntentosEvaluacion.query.filter_by(usuario_id=FROM_ID).count(),
+            'puntos_plan_negocio': PuntosPlanNegocio.query.filter_by(usuario_id=FROM_ID).count(),
+            'respuestas_plan_negocio': RespuestasPlanNegocio.query.filter_by(usuario_id=FROM_ID).count(),
+            'asistencia_jornada': AsistenciaJornada.query.filter_by(estudiante_id=FROM_ID).count(),
+        }
+
+        moved = {'log_actividad': 0, 'intentos_evaluacion': 0, 'puntos_plan_negocio': 0, 'respuestas_plan_negocio': 0, 'asistencia_jornada': 0}
+
+        # Actualizaciones masivas (no afectan a otros usuarios)
+        moved['log_actividad'] = LogActividad.query.filter_by(usuario_id=FROM_ID).update({'usuario_id': TO_ID})
+        moved['intentos_evaluacion'] = IntentosEvaluacion.query.filter_by(usuario_id=FROM_ID).update({'usuario_id': TO_ID})
+        moved['puntos_plan_negocio'] = PuntosPlanNegocio.query.filter_by(usuario_id=FROM_ID).update({'usuario_id': TO_ID})
+        moved['respuestas_plan_negocio'] = RespuestasPlanNegocio.query.filter_by(usuario_id=FROM_ID).update({'usuario_id': TO_ID})
+
+        # Asistencia: manejar posible conflicto por UNIQUE(estudiante_id, jornada_numero)
+        for jornada_num in range(1, 11):
+            old_row = AsistenciaJornada.query.filter_by(estudiante_id=FROM_ID, jornada_numero=jornada_num).first()
+            if not old_row:
+                continue
+            new_row = AsistenciaJornada.query.filter_by(estudiante_id=TO_ID, jornada_numero=jornada_num).first()
+            if new_row:
+                # Merge conservador
+                if old_row.marcada and not new_row.marcada:
+                    new_row.marcada = True
+                if old_row.fecha_marcado and (not new_row.fecha_marcado or old_row.fecha_marcado > new_row.fecha_marcado):
+                    new_row.fecha_marcado = old_row.fecha_marcado
+                if old_row.instructor_id and not new_row.instructor_id:
+                    new_row.instructor_id = old_row.instructor_id
+                db.session.delete(old_row)
+            else:
+                old_row.estudiante_id = TO_ID
+            moved['asistencia_jornada'] += 1
+
+        db.session.commit()
+
+        counts_after = {
+            'log_actividad': LogActividad.query.filter_by(usuario_id=FROM_ID).count(),
+            'intentos_evaluacion': IntentosEvaluacion.query.filter_by(usuario_id=FROM_ID).count(),
+            'puntos_plan_negocio': PuntosPlanNegocio.query.filter_by(usuario_id=FROM_ID).count(),
+            'respuestas_plan_negocio': RespuestasPlanNegocio.query.filter_by(usuario_id=FROM_ID).count(),
+            'asistencia_jornada': AsistenciaJornada.query.filter_by(estudiante_id=FROM_ID).count(),
+        }
+
+        return jsonify({
+            'success': True,
+            'from_id': FROM_ID,
+            'to_id': TO_ID,
+            'counts_before': counts_before,
+            'moved': moved,
+            'counts_after': counts_after,
+            'message': 'Merge aplicado (4224 -> 4345)'
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error merge_student_ids_carlos_4224_to_4345: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+

@@ -206,7 +206,7 @@ const MetasMarketingDigitalPage = () => {
 
           >
 
-            Modulos
+            Módulos
 
           </button>
 

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -180,7 +180,7 @@ const CourseContent = () => {
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Modulos del Curso</CardTitle>
+                <CardTitle className="text-lg">Módulos del Curso</CardTitle>
                 <CardDescription>
                   {modulos.length} modulos • {modulos.reduce((total, mod) => total + mod.lecciones.length, 0)} lecciones
                 </CardDescription>

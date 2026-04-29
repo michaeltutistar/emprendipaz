@@ -940,7 +940,7 @@ const Unidad1CierrePage = () => {
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -1040,7 +1040,7 @@ const Unidad1CierrePage = () => {
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 
@@ -1264,7 +1264,7 @@ const Unidad1CierrePage = () => {
 
               <p className="font-bold">Evaluación ya completada</p>
 
-              <p>Esta evaluación ya fue aprobada correctamente para está usuario. No se permiten más intentos en está modulo.</p>
+              <p>Esta evaluación ya fue aprobada correctamente para este usuario. No se permiten más intentos en este módulo.</p>
 
             </div>
 

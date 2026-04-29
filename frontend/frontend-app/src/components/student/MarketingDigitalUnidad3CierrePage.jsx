@@ -856,7 +856,7 @@ const MarketingDigitalUnidad3CierrePage = () => {
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -954,7 +954,7 @@ const MarketingDigitalUnidad3CierrePage = () => {
 
               >
 
-                Modulos
+                Módulos
 
               </button>
 

@@ -214,7 +214,7 @@ const ResultadoModal = ({ resultado, onClose, onFinalizar }) => {
 
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center text-green-800">
 
-              ¡Felicitaciones! Has completado la Unidad 3 y todo el Modulo de Finanzas y Gestión Empresarial.
+              ¡Felicitaciones! Has completado la Unidad 3 y todo el Módulo de Finanzas y Gestión Empresarial.
 
             </div>
 
@@ -834,7 +834,7 @@ const FinanzasUnidad3CierrePage = () => {
 
             <button onClick={() => navigate('/student/modulos')} className="text-gray-600 hover:text-[#006837] transition-colors">
 
-              Modulos
+              Módulos
 
             </button>
 

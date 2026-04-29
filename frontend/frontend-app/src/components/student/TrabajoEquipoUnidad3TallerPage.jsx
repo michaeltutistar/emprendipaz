@@ -121,21 +121,11 @@ const TrabajoEquipoUnidad3TallerPage = () => {
 
   });
 
-  const [solucionesDisponibles, setSolucionesDisponibles] = useState(() => {
-
-    const saved = localStorage.getItem('te_u3_taller_disponibles');
-
-    if (saved) {
-
-      const savedIds = JSON.parse(saved);
-
-      return [...new Set(savedIds)];
-
-    }
-
-    return [...new Set(soluciones.map(s => s.id))];
-
-  });
+  // Derivar siempre desde respuestas para evitar desincronización (soluciones no asignadas)
+  const solucionesDisponibles = React.useMemo(() => {
+    const asignadas = Object.values(respuestas);
+    return soluciones.filter(s => !asignadas.includes(s.id)).map(s => s.id);
+  }, [respuestas]);
 
   const [validado, setValidado] = useState(() => {
 
@@ -219,12 +209,6 @@ useEffect(() => {
 
 useEffect(() => {
 
-    localStorage.setItem('te_u3_taller_disponibles', JSON.stringify(solucionesDisponibles));
-
-  }, [solucionesDisponibles]);
-
-useEffect(() => {
-
     localStorage.setItem('te_u3_taller_validado', validado.toString());
 
   }, [validado]);
@@ -301,10 +285,6 @@ const handleDrop = (e, problemaId) => {
 
         setValidacionRealizada(false);
 
-// Remover de disponibles
-
-        setSolucionesDisponibles(prev => prev.filter(id => id !== draggedSolucion));
-
       }
 
     }
@@ -326,8 +306,6 @@ const handleRemove = (problemaId) => {
       delete nuevaRespuestas[problemaId];
 
       setRespuestas(nuevaRespuestas);
-
-      setSolucionesDisponibles([...solucionesDisponibles, solucionId]);
 
       setValidacionRealizada(false);
 
@@ -370,6 +348,48 @@ const validarRespuestas = () => {
       alert('Algunas respuestas no son correctas. Revisa las marcadas en rojo, quita las incorrectas (X) y arrastra la solución correcta. Luego vuelve a validar.');
 
     }
+
+  };
+
+const handleReiniciar = () => {
+
+    setRespuestas({});
+
+    setValidado(false);
+
+    setValidacionRealizada(false);
+
+    setDraggedSolucion(null);
+
+    setDragOver(null);
+
+    localStorage.removeItem('te_u3_taller_respuestas');
+
+    localStorage.removeItem('te_u3_taller_validado');
+
+    localStorage.removeItem('te_u3_taller_validacion_realizada');
+
+  };
+
+const handleReintentarIncorrectas = () => {
+
+    const nuevasRespuestas = {};
+
+    problemas.forEach(problema => {
+
+      const solucionId = respuestas[problema.id];
+
+      if (solucionId && solucionId === problema.solucionCorrecta) {
+
+        nuevasRespuestas[problema.id] = solucionId;
+
+      }
+
+    });
+
+    setRespuestas(nuevasRespuestas);
+
+    setValidacionRealizada(false);
 
   };
 
@@ -747,7 +767,7 @@ return (
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -955,7 +975,7 @@ return (
 
 <div className="max-w-5xl mx-auto px-4 sm:px-8 py-12">
 
-        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+        <div className="bg-white rounded-lg shadow-md p-6 md:p-8 overflow-visible">
 
           <div className="mb-6">
 
@@ -975,11 +995,11 @@ return (
 
           </div>
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 overflow-visible">
 
             {/* Problemas (izquierda) */}
 
-            <div>
+            <div className="min-h-[280px]">
 
               <h3 className="text-lg font-semibold text-neutral-900 mb-4">Problemas</h3>
 
@@ -1079,11 +1099,11 @@ return (
 
 {/* Soluciones (derecha) */}
 
-            <div>
+            <div className="min-h-[280px] overflow-visible">
 
               <h3 className="text-lg font-semibold text-neutral-900 mb-4">Soluciones</h3>
 
-              <div className="space-y-3">
+              <div className="space-y-3 overflow-visible">
 
                 {solucionesDisponibles.map((solucionId) => {
 
@@ -1135,7 +1155,35 @@ return (
 
           )}
 
-<div className="flex justify-end">
+<div className="flex flex-col sm:flex-row gap-4 justify-end flex-wrap">
+
+            <Button
+
+              onClick={handleReiniciar}
+
+              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 flex items-center gap-2"
+
+            >
+
+              Reiniciar
+
+            </Button>
+
+            {validacionRealizada && !validado && (
+
+              <Button
+
+                onClick={handleReintentarIncorrectas}
+
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 flex items-center gap-2"
+
+              >
+
+                Reintentar incorrectas
+
+              </Button>
+
+            )}
 
             <Button
 

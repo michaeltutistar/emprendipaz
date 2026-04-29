@@ -815,6 +815,16 @@ return (
 
                     )}
 
+                                        <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/student/perfil');
+                      }}
+                      className="max-w-[180px] truncate text-sm font-semibold text-white"
+                    >
+                      {userName || 'Usuario'}
+                    </span>
+
                     <ChevronDown className="w-4 h-4 text-white" />
 
                   </button>
@@ -929,7 +939,7 @@ return (
 
             >
 
-              Modulos
+              Módulos
 
             </button>
 
@@ -1157,7 +1167,7 @@ return (
 
           <p className="text-neutral-700 text-base leading-relaxed mb-4">
 
-            Vamos a poner en práctica los conocimientos adquiridos en esta unidad final del modulo Atención al Cliente y Resolución de Conflictos.
+            Vamos a poner en práctica los conocimientos adquiridos en esta unidad final del módulo Atención al Cliente y Resolución de Conflictos.
 
           </p>
 

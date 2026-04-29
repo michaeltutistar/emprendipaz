@@ -1807,9 +1807,19 @@ def save_respuestas_plan(current_user):
 @user_bp.route('/get-respuestas-plan', methods=['GET'])
 @token_required
 def get_respuestas_plan(current_user):
-    """Obtener todas las respuestas del plan de negocio del usuario"""
+    """Obtener todas las respuestas del plan de negocio del usuario (o de otro usuario si admin/instructor)."""
     try:
-        respuestas = RespuestasPlanNegocio.query.filter_by(usuario_id=current_user.id).all()
+        usuario_id_param = request.args.get('usuario_id', type=int)
+        target_user_id = current_user.id
+        if usuario_id_param is not None:
+            if current_user.rol not in ('admin', 'instructor'):
+                return jsonify({'success': False, 'error': 'No autorizado'}), 403
+            target = User.query.get(usuario_id_param)
+            if not target:
+                return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
+            target_user_id = usuario_id_param
+
+        respuestas = RespuestasPlanNegocio.query.filter_by(usuario_id=target_user_id).all()
         
         # Agrupar por módulo para facilitar uso en frontend
         resultado = {}

@@ -63,7 +63,7 @@ const PresentaciónPage = () => {
 
     { term: 'Competidor', def: 'Participación de varios vendedores o empresas en el mercado, que pretenden que los clientes seleccionen su producto mediante el desarrollo de diferentes estrategias comerciales.' },
 
-    { term: 'Diagnóstico', def: 'En el contexto del marketing digital, es un conjunto de acciones y herramientas utilizadas para descubrir cómo una empresa es percibida en el mercado. A partir de está reconocimiento, se logran identificar aspectos a mejorar.' },
+    { term: 'Diagnóstico', def: 'En el contexto del marketing digital, es un conjunto de acciones y herramientas utilizadas para descubrir cómo una empresa es percibida en el mercado. A partir de este reconocimiento, se logran identificar aspectos a mejorar.' },
 
     { term: 'Estrategia', def: 'Proceso planificado que busca alcanzar un objetivo concreto.' },
 
@@ -911,13 +911,13 @@ return (
 
           <p className="text-gray-700 leading-relaxed">
 
-            Conoce los conceptos fundamentales del Marketing Digital a través de está video de presentación.
+            Conoce los conceptos fundamentales del Marketing Digital a través de este video de presentación.
 
           </p>
 
           <p className="text-gray-700 leading-relaxed">
 
-            Este contenido te ayudará a comprender los objetivos y conceptos clave que aprenderás en está modulo.
+            Este contenido te ayudará a comprender los objetivos y conceptos clave que aprenderás en este módulo.
 
           </p>
 
