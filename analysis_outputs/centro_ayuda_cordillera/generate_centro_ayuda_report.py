@@ -30,48 +30,26 @@ XLSX_OUT = DOWNLOADS / "Consolidado_Centro_Ayuda_Cordillera.xlsx"
 SUMMARY_JSON_OUT = OUT / "centro_ayuda_cordillera_summary.json"
 MASTER_CSV_OUT = OUT / "centro_ayuda_cordillera_tickets.csv"
 MESSAGES_CSV_OUT = OUT / "centro_ayuda_cordillera_messages.csv"
+WHATSAPP_EVIDENCE_DIR = OUT / "evidence" / "whatsapp"
 WHATSAPP_EVIDENCE = [
     {
         "ticket_ids": [31],
-        "path": Path(r"C:\Users\USUARIO\.cursor\projects\c-Users-USUARIO-Documents-e-learning-platform\assets\c__Users_USUARIO_AppData_Roaming_Cursor_User_workspaceStorage_accbc622ad3c6c82b8acbc483e2b372a_images_WhatsApp_Image_2026-04-28_at_8.31.13_PM-bfa48771-8c00-4cfc-af39-7a310917eb9c.png"),
+        "path": WHATSAPP_EVIDENCE_DIR / "ticket_31.png",
         "description": "Mensaje inicial enviado a WhatsApp con ticket #31, usuario y resumen generado desde la plataforma.",
     },
     {
         "ticket_ids": [30],
-        "path": Path(r"C:\Users\USUARIO\.cursor\projects\c-Users-USUARIO-Documents-e-learning-platform\assets\c__Users_USUARIO_AppData_Roaming_Cursor_User_workspaceStorage_accbc622ad3c6c82b8acbc483e2b372a_images_WhatsApp_Image_2026-04-28_at_8.30.37_PM-71a411d9-ebc1-4254-a6e3-b672279d02f6.png"),
+        "path": WHATSAPP_EVIDENCE_DIR / "ticket_30.png",
         "description": "Mensaje inicial enviado a WhatsApp con ticket #30, usuario y resumen del inconveniente en foro.",
     },
     {
         "ticket_ids": [10, 5],
-        "path": Path(r"C:\Users\USUARIO\.cursor\projects\c-Users-USUARIO-Documents-e-learning-platform\assets\c__Users_USUARIO_AppData_Roaming_Cursor_User_workspaceStorage_accbc622ad3c6c82b8acbc483e2b372a_images_WhatsApp_Image_2026-04-28_at_8.26.14_PM-1eb6170a-0730-4efd-9e7a-c24940abc0e0.png"),
+        "path": WHATSAPP_EVIDENCE_DIR / "ticket_10_5.png",
         "description": "Captura de conversación con evidencia del ticket #10 y mensaje inicial del ticket #5.",
     },
     {
         "ticket_ids": [40],
-        "path": Path(r"C:\Users\USUARIO\.cursor\projects\c-Users-USUARIO-Documents-e-learning-platform\assets\c__Users_USUARIO_AppData_Roaming_Cursor_User_workspaceStorage_accbc622ad3c6c82b8acbc483e2b372a_images_WhatsApp_Image_2026-04-28_at_8.32.00_PM-f0fb00b6-778a-4104-b6c3-1ca08dd31fd9.png"),
-        "description": "Mensaje inicial enviado a WhatsApp con ticket #40 y captura compartida por la usuaria.",
-    },
-]
-WHATSAPP_EVIDENCE_TICKET_IDS = sorted({ticket_id for item in WHATSAPP_EVIDENCE for ticket_id in item["ticket_ids"]})
-WHATSAPP_EVIDENCE = [
-    {
-        "ticket_ids": [31],
-        "path": Path(r"C:\Users\USUARIO\.cursor\projects\c-Users-USUARIO-Documents-e-learning-platform\assets\c__Users_USUARIO_AppData_Roaming_Cursor_User_workspaceStorage_accbc622ad3c6c82b8acbc483e2b372a_images_WhatsApp_Image_2026-04-28_at_8.31.13_PM-bfa48771-8c00-4cfc-af39-7a310917eb9c.png"),
-        "description": "Mensaje inicial enviado a WhatsApp con ticket #31, usuario y resumen generado desde la plataforma.",
-    },
-    {
-        "ticket_ids": [30],
-        "path": Path(r"C:\Users\USUARIO\.cursor\projects\c-Users-USUARIO-Documents-e-learning-platform\assets\c__Users_USUARIO_AppData_Roaming_Cursor_User_workspaceStorage_accbc622ad3c6c82b8acbc483e2b372a_images_WhatsApp_Image_2026-04-28_at_8.30.37_PM-71a411d9-ebc1-4254-a6e3-b672279d02f6.png"),
-        "description": "Mensaje inicial enviado a WhatsApp con ticket #30, usuario y resumen del inconveniente en foro.",
-    },
-    {
-        "ticket_ids": [10, 5],
-        "path": Path(r"C:\Users\USUARIO\.cursor\projects\c-Users-USUARIO-Documents-e-learning-platform\assets\c__Users_USUARIO_AppData_Roaming_Cursor_User_workspaceStorage_accbc622ad3c6c82b8acbc483e2b372a_images_WhatsApp_Image_2026-04-28_at_8.26.14_PM-1eb6170a-0730-4efd-9e7a-c24940abc0e0.png"),
-        "description": "Captura de conversación con evidencia del ticket #10 y mensaje inicial del ticket #5.",
-    },
-    {
-        "ticket_ids": [40],
-        "path": Path(r"C:\Users\USUARIO\.cursor\projects\c-Users-USUARIO-Documents-e-learning-platform\assets\c__Users_USUARIO_AppData_Roaming_Cursor_User_workspaceStorage_accbc622ad3c6c82b8acbc483e2b372a_images_WhatsApp_Image_2026-04-28_at_8.32.00_PM-f0fb00b6-778a-4104-b6c3-1ca08dd31fd9.png"),
+        "path": WHATSAPP_EVIDENCE_DIR / "ticket_40.png",
         "description": "Mensaje inicial enviado a WhatsApp con ticket #40 y captura compartida por la usuaria.",
     },
 ]

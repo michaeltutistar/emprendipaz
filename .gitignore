@@ -20,8 +20,12 @@ build/
 .env.production.local
 
 # IDE files
+.cursor/
 .vscode/
 .idea/
+
+# Scripts locales de análisis (temporales)
+analysis_outputs/**/tmp_*
 *.swp
 *.swo
 *~
