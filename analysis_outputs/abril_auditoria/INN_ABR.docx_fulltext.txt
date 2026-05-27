@@ -1,0 +1,95 @@
+0014|INFORME DE INCIDENTES Y PROBLEMAS TÉCNICOS
+0015|PERIODO:  01/04/2026 a 30/04/2026
+0030|Tabla de contenido
+0033|Página
+0035|LISTA DE IMÁGENES
+0037|3
+0039|LISTA DE TABLAS
+0041|4
+0043|1. CONTEXTO GENERAL DEL SISTEMA
+0045|5
+0047|2. ANÁLISIS DE AUSENCIA DE INCIDENTES
+0049|9
+0051|3. CONCLUSIONES TÉCNICAS
+0053|11
+0088|Lista de imágenes
+0092|Página
+0094|Imagen 1. modo operativo On-line
+0096|6
+0098|Imagen 2. modo operativo Off-line
+0100|7
+0102|Imagen 3. modo operativo Off-line - Online
+0104|8
+0145|Lista de tablas
+0148|Página
+0150|Tabla 1. Impacto en la operación del programa
+0152|10
+0180|Contexto general del sistema
+0182|La plataforma digital accesible en plataforma EmprendiPaz forma parte del ecosistema tecnológico del programa EmprendiPaz, iniciativa liderada por la Gobernación de Nariño orientada al fortalecimiento de emprendimientos juveniles mediante formación, acompañamiento técnico y capitalización.
+0184|El programa tiene cobertura en los 64 municipios del departamento, con 728 unidades productivas beneficiadas y procesos formativos estructurados en modalidades híbridas (virtual/presencial), lo que implica una alta demanda sobre la infraestructura digital que soporta la operación.
+0186|En este contexto, la plataforma cumple funciones críticas tales como:
+0187|Gestión de convocatorias y registro de usuarios
+0188|Carga y validación documental
+0189|Soporte a procesos de caracterización
+0190|Acceso a contenidos formativos virtuales
+0191|Interacción entre actores del ecosistema (emprendedores, tutores, administradores)
+0193|Enfoque de evolución tecnológica
+0194|Durante el periodo evaluado, la plataforma fue objeto de un proceso integral de evolución que puede validarse en cuanto a optimización para entornos de conectividad inestable, un elemento clave del proceso fue la adaptación a condiciones territoriales de Nariño, caracterizadas por:
+0195|Zonas rurales con baja cobertura de internet
+0196|Conectividad intermitente en subregiones
+0197|Brechas digitales en población objetivo
+0201|Imagen 1. modo operativo On-line
+0209|Imagen 2. modo operativo Off-line
+0212|En respuesta, la plataforma incorporó:
+0213|Mecanismos de resiliencia de conexión (reintentos automáticos, persistencia local temporal)
+0214|Carga diferida de datos (lazy loading)
+0215|Optimización de peso de recursos (assets livianos)
+0221|Imagen 3. modo operativo Off-line - Online
+0224|Estas medidas son coherentes con la entrega de dispositivos (tablets) para acceso a contenidos formativos, lo que exige interoperabilidad eficiente.
+0226|Nivel de madurez tecnológica
+0227|El comportamiento observado permite ubicar la plataforma en un nivel avanzado de madurez, bajo algunos indicadores como:
+0229|Indicadores de madurez evidenciados
+0230|Estabilidad operativa sostenida
+0231|No se han reportado incidentes críticos de funcionamiento
+0232|Disponibilidad continua durante fases de alta demanda
+0233|Soporte a procesos masivos
+0234|Resiliencia del sistema
+0235|Operación estable en condiciones adversas de conectividad
+0237|2. ANÁLISIS DE AUSENCIA DE INCIDENTES
+0238|La inexistencia de incidentes reportados no es un hecho aislado, sino el resultado de prácticas técnicas consolidadas:
+0240|Gestión proactiva de infraestructura
+0241|supervisión continua (24/7) de la disponibilidad y el rendimiento de un sitio web, API o servidor para garantizar que funcione correctamente. Mide tres pilares clave: uptime (tiempo en línea), latencia (velocidad de respuesta) y errores (fallos de conexión), alertando inmediatamente ante caídas
+0242|Balanceo de carga
+0243|Gestión de logs y alertas tempranas
+0245|Pruebas y aseguramiento de calidad
+0246|Testing funcional y de regresión
+0247|Validación en escenarios de baja conectividad
+0249|Gobierno de datos
+0250|Integridad en procesos de carga documental
+0252|Seguridad
+0253|Control de accesos y autenticación
+0254|Protección de datos personales
+0256|Impacto en la operación del programa
+0257|La estabilidad de la plataforma ha sido un factor habilitador clave para:
+0258|Garantizar la participación efectiva en convocatorias
+0259|Reducir barreras de acceso digital
+0260|Asegurar continuidad en procesos formativos virtuales
+0261|Facilitar la trazabilidad de los emprendimientos
+0263|Esto es especialmente relevante en un programa que busca fortalecer capacidades empresariales y cerrar brechas socioeconómicas en contextos de alta informalidad y desempleo juvenil.
+0265|Tabla 1. Impacto en la operación del programa
+0266|Aspecto Impactado
+0267|Resultado
+0268|Participación en convocatorias
+0269|Mayor acceso y participación efectiva
+0270|Acceso digital
+0271|Reducción de barreras tecnológicas
+0272|Procesos formativos
+0273|Continuidad sin interrupciones
+0274|Trazabilidad
+0275|Seguimiento claro de los emprendimientos
+0293|3. CONCLUSIONES TÉCNICAS
+0295|La plataforma presenta un alto nivel de madurez tecnológica, evidenciado en su estabilidad, escalabilidad y capacidad de adaptación a entornos complejos.
+0296|La ausencia de incidentes operativos reportados se sustenta en prácticas robustas de ingeniería de software, monitoreo y gestión de infraestructura.
+0297|La optimización para conectividad intermitente constituye un diferenciador clave, alineado con las condiciones territoriales de implementación.
+0298|El proceso de evolución no ha sido únicamente incremental, sino estructural, fortaleciendo la arquitectura y asegurando sostenibilidad a largo plazo.
+0299|La plataforma actúa como un habilitador estratégico del programa EmprendiPaz, contribuyendo directamente a su eficiencia, cobertura y resultados.

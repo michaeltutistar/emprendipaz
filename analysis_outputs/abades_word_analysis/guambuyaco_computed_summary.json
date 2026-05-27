@@ -1,0 +1,169 @@
+{
+  "node": "Guambuyaco",
+  "source": "C:\\Users\\USUARIO\\Downloads\\estadisticas_municipios_2026-05-25.xlsx",
+  "output": "C:\\Users\\USUARIO\\Downloads\\Informe_Metricas_nodo_Guambuyaco.docx",
+  "municipality_rows": [
+    {
+      "Municipio": "El Peñol",
+      "Estudiantes": 5,
+      "Intentos": 168,
+      "Promedio": 33.6,
+      "Rendimiento": "Alto",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    },
+    {
+      "Municipio": "El Tambo",
+      "Estudiantes": 7,
+      "Intentos": 341,
+      "Promedio": 48.71,
+      "Rendimiento": "Medio",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    },
+    {
+      "Municipio": "La Llanada",
+      "Estudiantes": 4,
+      "Intentos": 178,
+      "Promedio": 44.5,
+      "Rendimiento": "Medio",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    },
+    {
+      "Municipio": "Los Andes",
+      "Estudiantes": 6,
+      "Intentos": 284,
+      "Promedio": 47.33,
+      "Rendimiento": "Medio",
+      "Finalización": "83,33%",
+      "Asistencia": "83,33%"
+    }
+  ],
+  "total_students": 22,
+  "total_attempts": 971,
+  "avg_attempts": 44.14,
+  "general_performance": "Medio",
+  "avg_completion": "95,83%",
+  "avg_attendance": "95,83%",
+  "modules": [
+    "Atención al Cliente",
+    "Descubrimiento de Oportunidades",
+    "Finanzas",
+    "Liderazgo",
+    "Marketing Digital",
+    "Marketing y Comercialización",
+    "Modelo de Negocios",
+    "Plan de Inversión",
+    "Proyecto de vida",
+    "Trabajo en Equipo"
+  ],
+  "module_by_muni": [
+    {
+      "Municipio": "El Peñol",
+      "Atención al Cliente": 15,
+      "Descubrimiento de Oportunidades": 18,
+      "Finanzas": 17,
+      "Liderazgo": 17,
+      "Marketing Digital": 16,
+      "Marketing y Comercialización": 15,
+      "Modelo de Negocios": 19,
+      "Plan de Inversión": 16,
+      "Proyecto de vida": 19,
+      "Trabajo en Equipo": 16
+    },
+    {
+      "Municipio": "El Tambo",
+      "Atención al Cliente": 32,
+      "Descubrimiento de Oportunidades": 29,
+      "Finanzas": 30,
+      "Liderazgo": 23,
+      "Marketing Digital": 40,
+      "Marketing y Comercialización": 26,
+      "Modelo de Negocios": 41,
+      "Plan de Inversión": 51,
+      "Proyecto de vida": 35,
+      "Trabajo en Equipo": 34
+    },
+    {
+      "Municipio": "La Llanada",
+      "Atención al Cliente": 15,
+      "Descubrimiento de Oportunidades": 19,
+      "Finanzas": 14,
+      "Liderazgo": 13,
+      "Marketing Digital": 20,
+      "Marketing y Comercialización": 14,
+      "Modelo de Negocios": 21,
+      "Plan de Inversión": 24,
+      "Proyecto de vida": 17,
+      "Trabajo en Equipo": 21
+    },
+    {
+      "Municipio": "Los Andes",
+      "Atención al Cliente": 23,
+      "Descubrimiento de Oportunidades": 55,
+      "Finanzas": 22,
+      "Liderazgo": 22,
+      "Marketing Digital": 28,
+      "Marketing y Comercialización": 19,
+      "Modelo de Negocios": 35,
+      "Plan de Inversión": 25,
+      "Proyecto de vida": 26,
+      "Trabajo en Equipo": 29
+    }
+  ],
+  "module_totals": {
+    "Atención al Cliente": 85,
+    "Descubrimiento de Oportunidades": 121,
+    "Finanzas": 83,
+    "Liderazgo": 75,
+    "Marketing Digital": 104,
+    "Marketing y Comercialización": 74,
+    "Modelo de Negocios": 116,
+    "Plan de Inversión": 116,
+    "Proyecto de vida": 97,
+    "Trabajo en Equipo": 100
+  },
+  "ranking": [
+    [
+      "Descubrimiento de Oportunidades",
+      121
+    ],
+    [
+      "Modelo de Negocios",
+      116
+    ],
+    [
+      "Plan de Inversión",
+      116
+    ],
+    [
+      "Marketing Digital",
+      104
+    ],
+    [
+      "Trabajo en Equipo",
+      100
+    ],
+    [
+      "Proyecto de vida",
+      97
+    ],
+    [
+      "Atención al Cliente",
+      85
+    ],
+    [
+      "Finanzas",
+      83
+    ],
+    [
+      "Liderazgo",
+      75
+    ],
+    [
+      "Marketing y Comercialización",
+      74
+    ]
+  ]
+}

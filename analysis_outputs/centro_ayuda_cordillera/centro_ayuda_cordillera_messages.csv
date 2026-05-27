@@ -1,0 +1,418 @@
+﻿ticket_id,message_id,created_at,sender,message,confidence,topic,status,channel_final
+3,5,2026-03-14T17:59:07.387534,user,"hola, como se sube la foto a mi perfil",,sincronizacion,escalated_whatsapp,whatsapp
+3,6,2026-03-14T17:59:07.387539,assistant,En este momento no pude procesar tu consulta con el asistente. Voy a escalar tu caso para atención por WhatsApp.,0.0,sincronizacion,escalated_whatsapp,whatsapp
+3,9,2026-03-14T18:13:50.738465,user,hola,,sincronizacion,escalated_whatsapp,whatsapp
+3,10,2026-03-14T18:13:50.738470,assistant,No encontré información suficiente para responder con certeza. Voy a escalar tu caso para atención por WhatsApp.,0.0,sincronizacion,escalated_whatsapp,whatsapp
+3,11,2026-03-14T18:50:15.068255,user,hola,,sincronizacion,escalated_whatsapp,whatsapp
+3,12,2026-03-14T18:50:15.068262,assistant,"Hola. Puedo ayudarte con dudas sobre acceso, perfil, progreso, modulos, uso offline, sincronizacion y errores tecnicos de la plataforma. Cuéntame el problema o la accion que quieres realizar.",1.0,sincronizacion,escalated_whatsapp,whatsapp
+3,13,2026-03-14T18:50:46.905368,user,como cambio mi foto de perfil,,sincronizacion,escalated_whatsapp,whatsapp
+3,14,2026-03-14T18:50:46.905373,assistant,"Segun la base de conocimiento, la mejor guia para tu consulta es ""manual usuario tecnico estudiantes"". - como cambio mi foto de perfil",1.0,sincronizacion,escalated_whatsapp,whatsapp
+3,15,2026-03-14T18:51:54.139557,user,cómo actualizo mis datos,,sincronizacion,escalated_whatsapp,whatsapp
+3,16,2026-03-14T18:51:54.139562,assistant,"Segun la base de conocimiento, la mejor guia para tu consulta es ""manual usuario tecnico estudiantes"". - como actualizo mis datos",1.0,sincronizacion,escalated_whatsapp,whatsapp
+3,17,2026-03-14T19:58:49.870075,user,como actualizo mis datos de perfil,,sincronizacion,escalated_whatsapp,whatsapp
+3,18,2026-03-14T19:58:49.870081,assistant,"Para cambiar la foto de perfil:
+
+1. entra a tu perfil
+2. ubica la seccion de imagen o foto de perfil
+3. selecciona el archivo
+4. confirma el cambio
+
+Si la imagen no cambia despues de guardar:
+
+recarga la vista del perfil
+vuelve a entrar
+verifica si la conexion estaba estable
+
+Si aun no cambia, reporta que la foto no se actualiza.",1.0,sincronizacion,escalated_whatsapp,whatsapp
+4,19,2026-03-14T20:58:28.263346,user,como cambio mi foto de perfil,,manual usuario tecnico estudiantes,open,
+4,20,2026-03-14T20:58:28.263352,assistant,"Para cambiar la foto de perfil:
+
+1. entra a tu perfil
+2. ubica la seccion de imagen o foto de perfil
+3. selecciona el archivo
+4. confirma el cambio
+
+Si la imagen no cambia despues de guardar:
+
+recarga la vista del perfil
+vuelve a entrar
+verifica si la conexion estaba estable
+
+Si aun no cambia, reporta que la foto no se actualiza.",1.0,manual usuario tecnico estudiantes,open,
+5,21,2026-03-14T21:04:28.530585,user,como cambio la foto de perfil?,,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+5,22,2026-03-14T21:04:28.530590,assistant,"Para cambiar la foto de perfil:
+
+1. entra a tu perfil
+2. ubica la seccion de imagen o foto de perfil
+3. selecciona el archivo
+4. confirma el cambio
+
+Si la imagen no cambia despues de guardar:
+
+recarga la vista del perfil
+vuelve a entrar
+verifica si la conexion estaba estable
+
+Si aun no cambia, reporta que la foto no se actualiza.",1.0,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+6,23,2026-03-14T21:04:40.046435,user,como cambio mi foto de perfil,,manual usuario tecnico estudiantes,open,
+6,24,2026-03-14T21:04:40.046441,assistant,"Para cambiar la foto de perfil:
+
+1. entra a tu perfil
+2. ubica la seccion de imagen o foto de perfil
+3. selecciona el archivo
+4. confirma el cambio
+
+Si la imagen no cambia despues de guardar:
+
+recarga la vista del perfil
+vuelve a entrar
+verifica si la conexion estaba estable
+
+Si aun no cambia, reporta que la foto no se actualiza.",1.0,manual usuario tecnico estudiantes,open,
+5,25,2026-03-14T21:06:30.624042,user,"hice las 3 evaluaciones del modulo 2 y no se me desbloquea el modulo 3, que me hace falta hacer?",,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+5,26,2026-03-14T21:06:30.624048,assistant,"Si una unidad no se desbloquea aunque la anterior ya este en 100 por ciento:
+
+regresa a la presentacion del modulo
+vuelve a entrar a la vista de unidades
+confirma que no falte ningun paso final
+
+Si el problema continua, reporta el modulo y la unidad que debia habilitarse.",1.0,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+7,27,2026-03-14T21:10:24.205404,user,cuando intento subir una foto a uno de los plan de negocio no me permite. qué debo hacer,,manual usuario tecnico estudiantes,closed,ia
+7,28,2026-03-14T21:10:24.205410,assistant,"Si completaste una parte del Plan de Negocio y no ves el cambio:
+
+vuelve al modulo
+revisa si estabas online u offline
+vuelve al dashboard
+
+Si el estado sigue incorrecto, reporta:
+
+modulo
+parte del plan afectada
+si esperabas porcentaje, puntos o guardado de respuestas",1.0,manual usuario tecnico estudiantes,closed,ia
+3,29,2026-03-14T21:16:36.854944,user,quién eres,,sincronizacion,escalated_whatsapp,whatsapp
+3,30,2026-03-14T21:16:36.854951,assistant,No encontré información suficiente para responder con certeza. Voy a escalar tu caso para atención por WhatsApp.,0.0,sincronizacion,escalated_whatsapp,whatsapp
+8,31,2026-03-17T14:48:09.062390,user,hola,,saludo,closed,whatsapp
+8,32,2026-03-17T14:48:09.062397,assistant,"Hola. Puedo ayudarte con dudas sobre acceso, perfil, progreso, modulos, uso offline, sincronizacion y errores tecnicos de la plataforma. Cuéntame el problema o la accion que quieres realizar.",1.0,saludo,closed,whatsapp
+8,33,2026-03-17T14:48:22.868565,system,Caso escalado a WhatsApp para atención manual.,,saludo,closed,whatsapp
+8,34,2026-03-17T14:48:35.924405,user,cómo estás,,saludo,closed,whatsapp
+8,35,2026-03-17T14:48:35.924410,assistant,"Para iniciar sesion, entra a la pantalla de acceso y escribe tu correo y tu contrasena. Verifica que no haya espacios adicionales al inicio o al final y revisa si el teclado tiene activado bloqueo de mayusculas.
+
+Si el sistema no te deja entrar:
+
+revisa que tengas conexion a internet
+confirma que el correo sea el correcto
+intenta nuevamente despues de recargar la pagina
+si olvidaste la contrasena, usa el flujo de recuperacion disponible",1.0,saludo,closed,whatsapp
+9,36,2026-03-17T15:00:11.783240,user,hola,,saludo,closed,ia
+9,37,2026-03-17T15:00:11.783245,assistant,"Hola. Puedo ayudarte con dudas sobre acceso, perfil, progreso, modulos, uso offline, sincronizacion y errores tecnicos de la plataforma. Cuéntame el problema o la accion que quieres realizar.",1.0,saludo,closed,ia
+9,38,2026-03-17T15:00:38.018270,user,cómo vas,,saludo,closed,ia
+9,39,2026-03-17T15:00:38.018275,assistant,"Para iniciar sesion, entra a la pantalla de acceso y escribe tu correo y tu contrasena. Verifica que no haya espacios adicionales al inicio o al final y revisa si el teclado tiene activado bloqueo de mayusculas.
+
+Si el sistema no te deja entrar:
+
+revisa que tengas conexion a internet
+confirma que el correo sea el correcto
+intenta nuevamente despues de recargar la pagina
+si olvidaste la contrasena, usa el flujo de recuperacion disponible",1.0,saludo,closed,ia
+10,40,2026-03-18T23:17:15.652007,user,Muy buenas tardes cordial saludo.,,,closed,whatsapp
+10,41,2026-03-18T23:17:15.652013,assistant,No encontré información suficiente para responder con certeza. Voy a escalar tu caso para atención por WhatsApp.,0.0,,closed,whatsapp
+11,42,2026-03-19T18:48:01.139779,user,"Muy buenas tardes, cordial saludo",,,closed,whatsapp
+11,43,2026-03-19T18:48:01.139787,assistant,No encontré información suficiente para responder con certeza. Voy a escalar tu caso para atención por WhatsApp.,0.0,,closed,whatsapp
+12,44,2026-03-19T22:11:11.924613,user,hola,,saludo,open,
+12,45,2026-03-19T22:11:11.924620,assistant,"Hola. Puedo ayudarte con dudas sobre acceso, perfil, progreso, modulos, uso offline, sincronizacion y errores tecnicos de la plataforma. Cuéntame el problema o la accion que quieres realizar.",1.0,saludo,open,
+12,46,2026-03-19T22:11:35.664553,user,como estas,,saludo,open,
+12,47,2026-03-19T22:11:35.664559,assistant,"Para iniciar sesion, entra a la pantalla de acceso y escribe tu correo y tu contrasena. Verifica que no haya espacios adicionales al inicio o al final y revisa si el teclado tiene activado bloqueo de mayusculas.
+
+Si el sistema no te deja entrar:
+
+revisa que tengas conexion a internet
+confirma que el correo sea el correcto
+intenta nuevamente despues de recargar la pagina
+si olvidaste la contrasena, usa el flujo de recuperacion disponible",1.0,saludo,open,
+13,48,2026-03-19T22:13:10.818231,user,ayudame porque no puedo subir foto a mi perfil,,manual usuario tecnico estudiantes,open,
+13,49,2026-03-19T22:13:10.818237,assistant,"Si cambiaste la foto o tus datos pero no ves el cambio:
+
+recarga la pagina
+cierra y vuelve a entrar al perfil
+revisa si el problema solo ocurre visualmente o si el dato realmente no se guardo
+
+Si no persiste, el centro de ayuda necesitara saber que campo querias actualizar y en que vista sucedio.",1.0,manual usuario tecnico estudiantes,open,
+13,50,2026-03-19T22:14:14.669295,user,no me carga el progreso del plan de negocios,,manual usuario tecnico estudiantes,open,
+13,51,2026-03-19T22:14:14.669300,assistant,"Si completaste una parte del Plan de Negocio y no ves el cambio:
+
+vuelve al modulo
+revisa si estabas online u offline
+vuelve al dashboard
+
+Si el estado sigue incorrecto, reporta:
+
+modulo
+parte del plan afectada
+si esperabas porcentaje, puntos o guardado de respuestas",1.0,manual usuario tecnico estudiantes,open,
+13,52,2026-03-19T22:24:07.508049,user,Olvidé mi contraseña y no me llega el correo para recuperarla.,,manual usuario tecnico estudiantes,open,
+13,53,2026-03-19T22:24:07.508060,assistant,"Estas son preguntas validas:
+
+como cambio mi foto de perfil
+por que no puedo iniciar sesion
+donde veo mi progreso
+por que no se desbloquea la siguiente unidad
+que hago si estaba offline y no se sincroniza
+por que una pagina queda en blanco
+por que no veo mis cambios en el dashboard
+como actualizo mis datos",1.0,manual usuario tecnico estudiantes,open,
+14,54,2026-03-19T22:35:21.016151,user,Olvidé mi contraseña y no me llega el correo,,acceso_login,open,
+14,55,2026-03-19T22:35:21.016156,assistant,"Si olvidaste la contraseña, usa la opción de recuperación disponible en la pantalla de acceso. Si puedes entrar pero quieres cambiarla, revisa si esa opción está disponible en tu perfil o configuración. Si no recibes correo de recuperación o la opción falla, el caso debe escalarse.",1.0,acceso_login,open,
+14,56,2026-03-19T22:36:17.068276,user,Estoy sin internet: ¿cómo sé si lo que hice se guardó y cuándo se va a subir?,,acceso_login,open,
+14,57,2026-03-19T22:36:17.068282,assistant,"Si estas sin internet y no puedes entrar de nuevo, normalmente significa que la sesion ya no esta disponible localmente. En ese caso:
+
+verifica si realmente cerraste sesion
+vuelve a abrir la PWA o el navegador
+cuando tengas internet, autentica otra vez la sesion
+
+El acceso offline funciona mejor cuando la sesion fue iniciada previamente y no fue cerrada manualmente.",1.0,acceso_login,open,
+14,58,2026-03-19T22:37:08.625161,user,Completé una actividad (o un taller) pero el porcentaje del módulo no cambió.,,acceso_login,open,
+14,59,2026-03-19T22:37:08.625167,assistant,"Si completaste una actividad y el porcentaje no cambió, puede haber una demora en el registro o sincronización. Vuelve a entrar al módulo o regresa al dashboard para verificar el estado. Si estabas sin internet, espera a recuperar conectividad para que la plataforma intente sincronizar automáticamente.",1.0,acceso_login,open,
+14,60,2026-03-19T22:38:00.725364,user,Una unidad dice 100% pero no me deja abrir la que sigue.,,acceso_login,open,
+14,61,2026-03-19T22:38:00.725369,assistant,"Si una unidad ya aparece en 100% pero la siguiente no se habilita, es posible que el sistema aún no haya refrescado el estado del módulo. Regresa a la pantalla de presentación del módulo o al dashboard, y vuelve a entrar. Si sigues sin poder avanzar, se debe revisar el ticket con soporte.",1.0,acceso_login,open,
+14,62,2026-03-19T22:38:53.710926,user,En el Plan de Negocio guardé respuestas pero no suben los puntos o el módulo no llega al 100%,,acceso_login,open,
+14,63,2026-03-19T22:38:53.710932,assistant,"Si el Plan de Negocio no refleja respuestas, puntos o estado completado, revisa si estabas online u offline al momento de guardar. Luego vuelve al modulo y al dashboard. Si el estado sigue igual, el ticket debe indicar el modulo y la parte exacta donde ocurrió.",1.0,acceso_login,open,
+14,64,2026-03-19T22:39:48.050623,user,El asistente no me resolvió el problema: ¿cómo hablo con una persona y qué datos debo enviar?,,acceso_login,open,
+14,65,2026-03-19T22:39:48.050628,assistant,"Si una unidad no se desbloquea aunque la anterior ya este en 100 por ciento:
+
+regresa a la presentacion del modulo
+vuelve a entrar a la vista de unidades
+confirma que no falte ningun paso final
+
+Si el problema continua, reporta el modulo y la unidad que debia habilitarse.",1.0,acceso_login,open,
+15,66,2026-03-19T22:46:22.449181,user,El asistente no me resolvió el problema: ¿cómo hablo con una persona y qué datos debo enviar?,,contacto_humano,open,
+15,67,2026-03-19T22:46:22.449187,assistant,"Si el asistente no logra resolver tu problema técnico, el caso puede escalarse a atención humana por WhatsApp. En ese momento se envía o muestra un enlace con el ticket asociado para que el seguimiento manual sea más rápido.",0.99,contacto_humano,open,
+16,68,2026-03-23T21:37:04.426389,user,"Muy buenas tardes, cordial saludo. Necesito por favor me informe, como puedo cambiar el correo electrónico en la plataforma.",,manual usuario tecnico estudiantes,closed,whatsapp
+16,69,2026-03-23T21:37:04.426394,assistant,"Para cambiar la foto de perfil:
+
+1. entra a tu perfil
+2. ubica la seccion de imagen o foto de perfil
+3. selecciona el archivo
+4. confirma el cambio
+
+Si la imagen no cambia despues de guardar:
+
+recarga la vista del perfil
+vuelve a entrar
+verifica si la conexion estaba estable
+
+Si aun no cambia, reporta que la foto no se actualiza.",1.0,manual usuario tecnico estudiantes,closed,whatsapp
+16,70,2026-03-23T21:38:37.139127,system,Caso escalado a WhatsApp para atención manual.,,manual usuario tecnico estudiantes,closed,whatsapp
+17,71,2026-03-27T16:25:52.322146,user,Que hay que hacer en este foro,,manual usuario tecnico estudiantes,open,
+17,72,2026-03-27T16:25:52.322151,assistant,"Si una pagina aparece en blanco:
+
+recarga completamente el navegador
+vuelve a abrir la PWA
+intenta entrar de nuevo a la misma ruta
+
+Si el problema se repite solo en una pagina concreta, reporta la ruta exacta.",1.0,manual usuario tecnico estudiantes,open,
+18,73,2026-03-27T19:29:19.476573,user,No estoy entendiendo nada,,progreso,open,
+18,74,2026-03-27T19:29:19.476580,assistant,"Si el progreso no se guarda, revisa primero si tienes conexión estable. Cuando la plataforma está offline, algunos avances se almacenan localmente y se sincronizan después. Si el porcentaje no cambia después de completar una actividad, intenta recargar la página o volver al dashboard para verificar si el cambio aparece allí.",1.0,progreso,open,
+19,75,2026-03-27T22:25:56.202832,user,Deseo ingresar a dar solución a las preguntas y no me deja,,manual usuario tecnico estudiantes,open,
+19,76,2026-03-27T22:25:56.202836,assistant,"Si estas sin internet y no puedes entrar de nuevo, normalmente significa que la sesion ya no esta disponible localmente. En ese caso:
+
+verifica si realmente cerraste sesion
+vuelve a abrir la PWA o el navegador
+cuando tengas internet, autentica otra vez la sesion
+
+El acceso offline funciona mejor cuando la sesion fue iniciada previamente y no fue cerrada manualmente.",1.0,manual usuario tecnico estudiantes,open,
+20,77,2026-03-27T23:27:39.497826,user,Como respondo las preguntas,,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+20,78,2026-03-27T23:27:39.497831,assistant,"Para iniciar sesion, entra a la pantalla de acceso y escribe tu correo y tu contrasena. Verifica que no haya espacios adicionales al inicio o al final y revisa si el teclado tiene activado bloqueo de mayusculas.
+
+Si el sistema no te deja entrar:
+
+revisa que tengas conexion a internet
+confirma que el correo sea el correcto
+intenta nuevamente despues de recargar la pagina
+si olvidaste la contrasena, usa el flujo de recuperacion disponible",1.0,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+20,79,2026-03-27T23:28:11.449642,system,Caso escalado a WhatsApp para atención manual.,,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+20,80,2026-03-27T23:28:21.757715,user,Ya entre,,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+20,81,2026-03-27T23:28:21.757720,assistant,"Si una unidad ya aparece en 100% pero la siguiente no se habilita, es posible que el sistema aún no haya refrescado el estado del módulo. Regresa a la pantalla de presentación del módulo o al dashboard, y vuelve a entrar. Si sigues sin poder avanzar, se debe revisar el ticket con soporte.",0.5,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+21,82,2026-03-27T23:41:54.467148,user,"Buenas noches, me puedes decir que debo de  hacer exactamente en este nodo?. Agradeceria me sacara de esta duda",,manual usuario tecnico estudiantes,closed,whatsapp
+21,83,2026-03-27T23:41:54.467153,assistant,"Si el acceso falla, revisa primero si el problema es de credenciales o de conectividad. El acceso puede fallar porque:
+
+el correo o la contrasena no coinciden
+la sesion anterior expiro
+el navegador conserva una sesion dañada
+la conexion esta inestable
+
+Pasos recomendados:
+
+1. recarga la pagina
+2. cierra y vuelve a abrir el navegador
+3. verifica tu conexion
+4. intenta de nuevo
+
+Si despues de eso sigues sin entrar, reporta que no puedes acceder y especifica si el error ocurre en el login o despues de autenticarte.",1.0,manual usuario tecnico estudiantes,closed,whatsapp
+21,84,2026-03-27T23:42:42.776149,system,Caso escalado a WhatsApp para atención manual.,,manual usuario tecnico estudiantes,closed,whatsapp
+22,85,2026-03-27T23:43:43.550945,user,No me sacaron de la duda,,plan_negocio_tecnico,open,
+22,86,2026-03-27T23:43:43.550950,assistant,"Si el Plan de Negocio no refleja respuestas, puntos o estado completado, revisa si estabas online u offline al momento de guardar. Luego vuelve al modulo y al dashboard. Si el estado sigue igual, el ticket debe indicar el modulo y la parte exacta donde ocurrió.",1.0,plan_negocio_tecnico,open,
+23,87,2026-03-28T00:49:26.610417,user,Hola,,saludo,closed,whatsapp
+23,88,2026-03-28T00:49:26.610422,assistant,"Hola. Puedo ayudarte con dudas sobre acceso, perfil, progreso, modulos, uso offline, sincronizacion y errores tecnicos de la plataforma. Cuéntame el problema o la accion que quieres realizar.",1.0,saludo,closed,whatsapp
+23,89,2026-03-28T00:51:24.093631,user,Ya la hice pero kiero sber si esta bien,,saludo,closed,whatsapp
+23,90,2026-03-28T00:51:24.093637,assistant,"Los modulos se habilitan segun el avance registrado. Si esperas que un modulo ya este habilitado, revisa primero que el modulo anterior realmente este completo.
+
+Si el modulo anterior ya aparece completo pero el siguiente no se habilita:
+
+vuelve al dashboard
+vuelve a entrar a modulos
+revisa de nuevo la disponibilidad",1.0,saludo,closed,whatsapp
+23,91,2026-03-28T00:52:04.609601,user,Ok,,saludo,closed,whatsapp
+23,92,2026-03-28T00:52:04.609607,assistant,No encontré información suficiente para responder con certeza. Voy a escalar tu caso para atención por WhatsApp.,0.0,saludo,closed,whatsapp
+24,93,2026-03-28T01:07:47.884219,user,Ya lo hice,,saludo,closed,ia
+24,94,2026-03-28T01:07:47.884224,assistant,"El centro de ayuda puede orientar dudas sobre acceso, perfil, progreso, modulos, uso offline, sincronizacion y errores tecnicos. Si el problema no queda resuelto, el caso puede escalarse a WhatsApp.",0.6666666666666666,saludo,closed,ia
+25,95,2026-03-28T01:08:22.515482,user,Estaba resolviendo la las preguntas Qué vas a hacer exactamente? 2. ¿Por qué crees que esto le dará un impulso o ayudará a tu negocio? 3. ¿Qué resultado esperas obtener? Y se salió y no me aparece,,manual usuario tecnico estudiantes,closed,whatsapp
+25,96,2026-03-28T01:08:22.515486,assistant,"Si cambiaste la foto o tus datos pero no ves el cambio:
+
+recarga la pagina
+cierra y vuelve a entrar al perfil
+revisa si el problema solo ocurre visualmente o si el dato realmente no se guardo
+
+Si no persiste, el centro de ayuda necesitara saber que campo querias actualizar y en que vista sucedio.",1.0,manual usuario tecnico estudiantes,closed,whatsapp
+25,97,2026-03-28T01:08:36.035961,system,Caso escalado a WhatsApp para atención manual.,,manual usuario tecnico estudiantes,closed,whatsapp
+26,98,2026-03-28T02:30:55.284869,user,Como elimino una respuesta del hilo,,manual usuario tecnico estudiantes,open,
+26,99,2026-03-28T02:30:55.284874,assistant,"El dashboard muestra informacion general del estado del estudiante dentro de la plataforma. Desde alli normalmente puedes:
+
+revisar el progreso general
+entrar a modulos habilitados
+ver atajos a secciones del estudiante
+retomar el uso de la plataforma despues de volver a tener internet
+
+Si el dashboard no refleja bien el estado, entra a la vista del modulo y luego vuelve al dashboard para refrescar la informacion.",1.0,manual usuario tecnico estudiantes,open,
+27,100,2026-03-28T17:37:30.374171,user,No me deja responder las preguntas,,modulos,open,
+27,101,2026-03-28T17:37:30.374178,assistant,"Si no ves las unidades dentro del modulo, vuelve a la pantalla de presentación del modulo o al dashboard y entra otra vez. Si persiste, puede haber un problema con la carga del estado del estudiante.",1.0,modulos,open,
+27,102,2026-03-28T17:38:32.307716,user,"Necesito abrir el foro para resolver las preguntas y no ,e de",,modulos,open,
+27,103,2026-03-28T17:38:32.307722,assistant,"Si completaste una parte del Plan de Negocio y no ves el cambio:
+
+vuelve al modulo
+revisa si estabas online u offline
+vuelve al dashboard
+
+Si el estado sigue incorrecto, reporta:
+
+modulo
+parte del plan afectada
+si esperabas porcentaje, puntos o guardado de respuestas",1.0,modulos,open,
+28,104,2026-03-28T19:14:15.972089,user,Qué tengo que hacer en el foro,,manual usuario tecnico estudiantes,open,
+28,105,2026-03-28T19:14:15.972096,assistant,"Si cambiaste la foto o tus datos pero no ves el cambio:
+
+recarga la pagina
+cierra y vuelve a entrar al perfil
+revisa si el problema solo ocurre visualmente o si el dato realmente no se guardo
+
+Si no persiste, el centro de ayuda necesitara saber que campo querias actualizar y en que vista sucedio.",1.0,manual usuario tecnico estudiantes,open,
+29,106,2026-03-28T21:35:46.284875,user,Ola no sale para responder dar mi opinión,,progreso,open,
+29,107,2026-03-28T21:35:46.284882,assistant,"Si el progreso no se guarda, revisa primero si tienes conexión estable. Cuando la plataforma está offline, algunos avances se almacenan localmente y se sincronizan después. Si el porcentaje no cambia después de completar una actividad, intenta recargar la página o volver al dashboard para verificar si el cambio aparece allí.",1.0,progreso,open,
+29,108,2026-03-28T21:36:48.755291,user,No,,progreso,open,
+29,109,2026-03-28T21:36:48.755298,assistant,"Si el progreso no se guarda, revisa primero si tienes conexión estable. Cuando la plataforma está offline, algunos avances se almacenan localmente y se sincronizan después. Si el porcentaje no cambia después de completar una actividad, intenta recargar la página o volver al dashboard para verificar si el cambio aparece allí.",1.0,progreso,open,
+30,110,2026-03-29T00:32:14.962924,user,No me permite registrar mi respuesta,,acceso_login,escalated_whatsapp,whatsapp
+30,111,2026-03-29T00:32:14.962929,assistant,"Si olvidaste la contraseña, usa la opción de recuperación disponible en la pantalla de acceso. Si puedes entrar pero quieres cambiarla, revisa si esa opción está disponible en tu perfil o configuración. Si no recibes correo de recuperación o la opción falla, el caso debe escalarse.",1.0,acceso_login,escalated_whatsapp,whatsapp
+30,112,2026-03-29T00:33:27.185250,user,"no quiero cambiar la contraseña, solo quiero participar en el foro",,acceso_login,escalated_whatsapp,whatsapp
+30,113,2026-03-29T00:33:27.185256,assistant,"Si olvidaste la contraseña, usa la opción de recuperación disponible en la pantalla de acceso. Si puedes entrar pero quieres cambiarla, revisa si esa opción está disponible en tu perfil o configuración. Si no recibes correo de recuperación o la opción falla, el caso debe escalarse.",1.0,acceso_login,escalated_whatsapp,whatsapp
+30,114,2026-03-29T00:38:02.577432,system,Caso escalado a WhatsApp para atención manual.,,acceso_login,escalated_whatsapp,whatsapp
+31,115,2026-03-29T02:55:04.033056,user,Hola,,saludo,escalated_whatsapp,whatsapp
+31,116,2026-03-29T02:55:04.033063,assistant,"Hola. Puedo ayudarte con dudas sobre acceso, perfil, progreso, modulos, uso offline, sincronizacion y errores tecnicos de la plataforma. Cuéntame el problema o la accion que quieres realizar.",1.0,saludo,escalated_whatsapp,whatsapp
+31,117,2026-03-29T02:55:15.906861,system,Caso escalado a WhatsApp para atención manual.,,saludo,escalated_whatsapp,whatsapp
+32,118,2026-03-29T03:08:41.936450,user,No entiendo,,progreso,escalated_whatsapp,whatsapp
+32,119,2026-03-29T03:08:41.936456,assistant,"Si el progreso no se guarda, revisa primero si tienes conexión estable. Cuando la plataforma está offline, algunos avances se almacenan localmente y se sincronizan después. Si el porcentaje no cambia después de completar una actividad, intenta recargar la página o volver al dashboard para verificar si el cambio aparece allí.",1.0,progreso,escalated_whatsapp,whatsapp
+32,120,2026-03-29T03:11:35.651611,system,Caso escalado a WhatsApp para atención manual.,,progreso,escalated_whatsapp,whatsapp
+33,121,2026-03-29T13:28:29.580947,user,No puedo responder,,modulos,open,
+33,122,2026-03-29T13:28:29.580952,assistant,"Si no ves las unidades dentro del modulo, vuelve a la pantalla de presentación del modulo o al dashboard y entra otra vez. Si persiste, puede haber un problema con la carga del estado del estudiante.",1.0,modulos,open,
+34,123,2026-03-29T17:44:02.598789,user,"Hola por que no me deja responder las preguntas 
+?",,manual usuario tecnico estudiantes,open,
+34,124,2026-03-29T17:44:02.598795,assistant,"Si una unidad no se desbloquea aunque la anterior ya este en 100 por ciento:
+
+regresa a la presentacion del modulo
+vuelve a entrar a la vista de unidades
+confirma que no falte ningun paso final
+
+Si el problema continua, reporta el modulo y la unidad que debia habilitarse.",1.0,manual usuario tecnico estudiantes,open,
+35,125,2026-03-29T22:48:25.415960,user,"No me fue posible responder a ninguna de las preguntas, solamente formule una pregunta. Intenté desde el computador y celular, desde el celular no pude leer las preguntas de otros compañeros.",,manual usuario tecnico estudiantes,open,
+35,126,2026-03-29T22:48:25.415965,assistant,"Si completaste una parte del Plan de Negocio y no ves el cambio:
+
+vuelve al modulo
+revisa si estabas online u offline
+vuelve al dashboard
+
+Si el estado sigue incorrecto, reporta:
+
+modulo
+parte del plan afectada
+si esperabas porcentaje, puntos o guardado de respuestas",0.9354838709677419,manual usuario tecnico estudiantes,open,
+36,127,2026-03-30T00:46:49.348286,user,No se dónde dar mi respuesta para el foro,,manual usuario tecnico estudiantes,open,
+36,128,2026-03-30T00:46:49.348291,assistant,"Si el progreso no se guarda o el porcentaje parece incorrecto:
+
+revisa tu conexion
+confirma que la actividad fue completada hasta el final
+vuelve a la pantalla anterior y entra de nuevo
+revisa si el modulo muestra el cambio aunque el dashboard no lo haga
+
+Si el problema persiste, indica:
+
+modulo afectado
+unidad afectada
+actividad afectada
+si estabas online u offline",1.0,manual usuario tecnico estudiantes,open,
+37,129,2026-03-30T01:08:50.478476,user,Hola buenas noches no puedo responder en el foro q puedo hacer,,manual usuario tecnico estudiantes,open,
+37,130,2026-03-30T01:08:50.478481,assistant,"Si cambiaste la foto o tus datos pero no ves el cambio:
+
+recarga la pagina
+cierra y vuelve a entrar al perfil
+revisa si el problema solo ocurre visualmente o si el dato realmente no se guardo
+
+Si no persiste, el centro de ayuda necesitara saber que campo querias actualizar y en que vista sucedio.",1.0,manual usuario tecnico estudiantes,open,
+38,131,2026-03-30T01:54:11.197319,user,Hola buenas noches no me abre ningun recuadro para responder la pregunta del foro,,desbloqueo,open,
+38,132,2026-03-30T01:54:11.197325,assistant,"Si una unidad ya aparece en 100% pero la siguiente no se habilita, es posible que el sistema aún no haya refrescado el estado del módulo. Regresa a la pantalla de presentación del módulo o al dashboard, y vuelve a entrar. Si sigues sin poder avanzar, se debe revisar el ticket con soporte.",1.0,desbloqueo,open,
+39,133,2026-03-30T02:53:52.850485,user,"Como elimino una pregunta? Ya que es una respuesta, gracias",,manual usuario tecnico estudiantes,open,
+39,134,2026-03-30T02:53:52.850492,assistant,"Si una unidad no se desbloquea aunque la anterior ya este en 100 por ciento:
+
+regresa a la presentacion del modulo
+vuelve a entrar a la vista de unidades
+confirma que no falte ningun paso final
+
+Si el problema continua, reporta el modulo y la unidad que debia habilitarse.",1.0,manual usuario tecnico estudiantes,open,
+40,135,2026-03-30T04:05:02.791542,user,"Cuando escribo en el foro me aparecere registrada otra fecha de envio, respondi el dia hoy 29 de marzo y me aparece que respondi el 30 de marzo",,manual usuario tecnico estudiantes,closed,whatsapp
+40,136,2026-03-30T04:05:02.791549,assistant,"Usa el centro de ayuda cuando necesites orientacion tecnica en situaciones como:
+
+no puedes iniciar sesion
+tu sesion se cerro sola
+quieres cambiar tu foto de perfil
+quieres actualizar tus datos
+no encuentras un modulo o una unidad
+el progreso no se refleja correctamente
+estabas offline y no ves sincronizacion
+un boton no responde
+una pantalla aparece en blanco
+ves un error tecnico o un comportamiento inesperado",1.0,manual usuario tecnico estudiantes,closed,whatsapp
+40,137,2026-03-30T04:05:24.564598,system,Caso escalado a WhatsApp para atención manual.,,manual usuario tecnico estudiantes,closed,whatsapp
+41,138,2026-03-30T04:11:46.786217,user,Como borrar mi pregunta,,dashboard,open,
+41,139,2026-03-30T04:11:46.786222,assistant,"El dashboard del estudiante muestra el avance general y suele reflejar el progreso acumulado por modulo. Si el porcentaje no coincide con lo que completaste, entra de nuevo al modulo y luego regresa al dashboard para forzar una actualización visual.",1.0,dashboard,open,
+42,140,2026-03-30T04:15:54.497234,user,Como responder en el foro,,manual usuario tecnico estudiantes,open,
+42,141,2026-03-30T04:15:54.497241,assistant,"El progreso puede verse desde el dashboard o dentro de cada modulo. Si completas una actividad pero el porcentaje no cambia de inmediato:
+
+vuelve a entrar al modulo
+regresa al dashboard
+espera unos segundos si acabas de recuperar conexion
+
+En modo offline algunos datos pueden quedar pendientes y mostrarse correctamente solo cuando el sistema logra sincronizar.",1.0,manual usuario tecnico estudiantes,open,
+43,142,2026-03-30T04:22:08.022890,user,No puedo responder las preguntas en el foro,,dashboard,open,
+43,143,2026-03-30T04:22:08.022896,assistant,"Si el dashboard muestra un avance incorrecto, primero verifica si el modulo o unidad sí quedaron completados en su vista interna. Si allí aparece bien pero el dashboard no, puede haber una demora de sincronización o refresco de estado.",1.0,dashboard,open,
+43,144,2026-03-30T04:22:48.652977,user,Donde veo mi foro?,,dashboard,open,
+43,145,2026-03-30T04:22:48.652983,assistant,"El dashboard del estudiante muestra el avance general y suele reflejar el progreso acumulado por modulo. Si el porcentaje no coincide con lo que completaste, entra de nuevo al modulo y luego regresa al dashboard para forzar una actualización visual.",1.0,dashboard,open,
+44,146,2026-04-06T16:07:11.116914,user,como cambio la foto de perfil?,,perfil,open,
+44,147,2026-04-06T16:07:11.116921,assistant,"Para cambiar la foto de perfil, entra a tu perfil de estudiante y busca la sección de datos personales o imagen de perfil. Si aparece el control para subir una imagen, selecciona el archivo y confirma el cambio. Si no ves la opción o la imagen no se actualiza, recarga la página y vuelve a intentarlo.",1.0,perfil,open,
+9,148,2026-04-14T19:54:02.682259,user,Como puedo geenrar un plan de negocios?,,saludo,closed,ia
+9,149,2026-04-14T19:54:02.682264,assistant,"Si en el Plan de Negocio las respuestas, puntos o porcentaje no se guardan correctamente, primero verifica la conexión o espera la sincronización si estabas offline. Si al regresar al dashboard o al módulo el estado sigue incorrecto, se debe reportar como incidencia técnica indicando el módulo y el paso donde ocurrió.",1.0,saludo,closed,ia
+5,150,2026-04-14T19:56:08.242414,user,Como solucionar si la unidad se bloquea?,,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+5,151,2026-04-14T19:56:08.242419,assistant,"Si una unidad no se desbloquea aunque la anterior ya este en 100 por ciento:
+
+regresa a la presentacion del modulo
+vuelve a entrar a la vista de unidades
+confirma que no falte ningun paso final
+
+Si el problema continua, reporta el modulo y la unidad que debia habilitarse.",1.0,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp
+5,152,2026-04-14T19:56:44.765043,system,Caso escalado a WhatsApp para atención manual.,,manual usuario tecnico estudiantes,escalated_whatsapp,whatsapp

@@ -1,0 +1,235 @@
+{
+  "node": "Sabana",
+  "source": "C:\\Users\\USUARIO\\Downloads\\estadisticas_municipios_2026-05-25.xlsx",
+  "output": "C:\\Users\\USUARIO\\Downloads\\Informe_Metricas_nodo_Sabana.docx",
+  "municipality_rows": [
+    {
+      "Municipio": "Guaitarilla",
+      "Estudiantes": 6,
+      "Intentos": 201,
+      "Promedio": 33.5,
+      "Rendimiento": "Alto",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    },
+    {
+      "Municipio": "Imués",
+      "Estudiantes": 9,
+      "Intentos": 306,
+      "Promedio": 34.0,
+      "Rendimiento": "Alto",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    },
+    {
+      "Municipio": "Ospina",
+      "Estudiantes": 1,
+      "Intentos": 33,
+      "Promedio": 33.0,
+      "Rendimiento": "Alto",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    },
+    {
+      "Municipio": "Sapuyes",
+      "Estudiantes": 3,
+      "Intentos": 98,
+      "Promedio": 32.67,
+      "Rendimiento": "Alto",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    },
+    {
+      "Municipio": "Túquerres",
+      "Estudiantes": 15,
+      "Intentos": 678,
+      "Promedio": 45.2,
+      "Rendimiento": "Medio",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    },
+    {
+      "Municipio": "Ricaurte",
+      "Estudiantes": 8,
+      "Intentos": 377,
+      "Promedio": 47.12,
+      "Rendimiento": "Medio",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    },
+    {
+      "Municipio": "Mallama",
+      "Estudiantes": 6,
+      "Intentos": 225,
+      "Promedio": 37.5,
+      "Rendimiento": "Alto",
+      "Finalización": "100,00%",
+      "Asistencia": "100,00%"
+    }
+  ],
+  "total_students": 48,
+  "total_attempts": 1918,
+  "avg_attempts": 39.96,
+  "general_performance": "Alto",
+  "avg_completion": "100,00%",
+  "avg_attendance": "100,00%",
+  "modules": [
+    "Atención al Cliente",
+    "Descubrimiento de Oportunidades",
+    "Finanzas",
+    "Liderazgo",
+    "Marketing Digital",
+    "Marketing y Comercialización",
+    "Modelo de Negocios",
+    "Plan de Inversión",
+    "Proyecto de vida",
+    "Trabajo en Equipo"
+  ],
+  "module_by_muni": [
+    {
+      "Municipio": "Guaitarilla",
+      "Atención al Cliente": 19,
+      "Descubrimiento de Oportunidades": 21,
+      "Finanzas": 21,
+      "Liderazgo": 18,
+      "Marketing Digital": 22,
+      "Marketing y Comercialización": 18,
+      "Modelo de Negocios": 19,
+      "Plan de Inversión": 21,
+      "Proyecto de vida": 21,
+      "Trabajo en Equipo": 21
+    },
+    {
+      "Municipio": "Imués",
+      "Atención al Cliente": 28,
+      "Descubrimiento de Oportunidades": 32,
+      "Finanzas": 31,
+      "Liderazgo": 31,
+      "Marketing Digital": 29,
+      "Marketing y Comercialización": 29,
+      "Modelo de Negocios": 28,
+      "Plan de Inversión": 35,
+      "Proyecto de vida": 28,
+      "Trabajo en Equipo": 35
+    },
+    {
+      "Municipio": "Ospina",
+      "Atención al Cliente": 4,
+      "Descubrimiento de Oportunidades": 4,
+      "Finanzas": 3,
+      "Liderazgo": 3,
+      "Marketing Digital": 4,
+      "Marketing y Comercialización": 3,
+      "Modelo de Negocios": 3,
+      "Plan de Inversión": 3,
+      "Proyecto de vida": 3,
+      "Trabajo en Equipo": 3
+    },
+    {
+      "Municipio": "Sapuyes",
+      "Atención al Cliente": 9,
+      "Descubrimiento de Oportunidades": 9,
+      "Finanzas": 10,
+      "Liderazgo": 12,
+      "Marketing Digital": 11,
+      "Marketing y Comercialización": 9,
+      "Modelo de Negocios": 9,
+      "Plan de Inversión": 9,
+      "Proyecto de vida": 9,
+      "Trabajo en Equipo": 11
+    },
+    {
+      "Municipio": "Túquerres",
+      "Atención al Cliente": 57,
+      "Descubrimiento de Oportunidades": 112,
+      "Finanzas": 60,
+      "Liderazgo": 71,
+      "Marketing Digital": 55,
+      "Marketing y Comercialización": 60,
+      "Modelo de Negocios": 71,
+      "Plan de Inversión": 71,
+      "Proyecto de vida": 60,
+      "Trabajo en Equipo": 61
+    },
+    {
+      "Municipio": "Ricaurte",
+      "Atención al Cliente": 34,
+      "Descubrimiento de Oportunidades": 48,
+      "Finanzas": 37,
+      "Liderazgo": 40,
+      "Marketing Digital": 43,
+      "Marketing y Comercialización": 31,
+      "Modelo de Negocios": 36,
+      "Plan de Inversión": 43,
+      "Proyecto de vida": 28,
+      "Trabajo en Equipo": 37
+    },
+    {
+      "Municipio": "Mallama",
+      "Atención al Cliente": 19,
+      "Descubrimiento de Oportunidades": 22,
+      "Finanzas": 23,
+      "Liderazgo": 18,
+      "Marketing Digital": 34,
+      "Marketing y Comercialización": 25,
+      "Modelo de Negocios": 21,
+      "Plan de Inversión": 19,
+      "Proyecto de vida": 19,
+      "Trabajo en Equipo": 25
+    }
+  ],
+  "module_totals": {
+    "Atención al Cliente": 170,
+    "Descubrimiento de Oportunidades": 248,
+    "Finanzas": 185,
+    "Liderazgo": 193,
+    "Marketing Digital": 198,
+    "Marketing y Comercialización": 175,
+    "Modelo de Negocios": 187,
+    "Plan de Inversión": 201,
+    "Proyecto de vida": 168,
+    "Trabajo en Equipo": 193
+  },
+  "ranking": [
+    [
+      "Descubrimiento de Oportunidades",
+      248
+    ],
+    [
+      "Plan de Inversión",
+      201
+    ],
+    [
+      "Marketing Digital",
+      198
+    ],
+    [
+      "Liderazgo",
+      193
+    ],
+    [
+      "Trabajo en Equipo",
+      193
+    ],
+    [
+      "Modelo de Negocios",
+      187
+    ],
+    [
+      "Finanzas",
+      185
+    ],
+    [
+      "Marketing y Comercialización",
+      175
+    ],
+    [
+      "Atención al Cliente",
+      170
+    ],
+    [
+      "Proyecto de vida",
+      168
+    ]
+  ]
+}

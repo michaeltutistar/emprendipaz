@@ -1,0 +1,73 @@
+{
+  "docx": "C:\\Users\\USUARIO\\Downloads\\Informe_Metricas_nodo_Abades.docx",
+  "exists": true,
+  "size": 10850351,
+  "paragraph_count": 110,
+  "table_count": 4,
+  "image_count": 7,
+  "images": [
+    {
+      "file": "c:\\Users\\USUARIO\\Documents\\e-learning-platform\\analysis_outputs\\abades_word_analysis\\media\\image1.png",
+      "name": "image1.png",
+      "bytes": 151590,
+      "width": 2402,
+      "height": 913,
+      "mode": "RGBA",
+      "format": "PNG"
+    },
+    {
+      "file": "c:\\Users\\USUARIO\\Documents\\e-learning-platform\\analysis_outputs\\abades_word_analysis\\media\\image2.png",
+      "name": "image2.png",
+      "bytes": 133142,
+      "width": 2385,
+      "height": 826,
+      "mode": "RGBA",
+      "format": "PNG"
+    },
+    {
+      "file": "c:\\Users\\USUARIO\\Documents\\e-learning-platform\\analysis_outputs\\abades_word_analysis\\media\\image3.png",
+      "name": "image3.png",
+      "bytes": 137667,
+      "width": 2401,
+      "height": 913,
+      "mode": "RGBA",
+      "format": "PNG"
+    },
+    {
+      "file": "c:\\Users\\USUARIO\\Documents\\e-learning-platform\\analysis_outputs\\abades_word_analysis\\media\\image4.png",
+      "name": "image4.png",
+      "bytes": 118686,
+      "width": 2404,
+      "height": 905,
+      "mode": "RGBA",
+      "format": "PNG"
+    },
+    {
+      "file": "c:\\Users\\USUARIO\\Documents\\e-learning-platform\\analysis_outputs\\abades_word_analysis\\media\\image5.png",
+      "name": "image5.png",
+      "bytes": 203498,
+      "width": 2382,
+      "height": 831,
+      "mode": "RGBA",
+      "format": "PNG"
+    },
+    {
+      "file": "c:\\Users\\USUARIO\\Documents\\e-learning-platform\\analysis_outputs\\abades_word_analysis\\media\\image6.png",
+      "name": "image6.png",
+      "bytes": 227579,
+      "width": 2396,
+      "height": 825,
+      "mode": "RGBA",
+      "format": "PNG"
+    },
+    {
+      "file": "c:\\Users\\USUARIO\\Documents\\e-learning-platform\\analysis_outputs\\abades_word_analysis\\media\\image7.png",
+      "name": "image7.png",
+      "bytes": 92518,
+      "width": 1275,
+      "height": 1650,
+      "mode": "RGBA",
+      "format": "PNG"
+    }
+  ]
+}

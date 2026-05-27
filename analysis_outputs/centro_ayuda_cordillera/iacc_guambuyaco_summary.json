@@ -1,0 +1,32 @@
+{
+  "node": "Guambuyaco",
+  "summary": {
+    "generated_at": "2026-05-25T17:11:30",
+    "tickets_total": 0,
+    "messages_total": 0,
+    "user_messages": 0,
+    "assistant_messages": 0,
+    "system_messages": 0,
+    "closed_total": 0,
+    "open_total": 0,
+    "escalated_whatsapp_total": 0,
+    "ia_resolved_total": 0,
+    "satisfaction_total": 0,
+    "satisfaction_resolved_true": 0,
+    "satisfaction_avg_rating": null,
+    "confidence_avg": null,
+    "confidence_min": null,
+    "confidence_max": null,
+    "history_snapshot_count": 87,
+    "date_min": null,
+    "date_max": null,
+    "by_status": {},
+    "by_channel": {},
+    "by_topic": {},
+    "by_screen": {},
+    "by_municipio": {},
+    "by_day": {},
+    "latest_records": []
+  },
+  "records": []
+}

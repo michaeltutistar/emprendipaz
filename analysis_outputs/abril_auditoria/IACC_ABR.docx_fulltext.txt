@@ -1,0 +1,433 @@
+0019|INFORME DE ATENCIÓN EN CONTAC CENTER
+0020|PLATAFORMA EMPRENDIPAZ
+0021|PERIODO: 01/04/2026 – 30/04-2026
+0042|Tabla de contenido
+0045|Página
+0047|LISTA DE IMÁGENES
+0049|3
+0051|LISTA DE TABLAS
+0053|4
+0055|1. PROPÓSITO Y ALCANCE CONTAC CENTER EMPRENDIPAZ
+0057|5
+0059|2. RESUMEN EJECUTIVO
+0061|5
+0063|3. METODOLOGÍA Y TRAZABILIDAD
+0065|6
+0067|4. RESULTADOS CUANTITATIVOS
+0069|6
+0072|5. ANÁLISIS DE INTERACCIÓN IA
+0073|11
+0076|6. ESCALAMIENTO A WHATSAPP
+0077|11
+0080|7. SATISFACCIÓN Y CIERRE
+0081|12
+0084|8. RECOMENDACIONES
+0085|12
+0088|9. ANEXO: ÚLTIMOS TICKETS ACTUALIZADOS
+0089|13
+0092|10. ANEXO: EVIDENCIAS WHATSAPP RECIBIDAS
+0093|14
+0096|11. REFERENCIAS TÉCNICAS
+0097|20
+0100|12 CONCLUSION GENERAL
+0101|23
+0116|Lista de imágenes
+0120|Página
+0122|Imagen 1. Tickest por estado
+0124|7
+0126|Imagen 2. Tickest por canal final
+0128|8
+0130|Imagen 3. Temas frecuentes
+0132|9
+0135|Imagen 4. Pantalla de origen
+0136|10
+0139|Imagen 5. Evolución de tickets por fecha de creación
+0140|11
+0143|Imagen 6. Evidencia 1 WhatsApp
+0144|17
+0147|Imagen 7. Evidencia 2 WhatsApp
+0148|18
+0151|Imagen 8. Evidencia 2 WhatsApp
+0152|19
+0155|Imagen 9. Evidencia 2 WhatsApp
+0156|20
+0188|Lista de tablas
+0191|Página
+0193|Tabla 1. Resumen
+0196|5
+0199|Tabla 2. Metodología
+0200|5
+0203|Tabla 3. Tickets por estado
+0204|6
+0207|Tabla 4. Tickets por canal final
+0208|7
+0211|Tabla 5. Temas frecuentes
+0212|8
+0215|Tabla 6.  Pantalla de origen
+0216|9
+0219|Tabla 7.  Evaluación temporal
+0220|10
+0223|Tabla 8.  Escalonamiento a WhatsApp
+0224|10
+0227|Tabla  9.  Satisfacción y cierre
+0228|13
+0231|Tabla 10.  Últimos tickest actualizados
+0232|13
+0235|Tabla 11.  Resumen Tickets
+0236|14
+0256|CONTAC CENTER - PLATAFORMA EMPRENDIPAZ
+0257|PERIODO: 01/04/2026 – 30/04-2026
+0259|PROPÓSITO Y ALCANCE CONTAC CENTER - EMPREDIPAZ
+0261|Este informe técnico presenta el estado consolidado de las interacciones registradas en el centro de ayuda de la plataforma EmprendiPaz. El análisis se enfoca en tres componentes principales: (i) la atención inicial gestionada por el asistente de inteligencia artificial, (ii) la caracterización y trazabilidad de los casos escalados al canal de WhatsApp para atención humana, y (iii) la evaluación de la satisfacción del usuario a partir de la retroalimentación recopilada.
+0262|Asimismo, el documento tiene como propósito soportar la presentación del Contact Center de la plataforma EmprendiPaz, considerando su operación en el departamento de Nariño. Se incluyen indicadores clave de desempeño, patrones de uso, tiempos de respuesta y niveles de resolución, con el fin de ofrecer una visión integral que facilite la toma de decisiones, la optimización del servicio y la mejora continua de la experiencia del usuario.
+0263|La fuente primaria de evidencia son los snapshots JSON archivados en S3 bajo support/conversations/latest y support/conversations/history. Estos snapshots contienen el ticket, mensajes registrados, estado, canal final y satisfacción cuando fue reportada.
+0264|Resumen ejecutivo
+0266|Tabla 1.  Resumen
+0267|Tickets analizados
+0268|Mensajes registrados
+0269|Casos WhatsApp
+0270|Satisfacción promedio
+0271|42
+0272|146
+0273|16
+0274|3.91
+0276|Se analizaron 42 tickets y 146 mensajes registrados. Del total, 68 corresponden a respuestas del asistente, 68 a mensajes de usuarios y 10 a eventos del sistema. Se identificaron 16 casos con canal final o escalamiento a WhatsApp, 11 tickets cerrados y 25 tickets abiertos.
+0277|La satisfacción fue reportada en 11 tickets; 9 fueron marcados como resueltos y la calificación promedio fue 3.91/5. La confianza promedio registrada en respuestas del asistente fue 0.898, con valores entre 0.0 y 1.0.
+0278|3. METODOLOGÍA Y TRAZABILIDAD
+0279|Tabla 2. Metodología
+0280|Elemento
+0281|Descripción
+0282|Fuente S3
+0283|s3://elearning-archivos/support/conversations/latest/ y history/
+0284|Snapshots latest
+0285|42
+0286|Snapshots históricos
+0287|87
+0288|Rango de creación
+0289|2026-03-14 17:58 a 2026-04-06 16:06
+0290|Evidencia exportada
+0291|Consolidado_Centro_Ayuda_Empdrendipaz.xlsx y CSV en c:\Users\USUARIO\Documents\e-learning-platform\analysis_outputs\centro_ayuda
+0293|La consolidación utiliza el snapshot latest de cada ticket como estado más reciente y conserva el historial de snapshots como evidencia de trazabilidad del ciclo de vida. La conversación posterior realizada directamente en WhatsApp no está integrada por API en la plataforma; por tanto, el informe registra el evento de escalamiento y el canal final, no el contenido del chat humano externo.
+0294|4. RESULTADOS CUANTITATIVOS
+0295|4.1 Tickets por estado
+0297|Tabla 3. Tickets por estado
+0298|Estado
+0299|Cantidad
+0300|Escalado a WhatsApp
+0301|6
+0302|Abierto
+0303|25
+0304|Cerrado
+0305|11
+0315|Imagen 1. Tickest por estado
+0317|4.2 Tickets por canal final
+0319|Tabla 3. Tickets por canal final
+0320|Canal
+0321|Cantidad
+0322|WhatsApp
+0323|14
+0324|Sin canal final
+0325|25
+0326|IA
+0327|3
+0336|Imagen 2. Tickest por canal final
+0338|4.3 Temas más frecuentes
+0340|Tabla 5. Temas frecuentes
+0341|Tema
+0342|Cantidad
+0343|Manual usuario técnico estudiantes
+0344|20
+0345|Saludo
+0346|6
+0347|Progreso
+0348|3
+0349|Sin tópico
+0350|2
+0351|Acceso / login
+0352|2
+0353|Módulos
+0354|2
+0355|Dashboard
+0356|2
+0357|Sincronización
+0358|1
+0359|Contacto humano
+0360|1
+0361|Plan de negocio técnico
+0362|1
+0367|Imagen 3. Temas frecuentes
+0369|4.4 Pantalla de origen
+0371|Tabla 6.  Pantalla de origen
+0372|Pantalla
+0373|Cantidad
+0374|Foro del estudiante
+0375|19
+0376|Sin pantalla registrada
+0377|15
+0378|Dashboard estudiante
+0379|8
+0389|Imagen 4. Pantalla de origen
+0391|4.5 Evolución temporal
+0393|Tabla 7.  Evaluación temporal
+0394|Fecha
+0395|Tickets creados
+0396|2026-03-14
+0397|5
+0398|2026-03-17
+0399|2
+0400|2026-03-18
+0401|1
+0402|2026-03-19
+0403|5
+0404|2026-03-23
+0405|1
+0406|2026-03-27
+0407|6
+0408|2026-03-28
+0409|7
+0410|2026-03-29
+0411|6
+0412|2026-03-30
+0413|8
+0414|2026-04-06
+0415|1
+0420|Imagen 5. Evolución de tickets por fecha de creación
+0422|5. Análisis de interacción IA
+0423|El asistente de IA funciona como primera línea de soporte operativo: recibe el mensaje inicial, recupera contexto desde la base de conocimiento y documentos de soporte, y genera una respuesta acotada al material disponible. Cada respuesta queda persistida como mensaje del asistente con metadatos de confianza cuando aplican.
+0424|Los temas más frecuentes se concentran en uso técnico de la plataforma, foro, progreso, acceso/login, módulos y dashboard. Esto indica que el centro de ayuda está siendo usado principalmente para resolver dudas de navegación, registro de avance y uso de espacios de interacción del estudiante.
+0425|6. ESCALAMIENTO A WHATSAPP
+0427|Tabla 8.  Escalonamiento a WhatsApp
+0428|Tipo de escalamiento detectado
+0429|Cantidad
+0430|Manual desde widget
+0431|10
+0432|Automático o sugerido por IA
+0433|6
+0434|Marcado como WhatsApp
+0435|0
+0436|Total con evidencia de WhatsApp
+0437|16
+0439|La plataforma registra el momento en que un caso se escala a WhatsApp mediante estado del ticket, canal final y mensajes de sistema o del asistente. El enlace generado usa wa.me con un texto prellenado que incluye el id del ticket, el usuario y el resumen del caso, facilitando trazabilidad manual.
+0440|Nota de auditoría: no se encontró integración bidireccional con WhatsApp, Twilio, Meta Webhooks o WhatsApp Business API. Por ello, el contenido posterior de la conversación humana en WhatsApp no queda registrado dentro de la plataforma. Para auditar ese tramo se requiere una exportación manual del WhatsApp de soporte.
+0441|7. SATISFACCIÓN Y CIERRE
+0443|Tabla  9.  Satisfacción y cierre
+0444|Indicador
+0445|Resultado
+0446|Encuestas registradas
+0447|11
+0448|Marcadas como resueltas
+0449|9
+0450|Calificación promedio
+0451|3.91
+0452|Tickets cerrados
+0453|11
+0455|La muestra de satisfacción es limitada frente al total de tickets; se recomienda incentivar el cierre formal para mejorar la lectura de efectividad real del centro de ayuda.
+0456|8. RECOMENDACIONES
+0457|Crear una vista o exportación administrativa para descargar tickets, mensajes y satisfacción sin depender manualmente de S3.
+0458|Incentivar que estudiantes cierren el caso con encuesta para mejorar métricas de resolución y calidad.
+0459|Etiquetar explícitamente los tickets escalados por baja confianza, por solicitud humana y por botón manual para separar causas de escalamiento.
+0460|Si el seguimiento por WhatsApp debe auditarse, integrar WhatsApp Business API o definir un procedimiento de exportación periódica del chat de soporte.
+0461|Actualizar la base de conocimiento con los temas frecuentes detectados: foro, progreso, módulos, dashboard, acceso y perfil.
+0465|9. ANEXO: ÚLTIMOS TICKETS ACTUALIZADOS
+0467|Tabla 10.  Últimos tickest actualizados
+0468|Ticket
+0469|Última actualización
+0470|Estado
+0471|Tema
+0472|Canal
+0473|Resumen
+0474|5
+0475|2026-04-14 19:56
+0476|Escalado a WhatsApp
+0477|Manual usuario técnico estudiantes
+0478|WhatsApp
+0479|Como solucionar si la unidad se bloquea?
+0480|9
+0481|2026-04-14 19:55
+0482|Cerrado
+0483|Saludo
+0484|IA
+0485|Como puedo geenrar un plan de negocios?
+0486|44
+0487|2026-04-06 16:07
+0488|Abierto
+0489|Perfil
+0490|Sin canal final
+0491|como cambio la foto de perfil?
+0492|43
+0493|2026-03-30 04:22
+0494|Abierto
+0495|Dashboard
+0496|Sin canal final
+0497|Donde veo mi foro?
+0498|42
+0499|2026-03-30 04:15
+0500|Abierto
+0501|Manual usuario técnico estudiantes
+0502|Sin canal final
+0503|Como responder en el foro
+0504|41
+0505|2026-03-30 04:11
+0506|Abierto
+0507|Dashboard
+0508|Sin canal final
+0509|Como borrar mi pregunta
+0510|40
+0511|2026-03-30 04:07
+0512|Cerrado
+0513|Manual usuario técnico estudiantes
+0514|WhatsApp
+0515|Cuando escribo en el foro me aparecere registrada otra fecha de envio, respondi el dia hoy 29 de marzo y me aparece que
+0516|39
+0517|2026-03-30 02:53
+0518|Abierto
+0519|Manual usuario técnico estudiantes
+0520|Sin canal final
+0521|Como elimino una pregunta? Ya que es una respuesta, gracias
+0522|38
+0523|2026-03-30 01:54
+0524|Abierto
+0525|Desbloqueo
+0526|Sin canal final
+0527|Hola buenas noches no me abre ningun recuadro para responder la pregunta del foro
+0528|37
+0529|2026-03-30 01:08
+0530|Abierto
+0531|Manual usuario técnico estudiantes
+0532|Sin canal final
+0533|Hola buenas noches no puedo responder en el foro q puedo hacer
+0535|10. ANEXO: EVIDENCIAS WHATSAPP RECIBIDAS
+0536|El tutor compartió capturas puntuales de conversaciones de WhatsApp asociadas a algunos tickets escalados desde la plataforma. Por tanto, el anexo se limita a las evidencias realmente disponibles y no deja espacios pendientes para soportes no entregados.
+0537|Tickets con captura externa recibida: #5, #10, #30, #31, #40. Los demás casos marcados como WhatsApp se sustentan únicamente con la evidencia interna del ticket: estado, canal final, mensajes de sistema o enlace wa.me generado.
+0539|Tabla 11.  Resumen Tickets
+0540|Ticket
+0541|Fecha
+0542|Estado
+0543|Tema
+0544|Tipo
+0545|Resumen
+0546|Ticket #3
+0547|2026-03-14 17:58
+0548|Escalado a WhatsApp
+0549|Sincronización
+0550|Automático o sugerido por IA
+0551|quién eres
+0552|Ticket #5
+0553|2026-03-14 21:04
+0554|Escalado a WhatsApp
+0555|Manual usuario técnico estudiantes
+0556|Manual desde widget
+0557|Como solucionar si la unidad se bloquea?
+0558|Ticket #8
+0559|2026-03-17 14:48
+0560|Cerrado
+0561|Saludo
+0562|Manual desde widget
+0563|cómo estás
+0564|Ticket #10
+0565|2026-03-18 23:17
+0566|Cerrado
+0567|Sin tópico
+0568|Automático o sugerido por IA
+0569|Muy buenas tardes cordial saludo.
+0570|Ticket #11
+0571|2026-03-19 18:48
+0572|Cerrado
+0573|Sin tópico
+0574|Automático o sugerido por IA
+0575|Muy buenas tardes, cordial saludo
+0576|Ticket #15
+0577|2026-03-19 22:46
+0578|Abierto
+0579|Contacto humano
+0580|Automático o sugerido por IA
+0581|El asistente no me resolvió el problema: ¿cómo hablo con una persona y qué datos debo enviar?
+0582|Ticket #16
+0583|2026-03-23 21:36
+0584|Cerrado
+0585|Manual usuario técnico estudiantes
+0586|Manual desde widget
+0587|Muy buenas tardes, cordial saludo. Necesito por favor me informe, como puedo cambiar el correo electrónico en
+0588|Ticket #20
+0589|2026-03-27 23:27
+0590|Escalado a WhatsApp
+0591|Manual usuario técnico estudiantes
+0592|Manual desde widget
+0593|Ya entre
+0594|Ticket #21
+0595|2026-03-27 23:41
+0596|Cerrado
+0597|Manual usuario técnico estudiantes
+0598|Manual desde widget
+0599|Buenas noches, me puedes decir que debo de  hacer exactamente en este nodo?. Agradeceria me sacara de esta dud
+0600|Ticket #23
+0601|2026-03-28 00:49
+0602|Cerrado
+0603|Saludo
+0604|Automático o sugerido por IA
+0605|Ok
+0606|Ticket #24
+0607|2026-03-28 01:07
+0608|Cerrado
+0609|Saludo
+0610|Automático o sugerido por IA
+0611|Ya lo hice
+0612|Ticket #25
+0613|2026-03-28 01:08
+0614|Cerrado
+0615|Manual usuario técnico estudiantes
+0616|Manual desde widget
+0617|Estaba resolviendo la las preguntas Qué vas a hacer exactamente? 2. ¿Por qué crees que esto le dará un impulso
+0618|Ticket #30
+0619|2026-03-29 00:31
+0620|Escalado a WhatsApp
+0621|Acceso / login
+0622|Manual desde widget
+0623|no quiero cambiar la contraseña, solo quiero participar en el foro
+0624|Ticket #31
+0625|2026-03-29 02:55
+0626|Escalado a WhatsApp
+0627|Saludo
+0628|Manual desde widget
+0629|Hola
+0630|Ticket #32
+0631|2026-03-29 03:08
+0632|Escalado a WhatsApp
+0633|Progreso
+0634|Manual desde widget
+0635|No entiendo
+0636|Ticket #40
+0637|2026-03-30 04:04
+0638|Cerrado
+0639|Manual usuario técnico estudiantes
+0640|Manual desde widget
+0641|Cuando escribo en el foro me aparecere registrada otra fecha de envio, respondi el dia hoy 29 de marzo y me ap
+0643|Evidencia WhatsApp - Ticket(s) #31: Mensaje inicial enviado a WhatsApp con ticket #31, usuario y resumen generado desde la plataforma.
+0644|Resumen interno ticket #31: Hola
+0648|Imagen 6. Evidencia 1 WhatsApp
+0651|Evidencia WhatsApp - Ticket(s) #30: Mensaje inicial enviado a WhatsApp con ticket #30, usuario y resumen del inconveniente en foro.
+0652|Resumen interno ticket #30: no quiero cambiar la contraseña, solo quiero participar en el foro
+0664|Imagen 7. Evidencia 2 WhatsApp
+0667|Evidencia WhatsApp - Ticket(s) #10, #5: Captura de conversación con evidencia del ticket #10 y mensaje inicial del ticket #5.
+0668|Resumen interno ticket #10: Muy buenas tardes cordial saludo.
+0669|Resumen interno ticket #5: Como solucionar si la unidad se bloquea?
+0673|Imagen 8. Evidencia 3 WhatsApp
+0676|Evidencia WhatsApp - Ticket(s) #40: Mensaje inicial enviado a WhatsApp con ticket #40 y captura compartida por la usuaria.
+0677|Resumen interno ticket #40: Cuando escribo en el foro me aparecere registrada otra fecha de envio, respondi el dia hoy 29 de marzo y me aparece que respondi el 30 de marzo
+0681|Imagen 9. Evidencia 4 WhatsApp
+0684|11. REFERENCIAS TÉCNICAS
+0685|frontend/frontend-app/src/components/student/SupportCenterWidget.jsx
+0686|backend/backend-app/src/routes/support.py
+0687|backend/backend-app/src/services/support_service.py
+0688|backend/backend-app/src/models/support_ticket.py
+0689|docs/CENTRO_AYUDA_ARQUITECTURA_AUDITORIA.md
+0690|s3://elearning-archivos/support/conversations/latest/
+0691|s3://elearning-archivos/support/conversations/history/
+0715|12. CONCLUSIÓN GENERAL
+0716|La aplicación de este esquema operativo permitió establecer un flujo organizado de gestión de comunicaciones, en el cual cada etapa desde la consolidación de la base de datos, la validación de la información, la preparación de los mensajes y el envío controlado de las comunicaciones fue desarrollada bajo criterios de planificación, control y trazabilidad. Esto aseguró que cada emprendedor recibiera la información correspondiente sin omisiones, duplicidades o inconsistencias en el contenido transmitido de acuerdo a la petición realizada.
+0717|A partir de la implementación del Contact Center de la plataforma EmprendiPaz y del esquema operativo descrito, se derivan las siguientes conclusiones técnicas complementarias:
+0718|En primer lugar, la estructuración del flujo de gestión de comunicaciones no solo garantizó orden y control, sino que también fortaleció la estandarización de procesos, reduciendo la variabilidad en la atención y asegurando consistencia en la experiencia del usuario independientemente del canal utilizado.
+0719|Asimismo, la integración de etapas claramente definidas permitió mejorar la eficiencia operativa, optimizando el uso de recursos humanos y tecnológicos. Esto se refleja en una disminución de reprocesos, tiempos de respuesta más controlados y una mayor capacidad de atención simultánea.
+0720|Otro aspecto relevante es el fortalecimiento de la trazabilidad de la información, lo cual facilita auditorías, seguimiento de casos y análisis posteriores. Esta capacidad permite identificar cuellos de botella, medir el desempeño del sistema y sustentar decisiones basadas en datos. Adicionalmente, el modelo implementado contribuye a una mejora en la calidad de la comunicación, al asegurar que los mensajes enviados estén alineados con las necesidades específicas de los emprendedores, aumentando la claridad, pertinencia y oportunidad de la información.
+0721|También se evidencia un avance en la gestión de la relación con el usuario, ya que el control sobre las interacciones permite personalizar la atención y generar una mayor confianza en la plataforma, impactando positivamente en los niveles de satisfacción.
+0722|Finalmente, la implementación de este esquema sienta las bases para la escalabilidad del Contact Center, permitiendo incorporar nuevos canales, automatizaciones o funcionalidades sin afectar la coherencia del servicio, lo que resulta clave para la expansión futura en el departamento de Nariño u otras regiones.

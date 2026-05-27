@@ -1,0 +1,141 @@
+{
+  "xlsx": "C:\\Users\\USUARIO\\Downloads\\nuevos datos cordillera.xlsx",
+  "sheets": [
+    {
+      "title": "Resumen por municipio",
+      "max_row": 6,
+      "max_col": 5,
+      "non_empty_rows": 6,
+      "headers": [
+        "Municipio",
+        "Total estudiantes",
+        "Intentos totales",
+        "% finalización módulos",
+        "% asistencia"
+      ],
+      "sample_rows": [
+        [
+          "Cumbitara",
+          5,
+          184,
+          "100%",
+          "100%"
+        ],
+        [
+          "El Rosario",
+          3,
+          99,
+          "100%",
+          "100%"
+        ],
+        [
+          "Leiva",
+          6,
+          200,
+          "100%",
+          "100%"
+        ],
+        [
+          "Policarpa",
+          6,
+          233,
+          "100%",
+          "100%"
+        ],
+        [
+          "Taminango",
+          8,
+          281,
+          "100%",
+          "100%"
+        ]
+      ]
+    },
+    {
+      "title": "Intentos por módulo",
+      "max_row": 6,
+      "max_col": 11,
+      "non_empty_rows": 6,
+      "headers": [
+        "Municipio",
+        "Atención al Cliente",
+        "Descubrimiento de Oportunidades",
+        "Finanzas",
+        "Liderazgo",
+        "Marketing Digital",
+        "Marketing y Comercialización",
+        "Modelo de Negocios",
+        "Plan de Inversión",
+        "Proyecto de vida",
+        "Trabajo en Equipo"
+      ],
+      "sample_rows": [
+        [
+          "Cumbitara",
+          21,
+          15,
+          19,
+          15,
+          21,
+          17,
+          19,
+          20,
+          15,
+          22
+        ],
+        [
+          "El Rosario",
+          9,
+          9,
+          9,
+          9,
+          16,
+          9,
+          9,
+          11,
+          9,
+          9
+        ],
+        [
+          "Leiva",
+          19,
+          22,
+          19,
+          18,
+          21,
+          18,
+          18,
+          24,
+          21,
+          20
+        ],
+        [
+          "Policarpa",
+          20,
+          34,
+          22,
+          26,
+          20,
+          18,
+          25,
+          26,
+          20,
+          22
+        ],
+        [
+          "Taminango",
+          29,
+          27,
+          29,
+          24,
+          39,
+          26,
+          25,
+          31,
+          25,
+          26
+        ]
+      ]
+    }
+  ]
+}
