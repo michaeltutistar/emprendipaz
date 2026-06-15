@@ -1403,16 +1403,27 @@ def get_my_progress(current_user):
                 'Marketing Digital', 'Atención al Cliente', 'Trabajo en Equipo', 'Finanzas', 'Liderazgo'
             ]
             
+            # Señal robusta de plan de negocio completado: el registro "Plan de Negocio"
+            # en LogActividad sobrevive a la sincronización offline aunque los puntos
+            # (PuntosPlanNegocio) se pierdan en el camino. Si existe cualquiera de las
+            # dos señales, el plan se considera hecho (igual criterio que el desbloqueo
+            # de módulos en modulos-disponibles).
+            tiene_log_plan_negocio = any(
+                ('plan de negocio' in (nombre or '').lower() or 'plan negocio' in (nombre or '').lower())
+                for nombre in pasos_completados_nombres
+            )
+
             # Agregar tarjeta "Plan de Negocio" si el módulo tiene plan de negocio con puntos
             if modulo in modulos_con_plan_negocio:
                 mod_key = _canonico_plan_negocio(modulo)
                 puntos_plan = puntos_por_modulo.get(mod_key, 0)
                 fecha_plan = fechas_plan_negocio_por_modulo.get(mod_key)
+                plan_hecho = (puntos_plan > 0) or tiene_log_plan_negocio
                 progreso_pasos.append({
                     'nombre': 'Plan de Negocio',
-                    'completado': puntos_plan > 0,
-                    'porcentaje': 100.0 if puntos_plan > 0 else 0,
-                    'subpasos_completados': 1 if puntos_plan > 0 else 0,
+                    'completado': plan_hecho,
+                    'porcentaje': 100.0 if plan_hecho else 0,
+                    'subpasos_completados': 1 if plan_hecho else 0,
                     'total_subpasos': 1,
                     'fecha': fecha_plan.isoformat() if fecha_plan else None,
                     'intentos': 0,
@@ -1434,7 +1445,7 @@ def get_my_progress(current_user):
             if modulo in modulos_con_plan_negocio:
                 mod_key = _canonico_plan_negocio(modulo)
                 puntos_plan = puntos_por_modulo.get(mod_key, 0)
-                tiene_plan_negocio_completado = puntos_plan > 0
+                tiene_plan_negocio_completado = (puntos_plan > 0) or tiene_log_plan_negocio
             
             # Calcular porcentaje del módulo:
             # - Cada unidad completada = 25%

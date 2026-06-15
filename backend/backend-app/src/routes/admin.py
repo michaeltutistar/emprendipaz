@@ -366,6 +366,112 @@ def reset_user_progress(current_user):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@admin_bp.route('/users/consolidar-progreso', methods=['POST'])
+@token_required
+@admin_required
+def consolidar_progreso_unidades(current_user):
+    """Repara el split-brain de sincronización: cuando una unidad tiene su
+    evaluación registrada en IntentosEvaluacion pero le falta el subpaso
+    'Completó: Unidad N: Evaluación' en LogActividad (queda en 3/4 subpasos),
+    el módulo nunca llega a 100% y bloquea los siguientes.
+
+    Inserta SOLO los LogActividad faltantes de evaluaciones que el estudiante
+    ya intentó. No crea progreso inexistente: requiere evidencia en
+    IntentosEvaluacion. Es idempotente (no duplica registros existentes).
+
+    Body:
+      {"user_id": 3592}                 -> repara automáticamente las unidades elegibles
+      {"email": "correo@ejemplo.com"}    -> idem, identificando por correo
+      {"user_id": 3592, "dry_run": true} -> solo reporta, no escribe
+    """
+    try:
+        import re as _re
+        data = request.get_json() or {}
+        dry_run = bool(data.get('dry_run', False))
+
+        user = None
+        if data.get('user_id') is not None:
+            user = User.query.get(int(data['user_id']))
+        elif data.get('email'):
+            user = User.query.filter_by(email=str(data['email']).strip()).first()
+
+        if not user:
+            return jsonify({'success': False, 'error': 'Usuario no encontrado (envía user_id o email)'}), 404
+        if user.rol not in ('estudiante', 'usuario'):
+            return jsonify({'success': False, 'error': 'Solo aplica a estudiantes'}), 400
+
+        user_id = user.id
+
+        # Intentos de evaluación: (modulo, unidad) -> evidencia de que hizo la evaluación
+        intentos = IntentosEvaluacion.query.filter_by(usuario_id=user_id).all()
+        unidades_con_intento = set()
+        for it in intentos:
+            mod = (it.modulo_nombre or '').strip()
+            m = _re.search(r'Unidad\s+(\d+)', (it.paso_nombre or '') + ' ' + (getattr(it, 'unidad_nombre', '') or ''), _re.IGNORECASE)
+            if mod and m:
+                unidades_con_intento.add((mod, f"Unidad {m.group(1)}"))
+
+        # Subpasos ya completados en LogActividad por (modulo, unidad)
+        modulos_posibles = [
+            'Marketing Digital', 'Marketing y Comercialización', 'Proyecto de vida',
+            'Trabajo en Equipo', 'Descubrimiento de Oportunidades', 'Modelo de Negocios',
+            'Atención al Cliente', 'Finanzas', 'Liderazgo', 'Plan de Inversión'
+        ]
+        logs = LogActividad.query.filter(
+            LogActividad.usuario_id == user_id,
+            LogActividad.accion.like('Completó:%')
+        ).all()
+
+        subpasos_por_unidad = {}
+        for log in logs:
+            paso = (log.accion or '').replace('Completó: ', '').strip()
+            texto = ((log.detalles or '') + ' ' + paso).lower()
+            mod = next((mm for mm in modulos_posibles if mm.lower() in texto), None)
+            m = _re.search(r'Unidad\s+(\d+)', paso, _re.IGNORECASE)
+            if mod and m:
+                key = (mod, f"Unidad {m.group(1)}")
+                subpasos_por_unidad.setdefault(key, set()).add(paso)
+
+        reparaciones = []
+        for (mod, unidad) in sorted(unidades_con_intento):
+            existentes = subpasos_por_unidad.get((mod, unidad), set())
+            # Solo reparar unidades que están exactamente en 3/4 y donde el
+            # subpaso ausente es la Evaluación (los otros 3 ya existen).
+            tiene_evaluacion = any('evaluaci' in s.lower() for s in existentes)
+            if len(existentes) == 3 and not tiene_evaluacion:
+                paso_faltante = f"{unidad}: Evaluación"
+                reparaciones.append({
+                    'modulo': mod,
+                    'unidad': unidad,
+                    'paso_insertado': paso_faltante,
+                    'subpasos_previos': sorted(existentes)
+                })
+                if not dry_run:
+                    detalles = f"Módulo: {mod} | Paso: {paso_faltante} | Origen: consolidación admin"
+                    db.session.add(LogActividad(
+                        usuario_id=user_id,
+                        accion=f"Completó: {paso_faltante}",
+                        detalles=detalles,
+                        fecha=datetime.utcnow()
+                    ))
+
+        if not dry_run and reparaciones:
+            db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'dry_run': dry_run,
+            'user_id': user_id,
+            'email': user.email,
+            'reparaciones': reparaciones,
+            'total_reparado': len(reparaciones)
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @admin_bp.route('/cupos/config', methods=['GET', 'PUT'])
 @token_required
 @admin_required
@@ -752,6 +858,8 @@ def update_user(current_user, user_id):
             user.nombre = data['nombre']
         if 'apellido' in data:
             user.apellido = data['apellido']
+        if 'municipio' in data:
+            user.municipio = data['municipio']
         
         user.fecha_actualizacion = datetime.utcnow()
         
