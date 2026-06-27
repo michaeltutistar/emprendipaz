@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Eye, EyeOff, ArrowLeft, Upload, FileText, X } from 'lucide-react'
 import logoGobernacion from '../assets/logo-gobernacion.png'
 import { MUNICIPIOS_POR_SUBREGION } from '@/constants/municipios'
-
+import API_BASE_URL from '@/config/api'
 const RegisterPage = () => {
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
@@ -215,7 +215,8 @@ const RegisterPage = () => {
       const reader = new FileReader()
       reader.readAsDataURL(file)
       reader.onload = () => {
-        const base64 = reader.result.split(',')[1] // Remover el prefijo data:application/pdf;base64,
+        const base64 = reader.result.split(',')[1] // Remover el prefijo data:application/pdf;
+base64,
         resolve(base64)
       }
       reader.onerror = error => reject(error)
@@ -588,7 +589,7 @@ const RegisterPage = () => {
         submitData.registro_ventas_pdf_nombre = registroVentasPdf.name
       }
 
-      const response = await fetch('/api/register', {
+      const response = await fetch(`${API_BASE_URL}/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1059,8 +1060,7 @@ const RegisterPage = () => {
                 </p>
               </div>
 
-
-              {/* Documentación Diferencial (Subsanable/Opcional) */}
+{/* Documentación Diferencial (Subsanable/Opcional) */}
               <div className="md:col-span-2">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   📋 Documentación Diferencial (Opcional - Subsanable)

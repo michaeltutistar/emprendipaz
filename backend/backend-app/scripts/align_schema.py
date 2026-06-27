@@ -166,4 +166,23 @@ if __name__ == '__main__':
                     fecha TIMESTAMP DEFAULT NOW()
                 )"""
             )
+            # Asegurar tabla de intentos_evaluacion
+            conn.exec_driver_sql(
+                """CREATE TABLE IF NOT EXISTS intentos_evaluacion (
+                    id SERIAL PRIMARY KEY,
+                    usuario_id INTEGER NOT NULL,
+                    modulo_nombre VARCHAR(200) NOT NULL,
+                    unidad_nombre VARCHAR(200) NOT NULL,
+                    paso_nombre VARCHAR(200) NOT NULL,
+                    todas_correctas BOOLEAN DEFAULT FALSE,
+                    fecha_intento TIMESTAMP DEFAULT NOW()
+                )"""
+            )
+            # Crear índices para mejorar las consultas
+            conn.exec_driver_sql(
+                'CREATE INDEX IF NOT EXISTS idx_intentos_usuario_modulo ON intentos_evaluacion(usuario_id, modulo_nombre)'
+            )
+            conn.exec_driver_sql(
+                'CREATE INDEX IF NOT EXISTS idx_intentos_paso ON intentos_evaluacion(paso_nombre)'
+            )
         print('OK: schema user aligned')

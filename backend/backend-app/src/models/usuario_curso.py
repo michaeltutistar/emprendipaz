@@ -16,7 +16,7 @@ class UsuarioCurso(db.Model):
     
     # Relaciones
     user = db.relationship('User', backref='cursos_asignados', lazy=True)
-    curso = db.relationship('Curso', backref='asignaciones', lazy=True)
+    curso = db.relationship('Curso', backref=db.backref('asignaciones', overlaps="curso_rel,usuarios"), lazy=True)
     
     def __repr__(self):
         return f'<UsuarioCurso {self.user_id}-{self.curso_id}: {self.estado}>'

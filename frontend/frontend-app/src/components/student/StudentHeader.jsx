@@ -1,40 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { 
   BookOpen, 
   User, 
   Settings, 
-  LogOut, 
-  Bell, 
-  Search,
-  Menu,
-  X
+  LogOut
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
-import { toast } from 'sonner';
 
-const StudentHeader = ({ title, subtitle, showBackButton = false, backUrl = '/student/dashboard' }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+import { toast } from 'sonner';
+import API_BASE_URL from '@/config/api'
+import { clearLocalSession } from '@/utils/auth-storage';
+
+const StudentHeader = ({
+  title,
+  subtitle,
+  showBackButton = false,
+  backUrl = '/student/dashboard',
+  showUserMenu = true,
+  showFullNameButton = false,
+  userMenuMode = 'full',
+  hideNavigation = false,
+  navigationItemsOverride = null,
+}) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [userName, setUserName] = useState('');
+  const [userFullName, setUserFullName] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!showUserMenu) {
+      setLoading(false);
+      return;
+    }
+
     cargarInformacionUsuario();
-  }, []);
+  }, [showUserMenu]);
 
   const cargarInformacionUsuario = async () => {
     try {
-      const response = await fetch('/api/student/perfil', {
+      const response = await fetch(`${API_BASE_URL}/student/perfil`, {
         credentials: 'include'
       });
       
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setUserName(data.data.nombre);
+          const nombre = data.data.nombre || '';
+          const apellido = data.data.apellido || '';
+          setUserName(nombre);
+          setUserFullName(`${nombre} ${apellido}`.replace(/\s+/g, ' ').trim() || nombre || 'Usuario');
         }
       }
     } catch (error) {
@@ -46,29 +62,35 @@ const StudentHeader = ({ title, subtitle, showBackButton = false, backUrl = '/st
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/logout', {
+      const response = await fetch(`${API_BASE_URL}/logout`, {
         method: 'POST',
         credentials: 'include'
       });
 
       if (response.ok) {
         toast.success('Sesión cerrada exitosamente');
-        navigate('/login');
       } else {
-        toast.error('Error al cerrar sesión');
+        toast.error('No se pudo cerrar sesión en el servidor. Se cerrará localmente.');
       }
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
-      toast.error('Error al cerrar sesión');
+      toast.error('Sin conexión. Se cerrará la sesión localmente.');
+    } finally {
+      // Siempre permitir "cambiar usuario" sin reinstalar, incluso offline/401.
+      clearLocalSession();
+      navigate('/login');
     }
   };
 
-  const navigationItems = [
+  const defaultNavigationItems = [
     { name: 'Dashboard', href: '/student/dashboard', icon: BookOpen },
     { name: 'Mis Cursos', href: '/student/cursos', icon: BookOpen },
     { name: 'Mi Perfil', href: '/student/perfil', icon: User },
     { name: 'Configuración', href: '/student/configuracion', icon: Settings },
   ];
+  const navigationItems = navigationItemsOverride || defaultNavigationItems;
+
+  const displayUserName = showFullNameButton ? userFullName : userName;
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -107,117 +129,110 @@ const StudentHeader = ({ title, subtitle, showBackButton = false, backUrl = '/st
           </div>
 
           {/* Navegación desktop - Estructura fija */}
-          <nav className="hidden lg:flex items-center space-x-6 flex-shrink-0">
+          {!hideNavigation && (
+            <nav className="hidden lg:flex items-center space-x-6 flex-shrink-0">
             {navigationItems.map((item) => {
               const Icon = item.icon;
+              const classes = 'flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors whitespace-nowrap';
+
+              if (item.action === 'logout') {
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={handleLogout}
+                    className={classes}
+                  >
+                    {Icon ? <Icon className="h-4 w-4 mr-2" /> : null}
+                    {item.name}
+                  </button>
+                );
+              }
+
+              if (item.onClick) {
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={item.onClick}
+                    className={classes}
+                  >
+                    {Icon ? <Icon className="h-4 w-4 mr-2" /> : null}
+                    {item.name}
+                  </button>
+                );
+              }
+
               return (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors whitespace-nowrap"
+                  className={classes}
                 >
-                  <Icon className="h-4 w-4 mr-2" />
+                  {Icon ? <Icon className="h-4 w-4 mr-2" /> : null}
                   {item.name}
                 </Link>
               );
             })}
-          </nav>
+            </nav>
+          )}
 
           {/* Acciones del usuario - Estructura fija */}
-          <div className="flex items-center space-x-4 flex-shrink-0">
-            {/* Notificaciones */}
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full text-xs">
-                3
-              </Badge>
-            </Button>
+          {showUserMenu && (
+            <div className="flex items-center space-x-4 flex-shrink-0">
+              {/* Menú de usuario */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center space-x-2"
+                >
+                  <User className="h-5 w-5" />
+                  <span className="hidden sm:block max-w-32 truncate">
+                    {loading ? 'Cargando...' : displayUserName || 'Usuario'}
+                  </span>
+                </Button>
 
-            {/* Búsqueda */}
-            <Button variant="ghost" size="sm">
-              <Search className="h-5 w-5" />
-            </Button>
-
-            {/* Menú de usuario */}
-            <div className="relative">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center space-x-2"
-              >
-                <User className="h-5 w-5" />
-                <span className="hidden sm:block max-w-32 truncate">
-                  {loading ? 'Cargando...' : userName || 'Usuario'}
-                </span>
-              </Button>
-
-              {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border">
-                  <div className="px-4 py-2 text-sm text-gray-500 border-b">
-                    {userName || 'Usuario'}
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border">
+                    {userMenuMode !== 'logout-only' && (
+                      <>
+                        <div className="px-4 py-2 text-sm text-gray-500 border-b">
+                          {displayUserName || 'Usuario'}
+                        </div>
+                        <Link
+                          to="/student/perfil"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <User className="h-4 w-4 mr-2" />
+                          Mi Perfil
+                        </Link>
+                        <Link
+                          to="/student/configuracion"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          Configuración
+                        </Link>
+                        <hr className="my-1" />
+                      </>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Cerrar Sesión
+                    </button>
                   </div>
-                  <Link
-                    to="/student/perfil"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setUserMenuOpen(false)}
-                  >
-                    <User className="h-4 w-4 mr-2" />
-                    Mi Perfil
-                  </Link>
-                  <Link
-                    to="/student/configuracion"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setUserMenuOpen(false)}
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Configuración
-                  </Link>
-                  <hr className="my-1" />
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Cerrar Sesión
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-
-            {/* Menú móvil para navegación */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:hidden"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
-          </div>
+          )}
         </div>
-
-        {/* Menú móvil */}
-        {isMenuOpen && (
-          <div className="lg:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t">
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <Icon className="h-5 w-5 mr-3" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );

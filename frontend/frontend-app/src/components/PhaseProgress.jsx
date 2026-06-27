@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Progress } from './ui/progress'
 import { Badge } from './ui/badge'
-
+import API_BASE_URL from '@/config/api'
 const PhaseProgress = () => {
   const [phaseData, setPhaseData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -16,7 +16,7 @@ const PhaseProgress = () => {
 
   const fetchPhaseStatus = async () => {
     try {
-      const response = await fetch('/api/user/fases/estado', {
+      const response = await fetch(`${API_BASE_URL}/user/fases/estado`, {
         credentials: 'include'
       })
       
@@ -38,7 +38,7 @@ const PhaseProgress = () => {
       const currentPhase = phaseData.fase_actual
       const nextPhase = getNextPhase(currentPhase)
       
-      const response = await fetch('/api/user/fases/avanzar', {
+      const response = await fetch(`${API_BASE_URL}/user/fases/avanzar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -60,7 +60,7 @@ const PhaseProgress = () => {
 
   const completePhase = async () => {
     try {
-      const response = await fetch('/api/user/fases/completar', {
+      const response = await fetch(`${API_BASE_URL}/user/fases/completar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

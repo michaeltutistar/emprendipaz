@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Input } from '../ui/input';
+
 import { Label } from '../ui/label';
+
 import { Textarea } from '../ui/textarea';
+
 import { Badge } from '../ui/badge';
+
 import { Progress } from '../ui/progress';
+
 import { 
   Plus, 
   Edit, 
@@ -24,8 +31,11 @@ import {
   X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 import { toast } from 'sonner';
+
 import InstructorHeader from './InstructorHeader';
+import API_BASE_URL from '@/config/api'
 
 const ModuleManager = () => {
   const [cursos, setCursos] = useState([]);
@@ -71,7 +81,7 @@ const ModuleManager = () => {
       setLoading(true);
       
       // Cargar cursos del instructor
-      const response = await fetch('/api/instructor/cursos', {
+      const response = await fetch(`${API_BASE_URL}/instructor/cursos`, {
         credentials: 'include'
       });
       
@@ -95,7 +105,7 @@ const ModuleManager = () => {
 
   const cargarModulosCurso = async (cursoId) => {
     try {
-      const response = await fetch(`/api/instructor/content/courses/${cursoId}/modules`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/content/courses/${cursoId}/modules`, {
         credentials: 'include'
       });
       
@@ -116,7 +126,7 @@ const ModuleManager = () => {
 
   const cargarLeccionesModulo = async (moduleId) => {
     try {
-      const response = await fetch(`/api/instructor/content/modules/${moduleId}/lessons`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/content/modules/${moduleId}/lessons`, {
         credentials: 'include'
       });
       
@@ -154,7 +164,7 @@ const ModuleManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/instructor/content/courses/${cursoSeleccionado.id}/modules`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/content/courses/${cursoSeleccionado.id}/modules`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -184,7 +194,7 @@ const ModuleManager = () => {
 
   const handleUpdateModule = async () => {
     try {
-      const response = await fetch(`/api/instructor/content/modules/${editingModule.id}`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/content/modules/${editingModule.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -219,7 +229,7 @@ const ModuleManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/instructor/content/modules/${moduleId}`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/content/modules/${moduleId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -252,7 +262,7 @@ const ModuleManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/instructor/content/modules/${moduloSeleccionado.id}/lessons`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/content/modules/${moduloSeleccionado.id}/lessons`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -291,7 +301,7 @@ const ModuleManager = () => {
 
   const handleUpdateLesson = async () => {
     try {
-      const response = await fetch(`/api/instructor/content/lessons/${editingLesson.id}`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/content/lessons/${editingLesson.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -335,7 +345,7 @@ const ModuleManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/instructor/content/lessons/${lessonId}`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/content/lessons/${lessonId}`, {
         method: 'DELETE',
         credentials: 'include'
       });

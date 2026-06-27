@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Badge } from '../ui/badge';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+
 import { Textarea } from '../ui/textarea';
+
 import { Label } from '../ui/label';
+
 import { 
     FileText, 
     Download, 
@@ -15,6 +21,7 @@ import {
     Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
+import API_BASE_URL from '@/config/api'
 
 const EvidenceManagementFixed = () => {
     const [evidencias, setEvidencias] = useState([]);
@@ -37,7 +44,7 @@ const EvidenceManagementFixed = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/evidencias', { 
+            const response = await fetch(`${API_BASE_URL}/evidencias`, { 
                 credentials: 'include' 
             });
             
@@ -57,7 +64,7 @@ const EvidenceManagementFixed = () => {
 
     const fetchEstadisticas = async () => {
         try {
-            const response = await fetch('/api/evidencias/estadisticas', { credentials: 'include' });
+            const response = await fetch(`${API_BASE_URL}/evidencias/estadisticas`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 setEstadisticas(data);
@@ -78,7 +85,7 @@ const EvidenceManagementFixed = () => {
         if (!evidenciaSeleccionada) return;
 
         try {
-            const response = await fetch(`/api/evidencias/${evidenciaSeleccionada.id}`, {
+            const response = await fetch(`${API_BASE_URL}/evidencias/${evidenciaSeleccionada.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -104,7 +111,7 @@ const EvidenceManagementFixed = () => {
 
     const downloadArchivo = async (evidenciaId, numero) => {
         try {
-            const response = await fetch(`/api/evidencias/${evidenciaId}/archivo/${numero}`, {
+            const response = await fetch(`${API_BASE_URL}/evidencias/${evidenciaId}/archivo/${numero}`, {
                 credentials: 'include'
             });
             

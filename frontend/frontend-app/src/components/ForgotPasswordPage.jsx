@@ -8,13 +8,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ArrowLeft, Mail } from 'lucide-react'
 import logoGobernacion from '../assets/logo-gobernacion.png'
 import logoGov from '../assets/logo-gov.png'
-
+import API_BASE_URL from '@/config/api'
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('')
   const [errors, setErrors] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
-  const [resetToken, setResetToken] = useState('')
 
   const validateEmail = (email) => {
     const pattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
@@ -46,7 +45,7 @@ const ForgotPasswordPage = () => {
     setSuccessMessage('')
 
     try {
-      const response = await fetch('/api/forgot-password', {
+      const response = await fetch(`${API_BASE_URL}/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -155,7 +154,6 @@ const ForgotPasswordPage = () => {
               </form>
             ) : (
               <div className="space-y-4">
-                {/* Mensaje de éxito */}
                 <Alert className="border-green-200 bg-green-50">
                   <Mail className="h-4 w-4" />
                   <AlertDescription className="text-green-800">
@@ -163,30 +161,9 @@ const ForgotPasswordPage = () => {
                   </AlertDescription>
                 </Alert>
 
-                {/* Token de desarrollo */}
-                {resetToken && (
-                  <div className="space-y-4">
-                    <Alert className="border-blue-200 bg-blue-50">
-                      <AlertDescription className="text-blue-800">
-                        <strong>Token de recuperación (solo para desarrollo):</strong>
-                        <br />
-                        <code className="bg-blue-100 px-2 py-1 rounded text-sm">{resetToken}</code>
-                      </AlertDescription>
-                    </Alert>
-                    
-                    <Link to={`/reset-password?token=${resetToken}`}>
-                      <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                        Usar Token para Restablecer Contraseña
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-
-                {/* Instrucciones */}
                 <div className="text-center space-y-4">
                   <p className="text-sm text-gray-600">
-                    Si el correo electrónico existe en nuestro sistema, recibirás un enlace 
-                    para restablecer tu contraseña en los próximos minutos.
+                    Revisa tu bandeja de entrada y la carpeta de spam. El enlace expira en 1 hora.
                   </p>
                   
                   <div className="space-y-2">
@@ -195,7 +172,6 @@ const ForgotPasswordPage = () => {
                       variant="outline"
                       onClick={() => {
                         setSuccessMessage('')
-                        setResetToken('')
                         setEmail('')
                       }}
                       className="w-full"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { Search, Filter, Download, Users, CheckCircle, Clock, AlertCircle, ArrowRight, Calendar } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -6,7 +6,7 @@ import { Input } from '../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Badge } from '../ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
-
+import API_BASE_URL from '@/config/api'
 const PhaseManagement = () => {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -21,7 +21,7 @@ const PhaseManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
         credentials: 'include'
       })
       
@@ -38,7 +38,7 @@ const PhaseManagement = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/admin/stats/phases', {
+      const response = await fetch(`${API_BASE_URL}/admin/stats/phases`, {
         credentials: 'include'
       })
       
@@ -53,7 +53,7 @@ const PhaseManagement = () => {
 
   const updateUserPhase = async (userId, newPhase) => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/phase`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/phase`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -76,7 +76,7 @@ const PhaseManagement = () => {
 
   const exportPhaseReport = async () => {
     try {
-      const response = await fetch('/api/admin/export/phases', {
+      const response = await fetch(`${API_BASE_URL}/admin/export/phases`, {
         credentials: 'include'
       })
 

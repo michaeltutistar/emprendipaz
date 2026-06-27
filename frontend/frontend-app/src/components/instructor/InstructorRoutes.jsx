@@ -6,6 +6,8 @@ import ModuleManager from './ModuleManager';
 import ContentScheduler from './ContentScheduler';
 import CourseManager from './CourseManager';
 import StudentProgress from './StudentProgress';
+import InstructorNodeForumPage from './InstructorNodeForumPage';
+import PlanNegociosPage from '../student/PlanNegociosPage';
 
 const InstructorRoutes = () => {
   return (
@@ -32,6 +34,12 @@ const InstructorRoutes = () => {
       
       {/* Progreso de estudiantes */}
       <Route path="/estudiantes/:cursoId" element={<StudentProgress />} />
+
+      {/* Foro por nodos */}
+      <Route path="/foro" element={<InstructorNodeForumPage />} />
+
+      {/* Vista interna para imprimir el plan de negocio con el mismo formato del estudiante */}
+      <Route path="/plan-estudiante/:estudianteId" element={<PlanNegociosPage />} />
       
       {/* Ruta por defecto */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

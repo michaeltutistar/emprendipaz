@@ -28,3 +28,10 @@ from .formulario_campo import FormularioCampo
 from .criterio_evaluacion_config import CriterioEvaluacionConfig
 from .cupos_municipio_config import CuposMunicipioConfig
 from .documento_config import DocumentoConfig
+from .intentos_evaluacion import IntentosEvaluacion
+from .asistencia_jornada import AsistenciaJornada
+from .puntos_plan_negocio import PuntosPlanNegocio
+from .respuestas_plan_negocio import RespuestasPlanNegocio
+from .landing_banner import LandingBanner
+from .support_ticket import SupportTicket, SupportTicketMessage, SupportTicketSatisfaction
+from .node_forum import NodeForumThread, NodeForumReply

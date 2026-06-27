@@ -1,0 +1,206 @@
+{
+  "node": "Cordillera",
+  "municipios": 5,
+  "total_students": 28,
+  "total_attempts": 997,
+  "avg_attempts": 35.61,
+  "general_performance": "Alto",
+  "completion": "100%",
+  "attendance": "100%",
+  "municipality_rows": [
+    {
+      "Municipio": "Cumbitara",
+      "Total estudiantes": 5,
+      "Intentos totales": 184,
+      "% finalización módulos": "100%",
+      "% asistencia": "100%",
+      "Promedio intentos / Est.": 36.8,
+      "Rendimiento seg?n intentos": "Alto"
+    },
+    {
+      "Municipio": "El Rosario",
+      "Total estudiantes": 3,
+      "Intentos totales": 99,
+      "% finalización módulos": "100%",
+      "% asistencia": "100%",
+      "Promedio intentos / Est.": 33.0,
+      "Rendimiento seg?n intentos": "Alto"
+    },
+    {
+      "Municipio": "Leiva",
+      "Total estudiantes": 6,
+      "Intentos totales": 200,
+      "% finalización módulos": "100%",
+      "% asistencia": "100%",
+      "Promedio intentos / Est.": 33.33,
+      "Rendimiento seg?n intentos": "Alto"
+    },
+    {
+      "Municipio": "Policarpa",
+      "Total estudiantes": 6,
+      "Intentos totales": 233,
+      "% finalización módulos": "100%",
+      "% asistencia": "100%",
+      "Promedio intentos / Est.": 38.83,
+      "Rendimiento seg?n intentos": "Alto"
+    },
+    {
+      "Municipio": "Taminango",
+      "Total estudiantes": 8,
+      "Intentos totales": 281,
+      "% finalización módulos": "100%",
+      "% asistencia": "100%",
+      "Promedio intentos / Est.": 35.12,
+      "Rendimiento seg?n intentos": "Alto"
+    }
+  ],
+  "module_totals": {
+    "Atención al Cliente": 98,
+    "Descubrimiento de Oportunidades": 107,
+    "Finanzas": 98,
+    "Liderazgo": 92,
+    "Marketing Digital": 117,
+    "Marketing y Comercialización": 88,
+    "Modelo de Negocios": 96,
+    "Plan de Inversión": 112,
+    "Proyecto de vida": 90,
+    "Trabajo en Equipo": 99
+  },
+  "module_ranking": [
+    [
+      "Marketing Digital",
+      117
+    ],
+    [
+      "Plan de Inversión",
+      112
+    ],
+    [
+      "Descubrimiento de Oportunidades",
+      107
+    ],
+    [
+      "Trabajo en Equipo",
+      99
+    ],
+    [
+      "Atención al Cliente",
+      98
+    ],
+    [
+      "Finanzas",
+      98
+    ],
+    [
+      "Modelo de Negocios",
+      96
+    ],
+    [
+      "Liderazgo",
+      92
+    ],
+    [
+      "Proyecto de vida",
+      90
+    ],
+    [
+      "Marketing y Comercialización",
+      88
+    ]
+  ],
+  "hardest": [
+    [
+      "Marketing Digital",
+      117
+    ],
+    [
+      "Plan de Inversión",
+      112
+    ],
+    [
+      "Descubrimiento de Oportunidades",
+      107
+    ]
+  ],
+  "easiest": [
+    [
+      "Liderazgo",
+      92
+    ],
+    [
+      "Proyecto de vida",
+      90
+    ],
+    [
+      "Marketing y Comercialización",
+      88
+    ]
+  ],
+  "by_municipality_module": [
+    {
+      "Municipio": "Cumbitara",
+      "Atención al Cliente": 21,
+      "Descubrimiento de Oportunidades": 15,
+      "Finanzas": 19,
+      "Liderazgo": 15,
+      "Marketing Digital": 21,
+      "Marketing y Comercialización": 17,
+      "Modelo de Negocios": 19,
+      "Plan de Inversión": 20,
+      "Proyecto de vida": 15,
+      "Trabajo en Equipo": 22
+    },
+    {
+      "Municipio": "El Rosario",
+      "Atención al Cliente": 9,
+      "Descubrimiento de Oportunidades": 9,
+      "Finanzas": 9,
+      "Liderazgo": 9,
+      "Marketing Digital": 16,
+      "Marketing y Comercialización": 9,
+      "Modelo de Negocios": 9,
+      "Plan de Inversión": 11,
+      "Proyecto de vida": 9,
+      "Trabajo en Equipo": 9
+    },
+    {
+      "Municipio": "Leiva",
+      "Atención al Cliente": 19,
+      "Descubrimiento de Oportunidades": 22,
+      "Finanzas": 19,
+      "Liderazgo": 18,
+      "Marketing Digital": 21,
+      "Marketing y Comercialización": 18,
+      "Modelo de Negocios": 18,
+      "Plan de Inversión": 24,
+      "Proyecto de vida": 21,
+      "Trabajo en Equipo": 20
+    },
+    {
+      "Municipio": "Policarpa",
+      "Atención al Cliente": 20,
+      "Descubrimiento de Oportunidades": 34,
+      "Finanzas": 22,
+      "Liderazgo": 26,
+      "Marketing Digital": 20,
+      "Marketing y Comercialización": 18,
+      "Modelo de Negocios": 25,
+      "Plan de Inversión": 26,
+      "Proyecto de vida": 20,
+      "Trabajo en Equipo": 22
+    },
+    {
+      "Municipio": "Taminango",
+      "Atención al Cliente": 29,
+      "Descubrimiento de Oportunidades": 27,
+      "Finanzas": 29,
+      "Liderazgo": 24,
+      "Marketing Digital": 39,
+      "Marketing y Comercialización": 26,
+      "Modelo de Negocios": 25,
+      "Plan de Inversión": 31,
+      "Proyecto de vida": 25,
+      "Trabajo en Equipo": 26
+    }
+  ]
+}

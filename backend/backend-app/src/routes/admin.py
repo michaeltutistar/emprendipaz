@@ -1,14 +1,23 @@
-from flask import Blueprint, jsonify, request, session, send_file  # pyright: ignore[reportMissingImports]
-from src.models import db, User, Curso, Inscripcion, LogActividad, CuposConfig, MunicipioCupo, Notificacion
+from flask import Blueprint, jsonify, request, session, send_file, make_response  # pyright: ignore[reportMissingImports]
+from sqlalchemy import or_
+from src.models import db, User, Curso, Inscripcion, LogActividad, CuposConfig, MunicipioCupo, Notificacion, LandingBanner
+from src.models.intentos_evaluacion import IntentosEvaluacion
+from src.models.puntos_plan_negocio import PuntosPlanNegocio
+from src.models.respuestas_plan_negocio import RespuestasPlanNegocio
+from src.models.asistencia_jornada import AsistenciaJornada
 from src.models.formulario_campo import FormularioCampo
 from src.models.criterio_evaluacion_config import CriterioEvaluacionConfig
 from src.models.cupos_municipio_config import CuposMunicipioConfig
 from src.models.documento_config import DocumentoConfig
 from src.services.auth_service import token_required, admin_required, admin_or_evaluador_required
+from src.services.student_municipio_service import get_preferred_municipio
+from src.services.s3_service import S3Service
 from datetime import datetime, timedelta
 import csv
 import io
 import tempfile
+import base64
+import binascii
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -17,11 +26,93 @@ admin_bp = Blueprint('admin', __name__)
 
 # Decorador personalizado eliminado - usando decoradores directos
 
+
+def _extract_json_payload(flask_response):
+    if isinstance(flask_response, tuple):
+        response = flask_response[0]
+    else:
+        response = flask_response
+    return response.get_json(silent=True) or {}
+
+
+def _build_municipios_summary(progreso_estudiantes):
+    grupos = {}
+
+    for progreso in progreso_estudiantes or []:
+        estudiante_id = progreso.get('estudiante_id')
+        estudiante_nombre = progreso.get('estudiante')
+        municipio = get_preferred_municipio(estudiante_id, estudiante_nombre, progreso.get('municipio')) or 'Sin municipio'
+        if municipio == 'Sin municipio':
+            continue
+
+        grupos.setdefault(municipio, []).append(progreso)
+
+    resumen = []
+    for municipio, estudiantes in sorted(grupos.items(), key=lambda item: item[0]):
+        total_estudiantes = len(estudiantes)
+        intentos_totales = 0
+        suma_porcentaje_completado = 0
+        jornadas_marcadas_total = 0
+
+        for progreso in estudiantes:
+            modulos = progreso.get('modulos') or [progreso]
+            for modulo_data in modulos:
+                progreso_pasos = modulo_data.get('progreso_pasos') or progreso.get('progreso_pasos') or []
+                intentos_totales += sum((paso.get('intentos') or 0) for paso in progreso_pasos)
+
+            suma_porcentaje_completado += progreso.get('porcentaje_total') or progreso.get('porcentaje') or 0
+            jornadas = progreso.get('jornadas') or {}
+            jornadas_marcadas_total += sum(1 for value in jornadas.values() if value)
+
+        pct_completado = round((suma_porcentaje_completado / total_estudiantes), 2) if total_estudiantes > 0 else 0
+        max_jornadas = total_estudiantes * 10
+        pct_asistencia = round((jornadas_marcadas_total / max_jornadas) * 100, 2) if max_jornadas > 0 else 0
+
+        resumen.append({
+            'municipio': municipio,
+            'total_estudiantes': total_estudiantes,
+            'intentos_totales': intentos_totales,
+            'pct_finalizacion_modulos': pct_completado,
+            'pct_asistencia': pct_asistencia,
+        })
+
+    return resumen
+
+
+def _ensure_landing_banners_table():
+    LandingBanner.__table__.create(bind=db.engine, checkfirst=True)
+
+
+def _parse_image_data_url(image_data_url):
+    if not image_data_url or not isinstance(image_data_url, str):
+        return None, None, 'La imagen es obligatoria'
+
+    if ';base64,' not in image_data_url:
+        return None, None, 'Formato de imagen inválido'
+
+    header, encoded = image_data_url.split(';base64,', 1)
+    if not header.startswith('data:image/'):
+        return None, None, 'Solo se permiten imágenes JPG, PNG o WEBP'
+
+    content_type = header.replace('data:', '', 1).strip().lower()
+    if content_type not in {'image/png', 'image/jpeg', 'image/jpg', 'image/webp'}:
+        return None, None, 'Solo se permiten imágenes JPG, PNG o WEBP'
+
+    try:
+        image_bytes = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error):
+        return None, None, 'No se pudo decodificar la imagen'
+
+    if not image_bytes:
+        return None, None, 'La imagen está vacía'
+
+    return image_bytes, content_type, None
+
 @admin_bp.route('/dashboard/metrics', methods=['GET'])
 @token_required
 @admin_required
 def get_dashboard_metrics(current_user):
-    """Obtener métricas generales del dashboard"""
+    """Obtener mÃ©tricas generales del dashboard"""
     try:
         # Total de usuarios registrados
         total_usuarios = User.query.count()
@@ -44,12 +135,18 @@ def get_dashboard_metrics(current_user):
         total_inscripciones = 0
         inscripciones_activas = 0
         
-        # Usuarios registrados en los últimos 30 días
+        # Usuarios registrados en los Ãºltimos 30 dÃ­as
         fecha_limite = datetime.utcnow() - timedelta(days=30)
         nuevos_usuarios = User.query.filter(User.fecha_creacion >= fecha_limite).count()
         
-        # Actividad reciente (simulado por ahora)
-        actividad_reciente = 0
+        municipios_resumen = []
+        try:
+            from src.routes.instructor import get_progreso_estudiantes
+            progreso_payload = _extract_json_payload(get_progreso_estudiantes.__wrapped__.__wrapped__(current_user))
+            progreso_estudiantes = progreso_payload.get('progreso_estudiantes') or []
+            municipios_resumen = _build_municipios_summary(progreso_estudiantes)
+        except Exception as resumen_error:
+            print(f"Error generando resumen por municipio para admin: {resumen_error}")
         
         return jsonify({
             'usuarios': {
@@ -72,13 +169,307 @@ def get_dashboard_metrics(current_user):
                 'total': total_inscripciones,
                 'activas': inscripciones_activas
             },
-            'actividad': {
-                'ultimos_7_dias': actividad_reciente
-            }
+            'municipios_resumen': municipios_resumen
         }), 200
         
     except Exception as e:
-        return jsonify({'error': f'Error al obtener métricas: {str(e)}'}), 500
+        return jsonify({'error': f'Error al obtener mÃ©tricas: {str(e)}'}), 500
+
+
+@admin_bp.route('/landing-banners/public', methods=['GET'])
+def get_public_landing_banners():
+    try:
+        _ensure_landing_banners_table()
+        s3_service = S3Service()
+        banners = LandingBanner.query.filter_by(is_active=True).order_by(LandingBanner.created_at.asc()).all()
+        return jsonify({
+            'success': True,
+            'banners': [banner.to_dict(s3_service=s3_service) for banner in banners]
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error al obtener banners: {str(e)}'}), 500
+
+
+@admin_bp.route('/landing-banners', methods=['GET'])
+@token_required
+@admin_required
+def get_landing_banners(current_user):
+    try:
+        _ensure_landing_banners_table()
+        s3_service = S3Service()
+        banners = LandingBanner.query.order_by(LandingBanner.created_at.desc()).all()
+        return jsonify({
+            'success': True,
+            'banners': [banner.to_dict(s3_service=s3_service) for banner in banners]
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error al obtener banners: {str(e)}'}), 500
+
+
+@admin_bp.route('/landing-banners', methods=['POST'])
+@token_required
+@admin_required
+def create_landing_banner(current_user):
+    try:
+        _ensure_landing_banners_table()
+        data = request.get_json(silent=True) or {}
+
+        title = (data.get('title') or '').strip()
+        body = (data.get('body') or '').strip()
+        image_filename = (data.get('image_filename') or 'banner.png').strip() or 'banner.png'
+        image_data_url = data.get('image_data_url')
+
+        if not title:
+            return jsonify({'success': False, 'error': 'El título es obligatorio'}), 400
+        if not body:
+            return jsonify({'success': False, 'error': 'El texto es obligatorio'}), 400
+
+        image_bytes, content_type, image_error = _parse_image_data_url(image_data_url)
+        if image_error:
+            return jsonify({'success': False, 'error': image_error}), 400
+
+        s3_service = S3Service()
+        image_key = s3_service.upload_file_data(
+            image_bytes,
+            current_user.id,
+            'landing-banners',
+            image_filename,
+            subfolder='landing'
+        )
+        if not image_key:
+            return jsonify({'success': False, 'error': 'No se pudo subir la imagen del banner'}), 500
+
+        banner = LandingBanner(
+            title=title,
+            body=body,
+            image_s3_key=image_key,
+            image_filename=image_filename[:255],
+            image_content_type=content_type,
+            is_active=True,
+            created_by=current_user.id,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(banner)
+        db.session.commit()
+
+        try:
+            db.session.add(LogActividad(
+                usuario_id=current_user.id,
+                accion='banner_landing_creado',
+                detalles=f'Banner #{banner.id}: {title[:120]}'
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        return jsonify({
+            'success': True,
+            'message': 'Banner creado exitosamente',
+            'banner': banner.to_dict(s3_service=s3_service)
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'Error al crear banner: {str(e)}'}), 500
+
+
+@admin_bp.route('/landing-banners/<int:banner_id>', methods=['DELETE'])
+@token_required
+@admin_required
+def delete_landing_banner(current_user, banner_id):
+    try:
+        _ensure_landing_banners_table()
+        banner = LandingBanner.query.get(banner_id)
+        if not banner:
+            return jsonify({'success': False, 'error': 'Banner no encontrado'}), 404
+
+        s3_deleted = True
+        if banner.image_s3_key:
+            s3_service = S3Service()
+            s3_deleted = s3_service.delete_file(banner.image_s3_key)
+
+        banner_title = banner.title
+        db.session.delete(banner)
+        db.session.commit()
+
+        try:
+            db.session.add(LogActividad(
+                usuario_id=current_user.id,
+                accion='banner_landing_eliminado',
+                detalles=f'Banner #{banner_id}: {banner_title[:120]}'
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        return jsonify({
+            'success': True,
+            'message': 'Banner eliminado exitosamente',
+            's3_deleted': s3_deleted
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'Error al eliminar banner: {str(e)}'}), 500
+
+
+@admin_bp.route('/users/reset-progress', methods=['POST'])
+@token_required
+@admin_required
+def reset_user_progress(current_user):
+    """Resetear progreso de un estudiante a cero (para usuarios de prueba).
+    Elimina: LogActividad (Completó/leccion_completada), IntentosEvaluacion,
+    PuntosPlanNegocio, RespuestasPlanNegocio, AsistenciaJornada."""
+    try:
+        data = request.get_json() or {}
+        email = (data.get('email') or '').strip()
+        if not email:
+            return jsonify({'success': False, 'error': 'Se requiere email en el body'}), 400
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return jsonify({'success': False, 'error': f'Usuario con email {email} no encontrado'}), 404
+
+        if user.rol not in ('estudiante', 'usuario'):
+            return jsonify({'success': False, 'error': 'Solo se puede resetear progreso de estudiantes'}), 400
+
+        user_id = user.id
+        deleted = {
+            'log_actividad': 0,
+            'intentos_evaluacion': 0,
+            'puntos_plan_negocio': 0,
+            'respuestas_plan_negocio': 0,
+            'asistencia_jornada': 0,
+        }
+
+        deleted['log_actividad'] = LogActividad.query.filter(
+            LogActividad.usuario_id == user_id,
+            or_(
+                LogActividad.accion.like('Completó:%'),
+                LogActividad.accion == 'leccion_completada'
+            )
+        ).delete(synchronize_session=False)
+
+        deleted['intentos_evaluacion'] = IntentosEvaluacion.query.filter_by(usuario_id=user_id).delete(synchronize_session=False)
+        deleted['puntos_plan_negocio'] = PuntosPlanNegocio.query.filter_by(usuario_id=user_id).delete(synchronize_session=False)
+        deleted['respuestas_plan_negocio'] = RespuestasPlanNegocio.query.filter_by(usuario_id=user_id).delete(synchronize_session=False)
+        deleted['asistencia_jornada'] = AsistenciaJornada.query.filter_by(estudiante_id=user_id).delete(synchronize_session=False)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Progreso de {email} reseteado a cero',
+            'deleted': deleted
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_bp.route('/users/consolidar-progreso', methods=['POST'])
+@token_required
+@admin_required
+def consolidar_progreso_unidades(current_user):
+    """Repara el split-brain de sincronización: cuando una unidad tiene su
+    evaluación registrada en IntentosEvaluacion pero le falta el subpaso
+    'Completó: Unidad N: Evaluación' en LogActividad (queda en 3/4 subpasos),
+    el módulo nunca llega a 100% y bloquea los siguientes.
+
+    Inserta SOLO los LogActividad faltantes de evaluaciones que el estudiante
+    ya intentó. No crea progreso inexistente: requiere evidencia en
+    IntentosEvaluacion. Es idempotente (no duplica registros existentes).
+
+    Body:
+      {"user_id": 3592}                 -> repara automáticamente las unidades elegibles
+      {"email": "correo@ejemplo.com"}    -> idem, identificando por correo
+      {"user_id": 3592, "dry_run": true} -> solo reporta, no escribe
+    """
+    try:
+        import re as _re
+        data = request.get_json() or {}
+        dry_run = bool(data.get('dry_run', False))
+
+        user = None
+        if data.get('user_id') is not None:
+            user = User.query.get(int(data['user_id']))
+        elif data.get('email'):
+            user = User.query.filter_by(email=str(data['email']).strip()).first()
+
+        if not user:
+            return jsonify({'success': False, 'error': 'Usuario no encontrado (envía user_id o email)'}), 404
+        if user.rol not in ('estudiante', 'usuario'):
+            return jsonify({'success': False, 'error': 'Solo aplica a estudiantes'}), 400
+
+        user_id = user.id
+
+        # Intentos de evaluación: (modulo, unidad) -> evidencia de que hizo la evaluación
+        intentos = IntentosEvaluacion.query.filter_by(usuario_id=user_id).all()
+        unidades_con_intento = set()
+        for it in intentos:
+            mod = (it.modulo_nombre or '').strip()
+            m = _re.search(r'Unidad\s+(\d+)', (it.paso_nombre or '') + ' ' + (getattr(it, 'unidad_nombre', '') or ''), _re.IGNORECASE)
+            if mod and m:
+                unidades_con_intento.add((mod, f"Unidad {m.group(1)}"))
+
+        # Subpasos ya completados en LogActividad por (modulo, unidad)
+        modulos_posibles = [
+            'Marketing Digital', 'Marketing y Comercialización', 'Proyecto de vida',
+            'Trabajo en Equipo', 'Descubrimiento de Oportunidades', 'Modelo de Negocios',
+            'Atención al Cliente', 'Finanzas', 'Liderazgo', 'Plan de Inversión'
+        ]
+        logs = LogActividad.query.filter(
+            LogActividad.usuario_id == user_id,
+            LogActividad.accion.like('Completó:%')
+        ).all()
+
+        subpasos_por_unidad = {}
+        for log in logs:
+            paso = (log.accion or '').replace('Completó: ', '').strip()
+            texto = ((log.detalles or '') + ' ' + paso).lower()
+            mod = next((mm for mm in modulos_posibles if mm.lower() in texto), None)
+            m = _re.search(r'Unidad\s+(\d+)', paso, _re.IGNORECASE)
+            if mod and m:
+                key = (mod, f"Unidad {m.group(1)}")
+                subpasos_por_unidad.setdefault(key, set()).add(paso)
+
+        reparaciones = []
+        for (mod, unidad) in sorted(unidades_con_intento):
+            existentes = subpasos_por_unidad.get((mod, unidad), set())
+            # Solo reparar unidades que están exactamente en 3/4 y donde el
+            # subpaso ausente es la Evaluación (los otros 3 ya existen).
+            tiene_evaluacion = any('evaluaci' in s.lower() for s in existentes)
+            if len(existentes) == 3 and not tiene_evaluacion:
+                paso_faltante = f"{unidad}: Evaluación"
+                reparaciones.append({
+                    'modulo': mod,
+                    'unidad': unidad,
+                    'paso_insertado': paso_faltante,
+                    'subpasos_previos': sorted(existentes)
+                })
+                if not dry_run:
+                    detalles = f"Módulo: {mod} | Paso: {paso_faltante} | Origen: consolidación admin"
+                    db.session.add(LogActividad(
+                        usuario_id=user_id,
+                        accion=f"Completó: {paso_faltante}",
+                        detalles=detalles,
+                        fecha=datetime.utcnow()
+                    ))
+
+        if not dry_run and reparaciones:
+            db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'dry_run': dry_run,
+            'user_id': user_id,
+            'email': user.email,
+            'reparaciones': reparaciones,
+            'total_reparado': len(reparaciones)
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @admin_bp.route('/cupos/config', methods=['GET', 'PUT'])
@@ -93,7 +484,7 @@ def cupos_config(current_user):
         data = request.json or {}
         modo = (data.get('modo') or 'abierto').strip()
         if modo not in ['abierto', 'bloqueado']:
-            return jsonify({'error': 'Modo inválido'}), 400
+            return jsonify({'error': 'Modo invÃ¡lido'}), 400
         cupo_global_max = data.get('cupo_global_max')
         if cupo_global_max is not None:
             try:
@@ -117,10 +508,10 @@ def cupos_config(current_user):
             db.session.commit()
         except Exception:
             db.session.rollback()
-        return jsonify({'message': 'Configuración actualizada', 'config': cfg.to_dict()}), 200
+        return jsonify({'message': 'ConfiguraciÃ³n actualizada', 'config': cfg.to_dict()}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al actualizar configuración: {str(e)}'}), 500
+        return jsonify({'error': f'Error al actualizar configuraciÃ³n: {str(e)}'}), 500
 
 
 @admin_bp.route('/cupos/municipios', methods=['GET', 'PUT'])
@@ -171,9 +562,9 @@ def cupos_municipios(current_user):
 @token_required
 @admin_required
 def cupos_estado(current_user):
-    """Estado de cupos: global, por subregión y por municipio"""
+    """Estado de cupos: global, por subregiÃ³n y por municipio"""
     try:
-        # Configuración vigente
+        # ConfiguraciÃ³n vigente
         cfg = CuposConfig.query.order_by(CuposConfig.id.desc()).first()
         convocatoria = cfg.convocatoria if cfg else '2025'
 
@@ -269,7 +660,7 @@ def cupos_estado(current_user):
 def cupos_estado_export(current_user):
     """Exportar estado de cupos en Excel"""
     try:
-        # Reusar lógica del endpoint anterior
+        # Reusar lÃ³gica del endpoint anterior
         cfg = CuposConfig.query.order_by(CuposConfig.id.desc()).first()
         convocatoria = cfg.convocatoria if cfg else '2025'
         municipios = MunicipioCupo.query.all()
@@ -304,10 +695,10 @@ def cupos_estado_export(current_user):
         data_alignment = Alignment(horizontal="center", vertical="center")
         green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")  # Verde para disponible
         red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")    # Rojo para agotado
-        yellow_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid") # Amarillo para ocupación alta
+        yellow_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid") # Amarillo para ocupaciÃ³n alta
         
         # Encabezados
-        headers = ['Subregión', 'Municipio', 'Cupo Máximo', 'Confirmados', 'Lista Espera', 'Disponibles', '% Ocupación']
+        headers = ['SubregiÃ³n', 'Municipio', 'Cupo MÃ¡ximo', 'Confirmados', 'Lista Espera', 'Disponibles', '% OcupaciÃ³n']
         
         # Escribir encabezados con formato
         for col, header in enumerate(headers, 1):
@@ -333,14 +724,14 @@ def cupos_estado_export(current_user):
                 cell.alignment = data_alignment
                 cell.border = thin_border
                 
-                # Aplicar colores según ocupación (columna % Ocupación)
+                # Aplicar colores segÃºn ocupaciÃ³n (columna % OcupaciÃ³n)
                 if col == 7:  # Columna de porcentaje
                     if pct >= 100:
-                        cell.fill = red_fill  # Rojo si está al 100% o más
+                        cell.fill = red_fill  # Rojo si estÃ¡ al 100% o mÃ¡s
                     elif pct >= 80:
-                        cell.fill = yellow_fill  # Amarillo si está entre 80-99%
+                        cell.fill = yellow_fill  # Amarillo si estÃ¡ entre 80-99%
                     else:
-                        cell.fill = green_fill  # Verde si está por debajo del 80%
+                        cell.fill = green_fill  # Verde si estÃ¡ por debajo del 80%
         
         # Ajustar ancho de columnas
         for col in range(1, len(headers) + 1):
@@ -382,7 +773,12 @@ def get_users(current_user):
         if estado:
             query = query.filter_by(estado_cuenta=estado)
         if rol:
-            query = query.filter_by(rol=rol)
+            # En admin, el filtro visual de "estudiante" debe incluir
+            # cuentas históricas marcadas como "usuario" sin cambiar su rol real.
+            if rol == 'estudiante':
+                query = query.filter(User.rol.in_(['estudiante', 'usuario']))
+            else:
+                query = query.filter_by(rol=rol)
         if estado_control:
             query = query.filter_by(estado_control=estado_control)
         if municipio:
@@ -402,25 +798,25 @@ def get_users(current_user):
                 fecha_inicio_dt = datetime.fromisoformat(fecha_inicio.replace('T', ' '))
                 query = query.filter(User.fecha_creacion >= fecha_inicio_dt)
             except ValueError:
-                pass  # Ignorar fechas inválidas
+                pass  # Ignorar fechas invÃ¡lidas
         
         if fecha_fin:
             try:
                 fecha_fin_dt = datetime.fromisoformat(fecha_fin.replace('T', ' '))
                 query = query.filter(User.fecha_creacion <= fecha_fin_dt)
             except ValueError:
-                pass  # Ignorar fechas inválidas
+                pass  # Ignorar fechas invÃ¡lidas
         
-        # Filtro de finalización
+        # Filtro de finalizaciÃ³n
         if solo_finalizados == 'finalizados':
             query = query.filter(User.fecha_finalizacion.isnot(None))
         elif solo_finalizados == 'no_finalizados':
             query = query.filter(User.fecha_finalizacion.is_(None))
         
-        # Ordenar por fecha de creación (más recientes primero)
+        # Ordenar por fecha de creaciÃ³n (mÃ¡s recientes primero)
         query = query.order_by(User.fecha_creacion.desc())
         
-        # Paginación
+        # PaginaciÃ³n
         pagination = query.paginate(
             page=page, 
             per_page=per_page, 
@@ -453,7 +849,7 @@ def update_user(current_user, user_id):
         user = User.query.get_or_404(user_id)
         data = request.json
         
-        # Campos permitidos para actualización
+        # Campos permitidos para actualizaciÃ³n
         if 'estado_cuenta' in data:
             user.estado_cuenta = data['estado_cuenta']
         if 'rol' in data:
@@ -462,6 +858,8 @@ def update_user(current_user, user_id):
             user.nombre = data['nombre']
         if 'apellido' in data:
             user.apellido = data['apellido']
+        if 'municipio' in data:
+            user.municipio = data['municipio']
         
         user.fecha_actualizacion = datetime.utcnow()
         
@@ -488,7 +886,7 @@ def update_user(current_user, user_id):
 @token_required
 @admin_or_evaluador_required
 def bulk_update_users(current_user):
-    """Actualización masiva de usuarios"""
+    """ActualizaciÃ³n masiva de usuarios"""
     try:
         data = request.json
         user_ids = data.get('user_ids', [])
@@ -511,7 +909,7 @@ def bulk_update_users(current_user):
         # log = LogActividad(
         #     usuario_id=session['user_id'],
         #     accion='actualizacion_masiva_usuarios',
-        #     detalles=f'Actualización masiva de {len(users)} usuarios'
+        #     detalles=f'ActualizaciÃ³n masiva de {len(users)} usuarios'
         # )
         # db.session.add(log)
         
@@ -523,7 +921,7 @@ def bulk_update_users(current_user):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error en actualización masiva: {str(e)}'}), 500
+        return jsonify({'error': f'Error en actualizaciÃ³n masiva: {str(e)}'}), 500
 
 @admin_bp.route('/users/import', methods=['POST'])
 @token_required
@@ -532,11 +930,11 @@ def import_users(current_user):
     """Importar usuarios desde CSV"""
     try:
         if 'file' not in request.files:
-            return jsonify({'error': 'No se proporcionó archivo'}), 400
+            return jsonify({'error': 'No se proporcionÃ³ archivo'}), 400
         
         file = request.files['file']
         if file.filename == '':
-            return jsonify({'error': 'No se seleccionó archivo'}), 400
+            return jsonify({'error': 'No se seleccionÃ³ archivo'}), 400
         
         if not file.filename.endswith('.csv'):
             return jsonify({'error': 'El archivo debe ser CSV'}), 400
@@ -592,14 +990,14 @@ def import_users(current_user):
             db.session.commit()
         
         return jsonify({
-            'message': f'Importación completada',
+            'message': f'ImportaciÃ³n completada',
             'imported_count': imported_count,
             'errors': errors
         }), 200
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error en importación: {str(e)}'}), 500
+        return jsonify({'error': f'Error en importaciÃ³n: {str(e)}'}), 500
 
 @admin_bp.route('/users/download-excel', methods=['GET'])
 @token_required
@@ -628,9 +1026,9 @@ def download_users_excel(current_user):
         # Encabezados - Exactamente como aparecen en "Ver Detalles"
         headers = [
             'Nombre', 'Email', 'Documento', 'Fecha Nacimiento', 'Sexo', 
-            'Estado Civil', 'Teléfono', 'Dirección', 'Municipio', 
+            'Estado Civil', 'TelÃ©fono', 'DirecciÃ³n', 'Municipio', 
             'Corregimiento/Vereda', 'Tipo Persona', 'Convocatoria',
-            'Estado', 'Fecha Registro', 'Fecha Finalización'
+            'Estado', 'Fecha Registro', 'Fecha FinalizaciÃ³n'
         ]
         
         # Escribir encabezados
@@ -705,15 +1103,15 @@ def download_users_excel(current_user):
         ws.column_dimensions['D'].width = 15  # Fecha Nacimiento
         ws.column_dimensions['E'].width = 12  # Sexo
         ws.column_dimensions['F'].width = 15  # Estado Civil
-        ws.column_dimensions['G'].width = 15  # Teléfono
-        ws.column_dimensions['H'].width = 30  # Dirección
+        ws.column_dimensions['G'].width = 15  # TelÃ©fono
+        ws.column_dimensions['H'].width = 30  # DirecciÃ³n
         ws.column_dimensions['I'].width = 20  # Municipio
         ws.column_dimensions['J'].width = 25  # Corregimiento/Vereda
         ws.column_dimensions['K'].width = 15  # Tipo Persona
         ws.column_dimensions['L'].width = 15  # Convocatoria
         ws.column_dimensions['M'].width = 15  # Estado
         ws.column_dimensions['N'].width = 20  # Fecha Registro
-        ws.column_dimensions['O'].width = 20  # Fecha Finalización
+        ws.column_dimensions['O'].width = 20  # Fecha FinalizaciÃ³n
         
         # Guardar en memoria
         output = io.BytesIO()
@@ -741,7 +1139,7 @@ def download_users_excel(current_user):
         )
         
     except Exception as e:
-        return jsonify({'error': f'Error en exportación: {str(e)}'}), 500
+        return jsonify({'error': f'Error en exportaciÃ³n: {str(e)}'}), 500
 
 @admin_bp.route('/users/<int:user_id>/certificados', methods=['PUT'])
 @token_required
@@ -754,7 +1152,7 @@ def actualizar_resultado_certificados(current_user, user_id):
         
         # Validar resultado
         if resultado not in ['pendiente', 'limpio', 'inhabilidad_detectada']:
-            return jsonify({'error': 'Resultado inválido. Debe ser: pendiente, limpio o inhabilidad_detectada'}), 400
+            return jsonify({'error': 'Resultado invÃ¡lido. Debe ser: pendiente, limpio o inhabilidad_detectada'}), 400
         
         user = User.query.get_or_404(user_id)
         resultado_anterior = user.resultado_certificados
@@ -762,13 +1160,13 @@ def actualizar_resultado_certificados(current_user, user_id):
         # Actualizar resultado
         user.resultado_certificados = resultado
         
-        # REGLA AUTOMÁTICA DE RECHAZO
+        # REGLA AUTOMÃTICA DE RECHAZO
         if resultado == 'inhabilidad_detectada':
             estado_anterior = user.estado_cuenta
             user.estado_cuenta = 'rechazada'
             
-            # Log de auditoría del rechazo automático
-            detalle_rechazo = f"RECHAZO AUTOMÁTICO: Usuario {user.nombre} {user.apellido} (ID: {user.id}) rechazado automáticamente por inhabilidad detectada en certificados de control. Estado anterior: {estado_anterior}. Resultado anterior: {resultado_anterior}"
+            # Log de auditorÃ­a del rechazo automÃ¡tico
+            detalle_rechazo = f"RECHAZO AUTOMÃTICO: Usuario {user.nombre} {user.apellido} (ID: {user.id}) rechazado automÃ¡ticamente por inhabilidad detectada en certificados de control. Estado anterior: {estado_anterior}. Resultado anterior: {resultado_anterior}"
             
             db.session.add(LogActividad(
                 usuario_id=session['user_id'],
@@ -776,21 +1174,21 @@ def actualizar_resultado_certificados(current_user, user_id):
                 detalles=detalle_rechazo
             ))
             
-            # Log también en el usuario afectado
+            # Log tambiÃ©n en el usuario afectado
             db.session.add(LogActividad(
                 usuario_id=user.id,
                 accion='cuenta_rechazada_automaticamente',
-                detalles=f"Cuenta rechazada automáticamente por inhabilidad detectada en certificados de control. Administrador que marcó: {session.get('user_email', 'N/A')}"
+                detalles=f"Cuenta rechazada automÃ¡ticamente por inhabilidad detectada en certificados de control. Administrador que marcÃ³: {session.get('user_email', 'N/A')}"
             ))
             
         elif resultado == 'limpio' and user.estado_cuenta == 'rechazada':
-            # Si se marca como limpio y estaba rechazada, revertir a inactiva para revisión manual
+            # Si se marca como limpio y estaba rechazada, revertir a inactiva para revisiÃ³n manual
             user.estado_cuenta = 'inactiva'
             
             db.session.add(LogActividad(
                 usuario_id=session['user_id'],
                 accion='revertir_rechazo_certificados',
-                detalles=f"Rechazo revertido para usuario {user.nombre} {user.apellido} (ID: {user.id}). Certificados marcados como limpios. Estado cambiado a inactiva para revisión."
+                detalles=f"Rechazo revertido para usuario {user.nombre} {user.apellido} (ID: {user.id}). Certificados marcados como limpios. Estado cambiado a inactiva para revisiÃ³n."
             ))
         
         db.session.commit()
@@ -809,9 +1207,9 @@ def actualizar_resultado_certificados(current_user, user_id):
 @token_required
 @admin_or_evaluador_required
 def estadisticas_certificados(current_user):
-    """Obtener estadísticas de certificados de control y rechazos automáticos"""
+    """Obtener estadÃ­sticas de certificados de control y rechazos automÃ¡ticos"""
     try:
-        # Estadísticas generales
+        # EstadÃ­sticas generales
         total_usuarios = User.query.count()
         control_completo = User.query.filter_by(estado_control='completo').count()
         control_pendiente = User.query.filter_by(estado_control='pendiente').count()
@@ -821,10 +1219,10 @@ def estadisticas_certificados(current_user):
         resultado_limpio = User.query.filter_by(resultado_certificados='limpio').count()
         resultado_inhabilidad = User.query.filter_by(resultado_certificados='inhabilidad_detectada').count()
         
-        # Rechazos automáticos
+        # Rechazos automÃ¡ticos
         rechazados_automaticamente = User.query.filter_by(estado_cuenta='rechazada', resultado_certificados='inhabilidad_detectada').count()
         
-        # Logs de rechazos automáticos recientes
+        # Logs de rechazos automÃ¡ticos recientes
         rechazos_recientes = LogActividad.query.filter_by(accion='rechazo_automatico_certificados').order_by(LogActividad.fecha.desc()).limit(10).all()
         
         return jsonify({
@@ -846,7 +1244,7 @@ def estadisticas_certificados(current_user):
         }), 200
         
     except Exception as e:
-        return jsonify({'error': f'Error al obtener estadísticas: {str(e)}'}), 500
+        return jsonify({'error': f'Error al obtener estadÃ­sticas: {str(e)}'}), 500
 
 @admin_bp.route('/logs', methods=['GET'])
 @token_required
@@ -859,7 +1257,7 @@ def get_logs(current_user):
         usuario_id = request.args.get('usuario_id', type=int)
         accion = request.args.get('accion')
         
-        # Por ahora retornamos logs vacíos para evitar errores
+        # Por ahora retornamos logs vacÃ­os para evitar errores
         logs = []
         
         return jsonify({
@@ -881,7 +1279,7 @@ def get_logs(current_user):
 @token_required
 @admin_required
 def get_courses(current_user):
-    """Endpoint temporal - devuelve lista vacía para evitar errores"""
+    """Endpoint temporal - devuelve lista vacÃ­a para evitar errores"""
     return jsonify({
         'courses': [],
         'pagination': {
@@ -904,7 +1302,7 @@ def create_course(current_user):
         
         # Validar campos obligatorios
         if not data.get('titulo'):
-            return jsonify({'error': 'El título del curso es obligatorio'}), 400
+            return jsonify({'error': 'El tÃ­tulo del curso es obligatorio'}), 400
         
         # Procesar instructor_id
         instructor_id = data.get('instructor_id')
@@ -914,7 +1312,7 @@ def create_course(current_user):
             try:
                 instructor_id = int(instructor_id)
             except (ValueError, TypeError):
-                return jsonify({'error': 'ID de instructor inválido'}), 400
+                return jsonify({'error': 'ID de instructor invÃ¡lido'}), 400
         
         # Crear nuevo curso
         curso = Curso(
@@ -925,7 +1323,7 @@ def create_course(current_user):
             fecha_apertura=datetime.fromisoformat(data['fecha_apertura']) if data.get('fecha_apertura') else None,
             fecha_cierre=datetime.fromisoformat(data['fecha_cierre']) if data.get('fecha_cierre') else None,
             duracion_horas=data.get('duracion_horas', 0),
-            nivel=data.get('nivel', 'básico'),
+            nivel=data.get('nivel', 'bÃ¡sico'),
             categoria=data.get('categoria'),
             imagen_url=data.get('imagen_url'),
             max_estudiantes=data.get('max_estudiantes', 0)
@@ -934,7 +1332,7 @@ def create_course(current_user):
         db.session.add(curso)
         db.session.commit()
         
-        # Obtener información del curso creado con instructor
+        # Obtener informaciÃ³n del curso creado con instructor
         course_dict = curso.to_dict()
         if curso.instructor_id:
             instructor = User.query.get(curso.instructor_id)
@@ -958,12 +1356,12 @@ def create_course(current_user):
 @token_required
 @admin_required
 def get_course(current_user, course_id):
-    """Obtener curso específico"""
+    """Obtener curso especÃ­fico"""
     try:
         curso = Curso.query.get_or_404(course_id)
         course_dict = curso.to_dict()
         
-        # Obtener información del instructor
+        # Obtener informaciÃ³n del instructor
         if curso.instructor_id:
             instructor = User.query.get(curso.instructor_id)
             if instructor:
@@ -1005,7 +1403,7 @@ def update_course(current_user, course_id):
                 try:
                     curso.instructor_id = int(instructor_id)
                 except (ValueError, TypeError):
-                    return jsonify({'error': 'ID de instructor inválido'}), 400
+                    return jsonify({'error': 'ID de instructor invÃ¡lido'}), 400
         if 'estado' in data:
             curso.estado = data['estado']
         if 'fecha_apertura' in data:
@@ -1027,7 +1425,7 @@ def update_course(current_user, course_id):
         
         db.session.commit()
         
-        # Obtener información actualizada del curso con instructor
+        # Obtener informaciÃ³n actualizada del curso con instructor
         course_dict = curso.to_dict()
         if curso.instructor_id:
             instructor = User.query.get(curso.instructor_id)
@@ -1125,15 +1523,15 @@ def download_user_requisitos(current_user, user_id):
     except Exception as e:
         return jsonify({'error': f'Error al descargar requisitos: {str(e)}'}), 500
 
-# ===== ENDPOINTS PARA GESTIÓN DE FASES =====
+# ===== ENDPOINTS PARA GESTIÃ“N DE FASES =====
 
 @admin_bp.route('/stats/phases', methods=['GET'])
 @token_required
 @admin_required
 def get_phase_stats(current_user):
-    """Obtener estadísticas de fases de usuarios"""
+    """Obtener estadÃ­sticas de fases de usuarios"""
     try:
-        # Estadísticas generales
+        # EstadÃ­sticas generales
         total_users = User.query.count()
         
         # Usuarios por fase
@@ -1175,13 +1573,13 @@ def get_phase_stats(current_user):
         }), 200
         
     except Exception as e:
-        return jsonify({'error': f'Error al obtener estadísticas de fases: {str(e)}'}), 500
+        return jsonify({'error': f'Error al obtener estadÃ­sticas de fases: {str(e)}'}), 500
 
 @admin_bp.route('/users', methods=['GET'])
 @token_required
 @admin_required
 def get_all_users(current_user):
-    """Obtener todos los usuarios con información de fases"""
+    """Obtener todos los usuarios con informaciÃ³n de fases"""
     try:
         users = User.query.all()
         
@@ -1216,130 +1614,256 @@ def get_all_users(current_user):
 @token_required
 @admin_or_evaluador_required
 def get_all_users_complete(current_user):
-    """Obtener TODOS los usuarios con información completa (sin filtros ni paginación)"""
+    """Obtener usuarios con paginaciÃ³n para evitar lÃ­mite de 6MB de Lambda"""
     try:
-        # Obtener usuarios en lotes para evitar timeout
-        users = User.query.order_by(User.fecha_creacion.desc()).all()
+        # Obtener parÃ¡metros de paginaciÃ³n
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 2000, type=int)  # 2000 usuarios por pÃ¡gina
         
-        # Procesar usuarios en lotes más pequeños para evitar timeout
+        # Validar parÃ¡metros
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 2000:
+            per_page = 2000
+        
+        # Calcular offset
+        offset = (page - 1) * per_page
+        
+        # Usar consulta SQL directa para mejor rendimiento
+        # Solo seleccionar campos necesarios, evitando campos LargeBinary pesados
+        query = db.session.query(
+            User.id,
+            User.nombre,
+            User.apellido,
+            User.email,
+            User.telefono,
+            User.fecha_nacimiento,
+            User.sexo,
+            User.estado_civil,
+            User.direccion,
+            User.municipio,
+            User.corregimiento_vereda,
+            User.pais,
+            User.ciudad,
+            User.tipo_documento,
+            User.numero_documento,
+            # Solo nombres de archivos, no los archivos binarios
+            User.doc_terminos_pdf_nombre,
+            User.doc_uso_imagen_pdf_nombre,
+            User.doc_plan_negocio_nombre,
+            User.doc_vecindad_pdf_nombre,
+            User.video_url,
+            User.rut_pdf_nombre,
+            User.cedula_pdf_nombre,
+            User.cedula_representante_pdf_nombre,
+            User.cert_existencia_pdf_nombre,
+            User.ruv_pdf_nombre,
+            User.sisben_pdf_nombre,
+            User.grupo_etnico_pdf_nombre,
+            User.arn_pdf_nombre,
+            User.discapacidad_pdf_nombre,
+            User.antecedentes_fiscales_pdf_nombre,
+            User.antecedentes_disciplinarios_pdf_nombre,
+            User.antecedentes_judiciales_pdf_nombre,
+            User.redam_pdf_nombre,
+            User.inhabilidades_sexuales_pdf_nombre,
+            User.declaracion_capacidad_legal_pdf_nombre,
+            User.estado_control,
+            User.resultado_certificados,
+            User.emprendimiento_formalizado,
+            User.matricula_mercantil_pdf_nombre,
+            User.facturas_6meses_pdf_nombre,
+            User.publicaciones_redes_pdf_nombre,
+            User.registro_ventas_pdf_nombre,
+            User.mujer_cabeza_familia,
+            User.victima_conflicto,
+            User.persona_discapacidad,
+            User.pertenencia_etnica,
+            User.sisben_grupo,
+            User.persona_reincorporacion,
+            User.tiempo_funcionamiento,
+            User.empleos_generados,
+            User.acceso_mercados,
+            User.financiado_estado,
+            User.financiado_regalias,
+            User.financiado_camara_comercio,
+            User.financiado_incubadoras,
+            User.financiado_otro,
+            User.financiado_otro_texto,
+            User.declara_veraz,
+            User.declara_no_beneficiario,
+            User.acepta_terminos,
+            User.fecha_aceptacion_terminos,
+            User.estado_inscripcion,
+            User.paso_actual,
+            User.fecha_ultimo_guardado,
+            User.formulario_enviado,
+            User.rol,
+            User.fecha_creacion,
+            User.fecha_actualizacion,
+            User.fecha_finalizacion,
+            User.estado_cuenta,
+            User.convocatoria,
+            User.emprendimiento_nombre,
+            User.emprendimiento_sector,
+            User.tipo_persona
+        ).order_by(User.fecha_creacion.desc())
+        
+        # Obtener total de usuarios para paginaciÃ³n
+        total_users = query.count()
+        
+        # Aplicar paginaciÃ³n
+        results = query.limit(per_page).offset(offset).all()
+        
+        # Calcular metadatos de paginaciÃ³n
+        total_pages = (total_users + per_page - 1) // per_page
+        has_next = page < total_pages
+        has_prev = page > 1
+        
+        # Procesar resultados
         users_data = []
-        batch_size = 50  # Reducir tamaño de lote para mejor rendimiento
+        for row in results:
+            try:
+                # Contar documentos de forma rÃ¡pida (solo campos _nombre que no sean None/vacÃ­os)
+                doc_count = sum(1 for field in [
+                    row.doc_terminos_pdf_nombre, row.doc_uso_imagen_pdf_nombre, 
+                    row.doc_plan_negocio_nombre, row.doc_vecindad_pdf_nombre,
+                    row.rut_pdf_nombre, row.cedula_pdf_nombre, 
+                    row.cedula_representante_pdf_nombre, row.cert_existencia_pdf_nombre,
+                    row.ruv_pdf_nombre, row.sisben_pdf_nombre, 
+                    row.grupo_etnico_pdf_nombre, row.arn_pdf_nombre,
+                    row.discapacidad_pdf_nombre, row.antecedentes_fiscales_pdf_nombre,
+                    row.antecedentes_disciplinarios_pdf_nombre, row.antecedentes_judiciales_pdf_nombre,
+                    row.redam_pdf_nombre, row.inhabilidades_sexuales_pdf_nombre,
+                    row.declaracion_capacidad_legal_pdf_nombre, row.matricula_mercantil_pdf_nombre,
+                    row.facturas_6meses_pdf_nombre, row.publicaciones_redes_pdf_nombre,
+                    row.registro_ventas_pdf_nombre
+                ] if field and field.strip())
+                
+                # Agregar video si existe
+                if row.video_url and row.video_url.strip():
+                    doc_count += 1
+                
+                user_data = {
+                    'id': row.id,
+                    'nombre': row.nombre,
+                    'apellido': row.apellido,
+                    'email': row.email,
+                    'telefono': row.telefono,
+                    'fecha_nacimiento': row.fecha_nacimiento.isoformat() if row.fecha_nacimiento else None,
+                    'sexo': row.sexo,
+                    'estado_civil': row.estado_civil,
+                    'direccion': row.direccion,
+                    'municipio': row.municipio,
+                    'corregimiento_vereda': row.corregimiento_vereda,
+                    'pais': row.pais,
+                    'ciudad': row.ciudad,
+                    'tipo_documento': row.tipo_documento,
+                    'numero_documento': row.numero_documento,
+                    'doc_terminos_pdf_nombre': row.doc_terminos_pdf_nombre,
+                    'doc_uso_imagen_pdf_nombre': row.doc_uso_imagen_pdf_nombre,
+                    'doc_plan_negocio_nombre': row.doc_plan_negocio_nombre,
+                    'doc_vecindad_pdf_nombre': row.doc_vecindad_pdf_nombre,
+                    'video_url': row.video_url,
+                    'rut_pdf_nombre': row.rut_pdf_nombre,
+                    'cedula_pdf_nombre': row.cedula_pdf_nombre,
+                    'cedula_representante_pdf_nombre': row.cedula_representante_pdf_nombre,
+                    'cert_existencia_pdf_nombre': row.cert_existencia_pdf_nombre,
+                    'ruv_pdf_nombre': row.ruv_pdf_nombre,
+                    'sisben_pdf_nombre': row.sisben_pdf_nombre,
+                    'grupo_etnico_pdf_nombre': row.grupo_etnico_pdf_nombre,
+                    'arn_pdf_nombre': row.arn_pdf_nombre,
+                    'discapacidad_pdf_nombre': row.discapacidad_pdf_nombre,
+                    'antecedentes_fiscales_pdf_nombre': row.antecedentes_fiscales_pdf_nombre,
+                    'antecedentes_disciplinarios_pdf_nombre': row.antecedentes_disciplinarios_pdf_nombre,
+                    'antecedentes_judiciales_pdf_nombre': row.antecedentes_judiciales_pdf_nombre,
+                    'redam_pdf_nombre': row.redam_pdf_nombre,
+                    'inhabilidades_sexuales_pdf_nombre': row.inhabilidades_sexuales_pdf_nombre,
+                    'declaracion_capacidad_legal_pdf_nombre': row.declaracion_capacidad_legal_pdf_nombre,
+                    'estado_control': row.estado_control,
+                    'resultado_certificados': row.resultado_certificados,
+                    'emprendimiento_formalizado': row.emprendimiento_formalizado,
+                    'matricula_mercantil_pdf_nombre': row.matricula_mercantil_pdf_nombre,
+                    'facturas_6meses_pdf_nombre': row.facturas_6meses_pdf_nombre,
+                    'publicaciones_redes_pdf_nombre': row.publicaciones_redes_pdf_nombre,
+                    'registro_ventas_pdf_nombre': row.registro_ventas_pdf_nombre,
+                    'mujer_cabeza_familia': row.mujer_cabeza_familia,
+                    'victima_conflicto': row.victima_conflicto,
+                    'persona_discapacidad': row.persona_discapacidad,
+                    'pertenencia_etnica': row.pertenencia_etnica,
+                    'sisben_grupo': row.sisben_grupo,
+                    'persona_reincorporacion': row.persona_reincorporacion,
+                    'tiempo_funcionamiento': row.tiempo_funcionamiento,
+                    'empleos_generados': row.empleos_generados,
+                    'acceso_mercados': row.acceso_mercados,
+                    'financiado_estado': row.financiado_estado,
+                    'financiado_regalias': row.financiado_regalias,
+                    'financiado_camara_comercio': row.financiado_camara_comercio,
+                    'financiado_incubadoras': row.financiado_incubadoras,
+                    'financiado_otro': row.financiado_otro,
+                    'financiado_otro_texto': row.financiado_otro_texto,
+                    'declara_veraz': row.declara_veraz,
+                    'declara_no_beneficiario': row.declara_no_beneficiario,
+                    'acepta_terminos': row.acepta_terminos,
+                    'fecha_aceptacion_terminos': row.fecha_aceptacion_terminos.isoformat() if row.fecha_aceptacion_terminos else None,
+                    'estado_inscripcion': row.estado_inscripcion,
+                    'paso_actual': row.paso_actual,
+                    'fecha_ultimo_guardado': row.fecha_ultimo_guardado.isoformat() if row.fecha_ultimo_guardado else None,
+                    'formulario_enviado': row.formulario_enviado,
+                    'rol': row.rol,
+                    'fecha_creacion': row.fecha_creacion.isoformat() if row.fecha_creacion else None,
+                    'fecha_actualizacion': row.fecha_actualizacion.isoformat() if row.fecha_actualizacion else None,
+                    'fecha_finalizacion': row.fecha_finalizacion.isoformat() if row.fecha_finalizacion else None,
+                    'estado_cuenta': row.estado_cuenta,
+                    'convocatoria': row.convocatoria,
+                    'emprendimiento_nombre': row.emprendimiento_nombre,
+                    'emprendimiento_sector': row.emprendimiento_sector,
+                    'tipo_persona': row.tipo_persona,
+                    'fase_actual': 'inscripcion',  # Por defecto
+                    'fecha_entrada_fase': None,
+                    'fase_completada': False,
+                    'documentos_subidos': doc_count
+                }
+                users_data.append(user_data)
+            except Exception as e:
+                print(f"Error procesando usuario: {e}")
+                continue
         
-        for i in range(0, len(users), batch_size):
-            batch = users[i:i + batch_size]
-            for user in batch:
-                try:
-                    # Crear diccionario manual sin usar to_dict() para evitar consultas S3
-                    user_data = {
-                        'id': user.id,
-                        'nombre': user.nombre,
-                        'apellido': user.apellido,
-                        'email': user.email,
-                        'telefono': user.telefono,
-                        'fecha_nacimiento': user.fecha_nacimiento.isoformat() if user.fecha_nacimiento else None,
-                        'sexo': user.sexo,
-                        'estado_civil': user.estado_civil,
-                        'direccion': user.direccion,
-                        'municipio': user.municipio,
-                        'corregimiento_vereda': user.corregimiento_vereda,
-                        'pais': user.pais,
-                        'ciudad': user.ciudad,
-                        'bio': user.bio,
-                        'tipo_documento': user.tipo_documento,
-                        'numero_documento': user.numero_documento,
-                        'doc_terminos_pdf_nombre': user.doc_terminos_pdf_nombre,
-                        'doc_uso_imagen_pdf_nombre': user.doc_uso_imagen_pdf_nombre,
-                        'doc_plan_negocio_nombre': user.doc_plan_negocio_nombre,
-                        'doc_vecindad_pdf_nombre': user.doc_vecindad_pdf_nombre,
-                        'video_url': user.video_url,
-                        'rut_pdf_nombre': user.rut_pdf_nombre,
-                        'cedula_pdf_nombre': user.cedula_pdf_nombre,
-                        'cedula_representante_pdf_nombre': user.cedula_representante_pdf_nombre,
-                        'cert_existencia_pdf_nombre': user.cert_existencia_pdf_nombre,
-                        'ruv_pdf_nombre': user.ruv_pdf_nombre,
-                        'sisben_pdf_nombre': user.sisben_pdf_nombre,
-                        'grupo_etnico_pdf_nombre': user.grupo_etnico_pdf_nombre,
-                        'arn_pdf_nombre': user.arn_pdf_nombre,
-                        'discapacidad_pdf_nombre': user.discapacidad_pdf_nombre,
-                        'antecedentes_fiscales_pdf_nombre': user.antecedentes_fiscales_pdf_nombre,
-                        'antecedentes_disciplinarios_pdf_nombre': user.antecedentes_disciplinarios_pdf_nombre,
-                        'antecedentes_judiciales_pdf_nombre': user.antecedentes_judiciales_pdf_nombre,
-                        'redam_pdf_nombre': user.redam_pdf_nombre,
-                        'inhabilidades_sexuales_pdf_nombre': user.inhabilidades_sexuales_pdf_nombre,
-                        'declaracion_capacidad_legal_pdf_nombre': user.declaracion_capacidad_legal_pdf_nombre,
-                        'estado_control': user.estado_control,
-                        'resultado_certificados': user.resultado_certificados,
-                        'emprendimiento_formalizado': user.emprendimiento_formalizado,
-                        'matricula_mercantil_pdf_nombre': user.matricula_mercantil_pdf_nombre,
-                        'facturas_6meses_pdf_nombre': user.facturas_6meses_pdf_nombre,
-                        'publicaciones_redes_pdf_nombre': user.publicaciones_redes_pdf_nombre,
-                        'registro_ventas_pdf_nombre': user.registro_ventas_pdf_nombre,
-                        # Población Diferencial
-                        'mujer_cabeza_familia': user.mujer_cabeza_familia,
-                        'victima_conflicto': user.victima_conflicto,
-                        'persona_discapacidad': user.persona_discapacidad,
-                        'pertenencia_etnica': user.pertenencia_etnica,
-                        'sisben_grupo': user.sisben_grupo,
-                        'persona_reincorporacion': user.persona_reincorporacion,
-                        # Información del Emprendimiento
-                        'tiempo_funcionamiento': user.tiempo_funcionamiento,
-                        'empleos_generados': user.empleos_generados,
-                        'acceso_mercados': user.acceso_mercados,
-                        'financiado_estado': user.financiado_estado,
-                        'financiado_regalias': user.financiado_regalias,
-                        'financiado_camara_comercio': user.financiado_camara_comercio,
-                        'financiado_incubadoras': user.financiado_incubadoras,
-                        'financiado_otro': user.financiado_otro,
-                        'financiado_otro_texto': user.financiado_otro_texto,
-                        'declara_veraz': user.declara_veraz,
-                        'declara_no_beneficiario': user.declara_no_beneficiario,
-                        'acepta_terminos': user.acepta_terminos,
-                        'fecha_aceptacion_terminos': user.fecha_aceptacion_terminos.isoformat() if user.fecha_aceptacion_terminos else None,
-                        'estado_inscripcion': user.estado_inscripcion,
-                        'paso_actual': user.paso_actual,
-                        'fecha_ultimo_guardado': user.fecha_ultimo_guardado.isoformat() if user.fecha_ultimo_guardado else None,
-                        'formulario_enviado': user.formulario_enviado,
-                        'rol': user.rol,
-                        'fecha_creacion': user.fecha_creacion.isoformat() if user.fecha_creacion else None,
-                        'fecha_actualizacion': user.fecha_actualizacion.isoformat() if user.fecha_actualizacion else None,
-                        'fecha_finalizacion': user.fecha_finalizacion.isoformat() if user.fecha_finalizacion else None,
-                        'estado_cuenta': user.estado_cuenta,
-                        'convocatoria': user.convocatoria,
-                        'emprendimiento_nombre': user.emprendimiento_nombre,
-                        'emprendimiento_sector': user.emprendimiento_sector,
-                        'tipo_persona': user.tipo_persona,
-                        # Gestión de fases
-                        'fase_actual': getattr(user, 'fase_actual', 'inscripcion'),
-                        'fecha_entrada_fase': getattr(user, 'fecha_entrada_fase', None).isoformat() if hasattr(user, 'fecha_entrada_fase') and getattr(user, 'fecha_entrada_fase', None) else None,
-                        'fase_completada': getattr(user, 'fase_completada', False),
-                        # Usar método de respaldo para contar documentos (más rápido)
-                        'documentos_subidos': user._count_documents_fallback()
-                    }
-                    users_data.append(user_data)
-                except Exception as e:
-                    print(f"Error procesando usuario {user.id}: {e}")
-                    continue
+        print(f"Pagina {page}/{total_pages} - Usuarios procesados: {len(users_data)} de {total_users} totales")
         
-        return jsonify({'users': users_data}), 200
+        # Devolver respuesta con metadatos de paginaciÃ³n
+        return jsonify({
+            'users': users_data,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total_users': total_users,
+                'total_pages': total_pages,
+                'has_next': has_next,
+                'has_prev': has_prev
+            }
+        }), 200
         
     except Exception as e:
         print(f"Error al obtener todos los usuarios: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Error al obtener todos los usuarios: {str(e)}'}), 500
 
 @admin_bp.route('/users/<int:user_id>/phase', methods=['POST'])
 @token_required
 @admin_or_evaluador_required
 def update_user_phase(current_user, user_id):
-    """Actualizar la fase de un usuario específico"""
+    """Actualizar la fase de un usuario especÃ­fico"""
     try:
         user = User.query.get_or_404(user_id)
         data = request.json
         nueva_fase = data.get('nueva_fase')
         
-        # Validar fase válida
+        # Validar fase vÃ¡lida
         fases_validas = ['inscripcion', 'formacion', 'entrega_activos']
         if nueva_fase not in fases_validas:
-            return jsonify({'error': 'Fase no válida'}), 400
+            return jsonify({'error': 'Fase no vÃ¡lida'}), 400
         
         # Obtener fase actual
         fase_actual = getattr(user, 'fase_actual', 'inscripcion')
@@ -1351,10 +1875,10 @@ def update_user_phase(current_user, user_id):
         
         db.session.commit()
         
-        # Crear notificación de cambio de fase
+        # Crear notificaciÃ³n de cambio de fase
         mensajes = {
-            'inscripcion': 'Tu emprendimiento ha pasado a la fase de Inscripción y Selección',
-            'formacion': 'Tu emprendimiento ha pasado a la fase de Formación',
+            'inscripcion': 'Tu emprendimiento ha pasado a la fase de InscripciÃ³n y SelecciÃ³n',
+            'formacion': 'Tu emprendimiento ha pasado a la fase de FormaciÃ³n',
             'entrega_activos': 'Tu emprendimiento ha pasado a la fase de Entrega de Activos Productivos'
         }
         
@@ -1371,7 +1895,7 @@ def update_user_phase(current_user, user_id):
         db.session.add(LogActividad(
             usuario_id=user.id,
             accion='cambio_fase_admin',
-            detalles=f"Administrador cambió fase de {fase_actual} a {nueva_fase}"
+            detalles=f"Administrador cambiÃ³ fase de {fase_actual} a {nueva_fase}"
         ))
         db.session.commit()
         
@@ -1405,10 +1929,10 @@ def export_phase_report(current_user):
         
         # Encabezados
         headers = [
-            'ID', 'Nombre', 'Apellido', 'Email', 'Teléfono', 'Municipio',
+            'ID', 'Nombre', 'Apellido', 'Email', 'TelÃ©fono', 'Municipio',
             'Emprendimiento', 'Sector', 'Tipo Persona', 'Fase Actual',
-            'Fecha Entrada Fase', 'Fase Completada', 'Estado Inscripción',
-            'Formulario Enviado', 'Fecha Creación', 'Estado Cuenta'
+            'Fecha Entrada Fase', 'Fase Completada', 'Estado InscripciÃ³n',
+            'Formulario Enviado', 'Fecha CreaciÃ³n', 'Estado Cuenta'
         ]
         
         for col, header in enumerate(headers, 1):
@@ -1430,9 +1954,9 @@ def export_phase_report(current_user):
             ws.cell(row=row, column=9, value=user.tipo_persona)
             ws.cell(row=row, column=10, value=getattr(user, 'fase_actual', 'inscripcion'))
             ws.cell(row=row, column=11, value=user.fecha_entrada_fase.strftime('%Y-%m-%d %H:%M:%S') if hasattr(user, 'fecha_entrada_fase') and user.fecha_entrada_fase else 'N/A')
-            ws.cell(row=row, column=12, value='Sí' if getattr(user, 'fase_completada', False) else 'No')
+            ws.cell(row=row, column=12, value='SÃ­' if getattr(user, 'fase_completada', False) else 'No')
             ws.cell(row=row, column=13, value=user.estado_inscripcion)
-            ws.cell(row=row, column=14, value='Sí' if user.formulario_enviado else 'No')
+            ws.cell(row=row, column=14, value='SÃ­' if user.formulario_enviado else 'No')
             ws.cell(row=row, column=15, value=user.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if user.fecha_creacion else 'N/A')
             ws.cell(row=row, column=16, value=user.estado_cuenta)
         
@@ -1456,13 +1980,13 @@ def export_phase_report(current_user):
     except Exception as e:
         return jsonify({'error': f'Error al exportar reporte: {str(e)}'}), 500
 
-# ========== ENDPOINT PARA CREAR TABLAS DE CONFIGURACIÓN ==========
+# ========== ENDPOINT PARA CREAR TABLAS DE CONFIGURACIÃ“N ==========
 
 @admin_bp.route('/create-config-tables', methods=['POST', 'GET'])
 @token_required
 @admin_required
 def create_config_tables(current_user):
-    """Crear las tablas de configuración dinámica"""
+    """Crear las tablas de configuraciÃ³n dinÃ¡mica"""
     try:
         # Crear todas las tablas
         db.create_all()
@@ -1484,7 +2008,7 @@ def create_config_tables(current_user):
                 created_tables.append(table)
         
         return jsonify({
-            'message': 'Tablas de configuración creadas exitosamente',
+            'message': 'Tablas de configuraciÃ³n creadas exitosamente',
             'created_tables': created_tables,
             'total_tables_in_db': len(existing_tables),
             'all_tables': existing_tables
@@ -1541,13 +2065,13 @@ def create_formulario_campo(current_user):
 @token_required
 @admin_or_evaluador_required
 def get_user_detailed_info(current_user, user_id):
-    """Obtener información completa del usuario incluyendo archivos de S3"""
+    """Obtener informaciÃ³n completa del usuario incluyendo archivos de S3"""
     try:
         from ..services.s3_service import S3Service
         
         user = User.query.get_or_404(user_id)
         
-        # Información básica del usuario
+        # InformaciÃ³n bÃ¡sica del usuario
         user_info = user.to_dict()
         
         # Obtener archivos de S3
@@ -1555,50 +2079,50 @@ def get_user_detailed_info(current_user, user_id):
         
         # Mapeo de tipos de documentos con nombres legibles y secciones
         document_types_mapping = {
-            'obligatorios/tdr': {'name': 'TDR - Términos y Condiciones', 'section': 'obligatorios'},
-            'obligatorios/uso-imagen': {'name': 'Autorización Uso de Imagen', 'section': 'obligatorios'},
+            'obligatorios/tdr': {'name': 'TDR - TÃ©rminos y Condiciones', 'section': 'obligatorios'},
+            'obligatorios/uso-imagen': {'name': 'AutorizaciÃ³n Uso de Imagen', 'section': 'obligatorios'},
             'obligatorios/plan-negocio': {'name': 'Plan de Negocio (Excel)', 'section': 'obligatorios'},
             'obligatorios/vecindad': {'name': 'Certificado de Vecindad', 'section': 'obligatorios'},
-            'por-tipo/persona-natural/cedula': {'name': 'Cédula de Ciudadanía', 'section': 'por_tipo'},
+            'por-tipo/persona-natural/cedula': {'name': 'CÃ©dula de CiudadanÃ­a', 'section': 'por_tipo'},
             'por-tipo/persona-natural/rut': {'name': 'RUT Persona Natural', 'section': 'por_tipo'},
-            'por-tipo/persona-juridica/camara-comercio': {'name': 'Certificado Cámara de Comercio', 'section': 'por_tipo'},
+            'por-tipo/persona-juridica/camara-comercio': {'name': 'Certificado CÃ¡mara de Comercio', 'section': 'por_tipo'},
             'por-tipo/persona-juridica/rut-empresa': {'name': 'RUT Empresa', 'section': 'por_tipo'},
-            'por-tipo/persona-juridica/cedula-representante': {'name': 'Cédula Representante Legal', 'section': 'por_tipo'},
+            'por-tipo/persona-juridica/cedula-representante': {'name': 'CÃ©dula Representante Legal', 'section': 'por_tipo'},
             'por-tipo/persona-juridica/certificado-existencia': {'name': 'Certificado de Existencia', 'section': 'por_tipo'},
-            'diferenciales/ruv': {'name': 'RUV - Registro Único de Víctimas', 'section': 'diferenciales'},
+            'diferenciales/ruv': {'name': 'RUV - Registro Ãšnico de VÃ­ctimas', 'section': 'diferenciales'},
             'diferenciales/sisben': {'name': 'Certificado SISBEN', 'section': 'diferenciales'},
-            'diferenciales/grupo-etnico': {'name': 'Certificado Grupo Étnico', 'section': 'diferenciales'},
+            'diferenciales/grupo-etnico': {'name': 'Certificado Grupo Ã‰tnico', 'section': 'diferenciales'},
             'diferenciales/arn': {'name': 'Certificado ARN', 'section': 'diferenciales'},
             'diferenciales/discapacidad': {'name': 'Certificado de Discapacidad', 'section': 'diferenciales'},
             'diferenciales/mujer-cabeza-familia': {'name': 'Mujer Cabeza de Familia', 'section': 'diferenciales'},
-            'diferenciales/persona-discapacidad': {'name': 'Persona en Situación de Discapacidad', 'section': 'diferenciales'},
+            'diferenciales/persona-discapacidad': {'name': 'Persona en SituaciÃ³n de Discapacidad', 'section': 'diferenciales'},
             'control/antecedentes-fiscales': {'name': 'Antecedentes Fiscales', 'section': 'control'},
             'control/antecedentes-disciplinarios': {'name': 'Antecedentes Disciplinarios', 'section': 'control'},
             'control/antecedentes-judiciales': {'name': 'Antecedentes Judiciales', 'section': 'control'},
-            'control/antecedentes-contraloria': {'name': 'Antecedentes Contraloría', 'section': 'control'},
-            'control/antecedentes-procuraduria': {'name': 'Antecedentes Procuraduría', 'section': 'control'},
+            'control/antecedentes-contraloria': {'name': 'Antecedentes ContralorÃ­a', 'section': 'control'},
+            'control/antecedentes-procuraduria': {'name': 'Antecedentes ProcuradurÃ­a', 'section': 'control'},
             'control/redam': {'name': 'Certificado REDAM', 'section': 'control'},
             'control/rnmc': {'name': 'Certificado RNMC', 'section': 'control'},
             'control/inhabilidades-sexuales': {'name': 'Antecedentes Sexuales', 'section': 'control'},
-            'obligatorios/declaracion-capacidad': {'name': 'Declaración de Capacidad Legal', 'section': 'obligatorios'},
-            'funcionamiento/matricula-mercantil': {'name': 'Matrícula Mercantil', 'section': 'funcionamiento'},
+            'obligatorios/declaracion-capacidad': {'name': 'DeclaraciÃ³n de Capacidad Legal', 'section': 'obligatorios'},
+            'funcionamiento/matricula-mercantil': {'name': 'MatrÃ­cula Mercantil', 'section': 'funcionamiento'},
             'funcionamiento/facturas-6meses': {'name': 'Facturas 6 Meses', 'section': 'funcionamiento'},
             'funcionamiento/publicaciones-redes': {'name': 'Publicaciones en Redes', 'section': 'funcionamiento'},
             'funcionamiento/registro-ventas': {'name': 'Registro de Ventas', 'section': 'funcionamiento'},
             'funcionamiento/comprobantes-ventas': {'name': 'Comprobantes de Ventas', 'section': 'funcionamiento'},
             'funcionamiento/facturas-venta': {'name': 'Facturas de Venta', 'section': 'funcionamiento'},
             'funcionamiento/redes-sociales': {'name': 'Redes Sociales', 'section': 'funcionamiento'},
-            'videos/presentacion': {'name': 'Video de Presentación', 'section': 'videos'}
+            'videos/presentacion': {'name': 'Video de PresentaciÃ³n', 'section': 'videos'}
         }
         
         # Nombres de las secciones
         section_names = {
-            'obligatorios': '📋 Documentos Obligatorios',
-            'por_tipo': '👤 Documentos por Tipo de Persona',
-            'diferenciales': '🏷️ Documentos Diferenciales',
-            'control': '🔍 Documentos de Control',
-            'funcionamiento': '🏢 Documentos de Funcionamiento',
-            'videos': '🎥 Videos de Presentación'
+            'obligatorios': 'ðŸ“‹ Documentos Obligatorios',
+            'por_tipo': 'ðŸ‘¤ Documentos por Tipo de Persona',
+            'diferenciales': 'ðŸ·ï¸ Documentos Diferenciales',
+            'control': 'ðŸ” Documentos de Control',
+            'funcionamiento': 'ðŸ¢ Documentos de Funcionamiento',
+            'videos': 'ðŸŽ¥ Videos de PresentaciÃ³n'
         }
         
         try:
@@ -1616,21 +2140,21 @@ def get_user_detailed_info(current_user, user_id):
                 for obj in response['Contents']:
                     file_key = obj['Key']
                     
-                    # Extraer información del archivo
+                    # Extraer informaciÃ³n del archivo
                     file_parts = file_key.split('/')
                     if len(file_parts) >= 4:  # usuarios/ID/documentos/tipo/archivo
                         filename = file_parts[-1]
                         
-                        # Filtrar archivos .keep y otros archivos técnicos
+                        # Filtrar archivos .keep y otros archivos tÃ©cnicos
                         if filename == '.keep' or filename.startswith('.'):
                             continue
                             
                         doc_type_path = '/'.join(file_parts[3:-1])  # tipo/subtipo
                         
-                        # Obtener información del documento - solo procesar si está mapeado
+                        # Obtener informaciÃ³n del documento - solo procesar si estÃ¡ mapeado
                         doc_info = document_types_mapping.get(doc_type_path)
                         if not doc_info:
-                            # Saltar archivos no mapeados (elimina la sección "otros")
+                            # Saltar archivos no mapeados (elimina la secciÃ³n "otros")
                             continue
                         
                         # Crear objeto de archivo
@@ -1645,11 +2169,11 @@ def get_user_detailed_info(current_user, user_id):
                             'last_modified_iso': obj['LastModified'].isoformat()
                         }
                         
-                        # Agrupar por tipo de documento y mantener solo el más reciente
+                        # Agrupar por tipo de documento y mantener solo el mÃ¡s reciente
                         if doc_type_path not in files_by_type:
                             files_by_type[doc_type_path] = file_obj
                         else:
-                            # Comparar fechas y mantener el más reciente
+                            # Comparar fechas y mantener el mÃ¡s reciente
                             if obj['LastModified'] > files_by_type[doc_type_path]['last_modified']:
                                 files_by_type[doc_type_path] = file_obj
             
@@ -1669,11 +2193,11 @@ def get_user_detailed_info(current_user, user_id):
                     file_obj['download_url'] = None
                     print(f"Error generando URL presignada: {e}")
                 
-                # Remover el objeto datetime para serialización JSON
+                # Remover el objeto datetime para serializaciÃ³n JSON
                 file_obj_clean = {k: v for k, v in file_obj.items() if k != 'last_modified'}
                 file_obj_clean['last_modified'] = file_obj['last_modified_iso']
                 
-                # Organizar por sección
+                # Organizar por secciÃ³n
                 section = file_obj['section']
                 if section not in files_by_section:
                     files_by_section[section] = {
@@ -1689,10 +2213,10 @@ def get_user_detailed_info(current_user, user_id):
             files_by_section = {}
             total_files = 0
         
-        # Información adicional del formulario
+        # InformaciÃ³n adicional del formulario
         additional_info = {}
         
-        # Campos específicos del modelo User que contienen información del formulario
+        # Campos especÃ­ficos del modelo User que contienen informaciÃ³n del formulario
         form_fields = [
             'emprendimiento_formalizado', 'financiado_estado', 'financiado_regalias',
             'financiado_camara_comercio', 'financiado_incubadoras', 'financiado_otro',
@@ -1717,6 +2241,249 @@ def get_user_detailed_info(current_user, user_id):
         }), 200
         
     except Exception as e:
-        print(f"Error obteniendo información detallada del usuario: {e}")
-        return jsonify({'error': f'Error al obtener información del usuario: {str(e)}'}), 500
+        print(f"Error obteniendo informaciÃ³n detallada del usuario: {e}")
+        return jsonify({'error': f'Error al obtener informaciÃ³n del usuario: {str(e)}'}), 500
 
+# ===== ENDPOINT PARA GENERAR CONTRASEÃ‘AS MASIVAS =====
+@admin_bp.route('/users/generate-passwords', methods=['POST'])
+@token_required
+@admin_required
+def generate_passwords_csv(current_user):
+    """
+    Genera contraseÃ±as para una lista de IDs y devuelve un CSV
+    """
+    try:
+        import secrets
+        import string
+        from werkzeug.security import generate_password_hash
+        
+        data = request.json
+        user_ids = data.get('user_ids', [])
+        
+        if not user_ids:
+            return jsonify({'error': 'La lista de IDs estÃ¡ vacÃ­a'}), 400
+        
+        def generate_temp_password(length=12):
+            """Genera una contraseÃ±a temporal segura"""
+            alphabet = string.ascii_letters + string.digits
+            password = ''.join(secrets.choice(string.ascii_letters) for _ in range(2))
+            password += ''.join(secrets.choice(string.digits) for _ in range(2))
+            password += ''.join(secrets.choice(alphabet) for _ in range(length - 4))
+            password_list = list(password)
+            secrets.SystemRandom().shuffle(password_list)
+            return ''.join(password_list)
+        
+        # Crear CSV en memoria
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Escribir encabezados
+        writer.writerow(['ID', 'Nombre', 'Apellido', 'Email', 'CÃ©dula', 'ContraseÃ±a'])
+        
+        success_count = 0
+        error_count = 0
+        errors = []
+        
+        # Procesar cada ID (optimizado con commits en lotes)
+        batch_size = 50  # Commit cada 50 usuarios
+        users_to_update = []
+        
+        for user_id in user_ids:
+            try:
+                user_id_int = int(user_id)
+                user = User.query.get(user_id_int)
+                
+                if not user:
+                    errors.append(f"ID {user_id}: Usuario no encontrado")
+                    error_count += 1
+                    continue
+                
+                # Generar nueva contraseña
+                new_password = generate_temp_password()
+                
+                # Actualizar contraseña y estado de cuenta a "activa"
+                user.set_password(new_password)
+                user.estado_cuenta = 'activa'
+                users_to_update.append((user, new_password))
+                
+                # Commit en lotes para mejorar rendimiento
+                if len(users_to_update) >= batch_size:
+                    try:
+                        db.session.commit()
+                        # Escribir en CSV después del commit exitoso
+                        for user_obj, password in users_to_update:
+                            writer.writerow([
+                                user_obj.id,
+                                user_obj.nombre,
+                                user_obj.apellido,
+                                user_obj.email,
+                                user_obj.numero_documento,
+                                password
+                            ])
+                            success_count += 1
+                        users_to_update = []
+                    except Exception as e:
+                        db.session.rollback()
+                        for user_obj, password in users_to_update:
+                            errors.append(f"ID {user_obj.id}: {str(e)}")
+                            error_count += 1
+                        users_to_update = []
+                
+            except ValueError:
+                errors.append(f"ID {user_id}: No es un número válido")
+                error_count += 1
+            except Exception as e:
+                db.session.rollback()
+                errors.append(f"ID {user_id}: {str(e)}")
+                error_count += 1
+        
+        # Commit final para los usuarios restantes
+        if users_to_update:
+            try:
+                db.session.commit()
+                for user_obj, password in users_to_update:
+                    writer.writerow([
+                        user_obj.id,
+                        user_obj.nombre,
+                        user_obj.apellido,
+                        user_obj.email,
+                        user_obj.numero_documento,
+                        password
+                    ])
+                    success_count += 1
+            except Exception as e:
+                db.session.rollback()
+                for user_obj, password in users_to_update:
+                    errors.append(f"ID {user_obj.id}: {str(e)}")
+                    error_count += 1
+        
+        # Preparar respuesta CSV
+        output.seek(0)
+        csv_content = output.getvalue()
+        output.close()
+        
+        # Crear respuesta con CSV
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=passwords_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        
+        return response
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error generando contraseÃ±as: {e}")
+        return jsonify({'error': f'Error al generar contraseÃ±as: {str(e)}'}), 500
+
+
+
+# ===== ENDPOINT TEMPORAL PARA ACTIVAR USUARIOS DEL LISTADO IDs.csv =====
+@admin_bp.route('/users/activate-from-ids-file', methods=['POST'])
+@token_required
+@admin_required
+def activate_users_from_ids_file(current_user):
+    """
+    Endpoint temporal para activar usuarios del archivo IDs.csv
+    Actualiza el estado a 'activa' para los usuarios del listado
+    """
+    try:
+        data = request.json
+        user_ids = data.get('user_ids', [])
+        
+        if not user_ids:
+            return jsonify({'error': 'No se proporcionaron IDs de usuarios'}), 400
+        
+        # Actualizar usuarios en lotes
+        batch_size = 100
+        total_updated = 0
+        total_errors = 0
+        errors = []
+        
+        for i in range(0, len(user_ids), batch_size):
+            batch = user_ids[i:i + batch_size]
+            
+            try:
+                # Actualizar estado a 'activa'
+                users = User.query.filter(User.id.in_(batch)).all()
+                
+                for user in users:
+                    user.estado_cuenta = 'activa'
+                    user.fecha_actualizacion = datetime.utcnow()
+                
+                db.session.commit()
+                total_updated += len(users)
+                
+            except Exception as e:
+                db.session.rollback()
+                errors.append(f"Lote {i//batch_size + 1}: {str(e)}")
+                total_errors += len(batch)
+        
+        return jsonify({
+            'success': True,
+            'message': f'{total_updated} usuarios actualizados a estado "activa" exitosamente',
+            'total_updated': total_updated,
+            'total_errors': total_errors,
+            'errors': errors if errors else None
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error activando usuarios: {e}")
+        return jsonify({'error': f'Error al activar usuarios: {str(e)}'}), 500
+
+
+# ===== ENDPOINT TEMPORAL SIN AUTENTICACION PARA ACTIVAR USUARIOS =====
+@admin_bp.route('/users/activate-from-ids-file-direct', methods=['POST'])
+def activate_users_from_ids_file_direct():
+    """
+    Endpoint temporal SIN autenticacion para activar usuarios del archivo IDs.csv
+    SOLO PARA USO INTERNO - ELIMINAR DESPUES DE USAR
+    """
+    try:
+        # Usar IDs del request (el frontend lee el archivo y envía los IDs)
+        data = request.json or {}
+        user_ids = data.get('user_ids', [])
+        
+        if not user_ids:
+            return jsonify({'error': 'No se proporcionaron IDs de usuarios'}), 400
+        
+        if not isinstance(user_ids, list):
+            return jsonify({'error': 'user_ids debe ser una lista'}), 400
+        
+        # Actualizar usuarios en lotes
+        batch_size = 100
+        total_updated = 0
+        total_errors = 0
+        errors = []
+        
+        for i in range(0, len(user_ids), batch_size):
+            batch = user_ids[i:i + batch_size]
+            
+            try:
+                # Actualizar estado a 'activa'
+                users = User.query.filter(User.id.in_(batch)).all()
+                
+                for user in users:
+                    user.estado_cuenta = 'activa'
+                    user.fecha_actualizacion = datetime.utcnow()
+                
+                db.session.commit()
+                total_updated += len(users)
+                
+            except Exception as e:
+                db.session.rollback()
+                errors.append(f"Lote {i//batch_size + 1}: {str(e)}")
+                total_errors += len(batch)
+        
+        return jsonify({
+            'success': True,
+            'message': f'{total_updated} usuarios actualizados a estado "activa" exitosamente',
+            'total_updated': total_updated,
+            'total_processed': len(user_ids),
+            'total_errors': total_errors,
+            'errors': errors if errors else None
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error activando usuarios: {e}")
+        return jsonify({'error': f'Error al activar usuarios: {str(e)}'}), 500

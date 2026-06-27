@@ -20,8 +20,12 @@ build/
 .env.production.local
 
 # IDE files
+.cursor/
 .vscode/
 .idea/
+
+# Scripts locales de análisis (temporales)
+analysis_outputs/**/tmp_*
 *.swp
 *.swo
 *~
@@ -151,8 +155,10 @@ test_*.js
 # Migration files (keep only the final ones)
 migrate_*.py
 *_migration.py
+!backend/backend-app/src/routes/db_migration.py
 add_*.py
 create_*.py
+!analysis_outputs/**/create_*reports*.py
 fix_*.py
 restore_*.py
 revert_*.py
@@ -326,6 +332,9 @@ frontend/frontend-app/public/Terminos/Video_instructivo.mp4
 
 # Exclude serverless deployment files
 backend/backend-app/lambda-deployment/.serverless/
+backend/backend-app/lambda-deployment/*-extracted/
+backend/backend-app/lambda-deployment/lambda-build/
+backend/backend-app/lambda-deployment/.serverless-wsgi
 
 # Exclude Python cache files
 __pycache__/
@@ -364,3 +373,11 @@ documentos/plan de actualización de plataforma.rtf
 
 # Exclude git status files
 tatus --porcelain
+
+# Exclude config with secrets (use serverless.example.yml)
+backend/backend-app/serverless.yml
+backend/backend-app/lambda-deployment/serverless.yml
+
+# Exclude Lambda deployment bundle (large, built from backend)
+_lambda_patch/
+node_modules

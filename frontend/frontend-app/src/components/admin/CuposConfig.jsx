@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
+import API_BASE_URL from '@/config/api'
 const CuposConfig = () => {
   const [modo, setModo] = useState('abierto')
   const [cupoGlobal, setCupoGlobal] = useState('')
@@ -20,19 +20,19 @@ const CuposConfig = () => {
 
   const loadData = async () => {
     try {
-      const cfgRes = await fetch('/api/admin/cupos/config', { credentials: 'include' })
+      const cfgRes = await fetch(`${API_BASE_URL}/admin/cupos/config`, { credentials: 'include' })
       if (cfgRes.ok) {
         const cfg = await cfgRes.json()
         setModo(cfg.modo || 'abierto')
         setConvocatoria(cfg.convocatoria || '2025')
         setCupoGlobal(cfg.cupo_global_max ?? '')
       }
-      const muniRes = await fetch('/api/admin/cupos/municipios', { credentials: 'include' })
+      const muniRes = await fetch(`${API_BASE_URL}/admin/cupos/municipios`, { credentials: 'include' })
       if (muniRes.ok) {
         const data = await muniRes.json()
         setItems(data)
       }
-      const estRes = await fetch('/api/admin/cupos/estado', { credentials: 'include' })
+      const estRes = await fetch(`${API_BASE_URL}/admin/cupos/estado`, { credentials: 'include' })
       if (estRes.ok) {
         const est = await estRes.json()
         setGlobalEstado(est.global)
@@ -50,7 +50,7 @@ const CuposConfig = () => {
     try {
       const body = { modo, convocatoria }
       if (cupoGlobal !== '') body.cupo_global_max = Number(cupoGlobal)
-      const res = await fetch('/api/admin/cupos/config', {
+      const res = await fetch(`${API_BASE_URL}/admin/cupos/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -69,7 +69,7 @@ const CuposConfig = () => {
     setLoading(true)
     setMsg('')
     try {
-      const res = await fetch('/api/admin/cupos/municipios', {
+      const res = await fetch(`${API_BASE_URL}/admin/cupos/municipios`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -239,7 +239,7 @@ const CuposConfig = () => {
             </table>
           </div>
           <Button onClick={saveMunicipios} disabled={loading}>{loading ? 'Guardando...' : 'Guardar Cupos por Municipio'}</Button>
-          <a href="/api/admin/cupos/estado/export" className="inline-block ml-3 text-sm text-green-700 underline">Exportar Excel</a>
+          <a href={`${API_BASE_URL}/admin/cupos/estado/export`} className="inline-block ml-3 text-sm text-green-700 underline">Exportar Excel</a>
         </CardContent>
       </Card>
     </div>

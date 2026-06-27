@@ -121,12 +121,84 @@
 
 /* Custom styles for Gobernación de Nariño E-Learning Platform */
 
+/* Fuentes locales del prototipo EmprendePaz
+   IMPORTANTE: copiar los archivos de fuentes a:
+   frontend/frontend-app/public/fonts
+   con los mismos nombres usados abajo.
+*/
+@font-face {
+  font-family: 'Ample Soft Pro';
+  src: url('/fonts/AmpleSoftPro-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ample Soft Pro';
+  src: url('/fonts/AmpleSoftPro-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ample Soft Pro';
+  src: url('/fonts/AmpleSoftPro-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ample Soft Pro';
+  src: url('/fonts/AmpleSoftPro-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Aptos';
+  src: url('/fonts/fonnts.com-aptos-light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Aptos';
+  src: url('/fonts/fonnts.com-aptos.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Yellowtail';
+  src: url('/fonts/Yellowtail-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Official colors */
 :root {
   --narino-yellow: #FFD500;
   --narino-green: #10A13B;
   --narino-blue: #003366;
   --narino-gray: #4A4A4A;
+  
+  /* Variables del Prototipo EmprendePaz Marketing */
+  --font-heading: 'Ample Soft Pro', 'Aptos', -apple-system, sans-serif;
+  --font-script: 'Yellowtail', cursive;
+  
+  /* Colores del prototipo */
+  --verde-1: #006837;
+  --verde-2: #59D22E;
+  --verde-3: #A5E811;
+  --morado: #AA27B9;
+  --amarillo: #FFEB3B;
 }
 
 /* Smooth scrolling */

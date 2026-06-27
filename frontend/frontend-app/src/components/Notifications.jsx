@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { Bell, Check, CheckCheck, Clock, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-
+import API_BASE_URL from '@/config/api'
 const Notifications = () => {
   const [notificaciones, setNotificaciones] = useState([])
   const [loading, setLoading] = useState(true)
@@ -15,7 +15,7 @@ const Notifications = () => {
 
   const fetchNotificaciones = async () => {
     try {
-      const response = await fetch('/api/notificaciones', {
+      const response = await fetch(`${API_BASE_URL}/notificaciones`, {
         credentials: 'include'
       })
       
@@ -34,7 +34,7 @@ const Notifications = () => {
 
   const marcarComoLeida = async (notificacionId) => {
     try {
-      const response = await fetch(`/api/notificaciones/${notificacionId}/marcar-leida`, {
+      const response = await fetch(`${API_BASE_URL}/notificaciones/${notificacionId}/marcar-leida`, {
         method: 'POST',
         credentials: 'include'
       })
@@ -59,7 +59,7 @@ const Notifications = () => {
 
   const marcarTodasComoLeidas = async () => {
     try {
-      const response = await fetch('/api/notificaciones/marcar-todas-leidas', {
+      const response = await fetch(`${API_BASE_URL}/notificaciones/marcar-todas-leidas`, {
         method: 'POST',
         credentials: 'include'
       })

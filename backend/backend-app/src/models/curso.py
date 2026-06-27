@@ -10,6 +10,7 @@ class Curso(db.Model):
     tipo = db.Column(db.String(20), nullable=False)  # video, pdf, quiz, otro
     url = db.Column(db.String(500), nullable=True)
     activo = db.Column(db.Boolean, default=True, nullable=False)
+    instructor_id = db.Column(db.Integer, nullable=True)  # Instructor que creó el curso
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     

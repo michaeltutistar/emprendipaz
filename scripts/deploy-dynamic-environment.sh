@@ -31,6 +31,10 @@ generate_unique_name() {
 echo "📦 Desplegando backend..."
 cd backend/backend-app
 
+# Instalar plugin requerido
+echo "🔧 Instalando plugin serverless-python-requirements..."
+npx serverless@3 plugin install -n serverless-python-requirements
+
 # Crear serverless.yml dinámico
 cat > serverless-dynamic.yml << EOF
 service: elearning-backend-$ENV_SUFFIX
@@ -43,7 +47,8 @@ provider:
   environment:
     PR_NUMBER: $PR_NUMBER
     ENV_SUFFIX: $ENV_SUFFIX
-    DATABASE_URL: \${env:DATABASE_URL}
+    DATABASE_URL: "postgresql://user:password@localhost:5432/elearning_test"
+    FRONTEND_URL: "TEMP_FRONTEND_URL"
   iam:
     role:
       statements:
@@ -79,8 +84,10 @@ custom:
     strip: false
 EOF
 
-# Desplegar con serverless
-npx serverless deploy --config serverless-dynamic.yml --stage dev
+# Desplegar con serverless (usando versión 3.x que no requiere login)
+# Usar --force para garantizar que el código se actualice
+echo "🚀 Desplegando backend con código actualizado..."
+npx serverless@3 deploy --config serverless-dynamic.yml --stage dev --force
 
 # Obtener URL del API Gateway
 BACKEND_URL=$(aws cloudformation describe-stacks \
@@ -90,26 +97,54 @@ BACKEND_URL=$(aws cloudformation describe-stacks \
 
 echo "✅ Backend desplegado: $BACKEND_URL"
 
+# Guardar BACKEND_URL para usar en el frontend
+export BACKEND_URL
+
 # 2. Crear bucket S3 para frontend
 echo "📦 Creando bucket S3 para frontend..."
 FRONTEND_BUCKET_NAME=$(generate_unique_name "$FRONTEND_BUCKET")
 
 aws s3 mb "s3://$FRONTEND_BUCKET_NAME" --region us-east-1
 
-# Configurar bucket para hosting web
-aws s3 website "s3://$FRONTEND_BUCKET_NAME" \
-    --index-document index.html \
-    --error-document index.html
+# Configurar bucket para CloudFront (sin políticas públicas)
+echo "🔒 Configurando bucket para CloudFront (sin políticas públicas)..."
 
-# Configurar política del bucket
-cat > bucket-policy.json << EOF
+# Crear Origin Access Identity para CloudFront
+echo "🔑 Creando Origin Access Identity..."
+OAI_ID=$(aws cloudfront create-cloud-front-origin-access-identity \
+    --cloud-front-origin-access-identity-config \
+    CallerReference="pr-$PR_NUMBER-$(date +%s)",Comment="OAI for PR $PR_NUMBER" \
+    --query 'CloudFrontOriginAccessIdentity.Id' \
+    --output text)
+
+echo "✅ OAI creada: $OAI_ID"
+
+# 3. Compilar y subir archivos del frontend
+echo "🔨 Compilando frontend..."
+cd ../../frontend/frontend-app
+
+# Instalar dependencias
+npm install --legacy-peer-deps
+
+# Compilar con la URL del backend dinámico
+echo "📝 Configurando frontend para usar backend: $BACKEND_URL"
+VITE_API_URL="$BACKEND_URL/api" npm run build
+
+echo "📤 Subiendo archivos del frontend..."
+aws s3 sync dist/ "s3://$FRONTEND_BUCKET_NAME" --delete
+
+# Configurar política del bucket para la OAI
+echo "🔐 Configurando política del bucket para OAI..."
+cat > bucket-policy-oai.json << EOF
 {
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "PublicReadGetObject",
+            "Sid": "AllowCloudFrontServicePrincipal",
             "Effect": "Allow",
-            "Principal": "*",
+            "Principal": {
+                "AWS": "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity $OAI_ID"
+            },
             "Action": "s3:GetObject",
             "Resource": "arn:aws:s3:::$FRONTEND_BUCKET_NAME/*"
         }
@@ -119,13 +154,7 @@ EOF
 
 aws s3api put-bucket-policy \
     --bucket "$FRONTEND_BUCKET_NAME" \
-    --policy file://bucket-policy.json
-
-# 3. Subir archivos del frontend
-echo "📤 Subiendo archivos del frontend..."
-cd ../../frontend/frontend-app
-
-aws s3 sync dist/ "s3://$FRONTEND_BUCKET_NAME" --delete
+    --policy file://bucket-policy-oai.json
 
 # 4. Crear distribución CloudFront
 echo "🌐 Creando distribución CloudFront..."
@@ -141,11 +170,9 @@ cat > cloudfront-config.json << EOF
         "Items": [
             {
                 "Id": "S3-$FRONTEND_BUCKET_NAME",
-                "DomainName": "$FRONTEND_BUCKET_NAME.s3-website-us-east-1.amazonaws.com",
-                "CustomOriginConfig": {
-                    "HTTPPort": 80,
-                    "HTTPSPort": 443,
-                    "OriginProtocolPolicy": "http-only"
+                "DomainName": "$FRONTEND_BUCKET_NAME.s3.amazonaws.com",
+                "S3OriginConfig": {
+                    "OriginAccessIdentity": "origin-access-identity/cloudfront/$OAI_ID"
                 }
             }
         ]
@@ -187,6 +214,46 @@ CLOUDFRONT_DOMAIN=$(aws cloudfront get-distribution \
 FRONTEND_URL="https://$CLOUDFRONT_DOMAIN"
 
 echo "✅ CloudFront creado: $FRONTEND_URL"
+
+# Actualizar variable de entorno del backend con la URL del frontend
+echo "🔄 Actualizando configuración CORS del backend..."
+# Obtener la configuración actual del backend para mantener DATABASE_URL
+echo "📋 Obteniendo configuración actual del backend..."
+CURRENT_ENV=$(aws lambda get-function-configuration \
+    --function-name "$BACKEND_STACK_NAME-dev-app" \
+    --query 'Environment.Variables' \
+    --output json)
+
+# Extraer DATABASE_URL actual (si existe)
+DATABASE_URL_CURRENT=$(echo "$CURRENT_ENV" | grep -o '"DATABASE_URL":"[^"]*"' | cut -d'"' -f4)
+
+if [ -z "$DATABASE_URL_CURRENT" ]; then
+    echo "⚠️  No se encontró DATABASE_URL, usando valor por defecto"
+    DATABASE_URL_CURRENT="postgresql://user:password@localhost:5432/elearning_test"
+fi
+
+echo "📝 Actualizando solo FRONTEND_URL: $FRONTEND_URL"
+# Crear archivo JSON para las variables de entorno
+cat > /tmp/lambda-env.json << EOF
+{
+  "Variables": {
+    "FRONTEND_URL": "$FRONTEND_URL",
+    "DATABASE_URL": "$DATABASE_URL_CURRENT"
+  }
+}
+EOF
+
+aws lambda update-function-configuration \
+    --function-name "$BACKEND_STACK_NAME-dev-app" \
+    --environment file:///tmp/lambda-env.json
+
+# Esperar a que Lambda procese la actualización
+echo "⏳ Esperando a que Lambda procese la actualización..."
+aws lambda wait function-updated --function-name "$BACKEND_STACK_NAME-dev-app"
+
+# La función Lambda ya está actualizada después del wait
+echo "✅ Backend actualizado con CORS para: $FRONTEND_URL"
+echo "✅ Configuración completada exitosamente"
 
 # 5. Guardar información del ambiente
 echo "💾 Guardando información del ambiente..."

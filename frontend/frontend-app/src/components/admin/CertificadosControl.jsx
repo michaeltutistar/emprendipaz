@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-
+import API_BASE_URL from '@/config/api'
 const CertificadosControl = () => {
   const [usuarios, setUsuarios] = useState([])
   const [estadisticas, setEstadisticas] = useState(null)
@@ -22,13 +22,13 @@ const CertificadosControl = () => {
       setLoading(true)
       
       // Cargar usuarios con control completo
-      const responseUsers = await fetch('/api/admin/users?estado_control=completo', {
+      const responseUsers = await fetch(`${API_BASE_URL}/admin/users?estado_control=completo`, {
         credentials: 'include'
       })
       const dataUsers = await responseUsers.json()
       
       // Cargar estadísticas
-      const responseStats = await fetch('/api/admin/certificados/estadisticas', {
+      const responseStats = await fetch(`${API_BASE_URL}/admin/certificados/estadisticas`, {
         credentials: 'include'
       })
       const dataStats = await responseStats.json()
@@ -48,7 +48,7 @@ const CertificadosControl = () => {
 
   const actualizarResultado = async (userId, resultado) => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/certificados`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/certificados`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

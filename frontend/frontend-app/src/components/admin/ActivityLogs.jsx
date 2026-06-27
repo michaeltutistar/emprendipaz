@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
+import API_BASE_URL from '@/config/api'
 
 const ActivityLogs = () => {
   const [logs, setLogs] = useState([])
@@ -20,7 +21,7 @@ const ActivityLogs = () => {
     try {
       setLoading(true)
       const params = new URLSearchParams(filters)
-      const response = await fetch(`/api/admin/logs?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/logs?${params}`, {
         credentials: 'include'
       })
       

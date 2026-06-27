@@ -1,12 +1,20 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Badge } from '../ui/badge';
+
 import { Progress } from '../ui/progress';
+
 import { BookOpen, Plus, Edit, Eye, Users, TrendingUp, Calendar, Search, FileText } from 'lucide-react';
+
 import { useNavigate, useParams } from 'react-router-dom';
+
 import { toast } from 'sonner';
+
 import InstructorHeader from './InstructorHeader';
+import API_BASE_URL from '@/config/api'
 
 const CourseManager = () => {
   const [cursos, setCursos] = useState([]);
@@ -43,7 +51,7 @@ const CourseManager = () => {
   const cargarCursos = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/instructor/cursos', {
+      const response = await fetch(`${API_BASE_URL}/instructor/cursos`, {
         credentials: 'include'
       });
       
@@ -68,14 +76,14 @@ const CourseManager = () => {
   const cargarDetalleCurso = async (id) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/instructor/curso/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/curso/${id}`, {
         credentials: 'include'
       });
       
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setCursos([data.data]); // Mostrar solo este curso
+          setCursos([data.data]); // mostrar solo este curso
         } else {
           toast.error("Error al cargar detalles del curso");
         }
@@ -127,7 +135,7 @@ const CourseManager = () => {
 
     try {
       setLoading(true);
-      const response = await fetch('/api/instructor/curso', {
+      const response = await fetch(`${API_BASE_URL}/instructor/curso`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -161,7 +169,7 @@ const CourseManager = () => {
 
     try {
       setLoading(true)
-      const response = await fetch(`/api/instructor/curso/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/instructor/curso/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       })

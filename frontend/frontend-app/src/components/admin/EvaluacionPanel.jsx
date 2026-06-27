@@ -1,14 +1,24 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
+
 import { Input } from '@/components/ui/input';
+
 import { Label } from '@/components/ui/label';
+
 import { Textarea } from '@/components/ui/textarea';
+
 import { Badge } from '@/components/ui/badge';
+
 import { Progress } from '@/components/ui/progress';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 import { toast } from 'sonner';
+
 import { CheckCircle, Clock, User, Target } from 'lucide-react';
+import API_BASE_URL from '@/config/api'
 
 const EvaluacionPanel = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -26,8 +36,8 @@ const EvaluacionPanel = () => {
   const cargarDatos = async () => {
     try {
       const [usuariosRes, criteriosRes] = await Promise.all([
-        fetch('/api/admin/evaluaciones/usuarios', { credentials: 'include' }),
-        fetch('/api/admin/evaluaciones/criterios', { credentials: 'include' })
+        fetch(`${API_BASE_URL}/admin/evaluaciones/usuarios`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/admin/evaluaciones/criterios`, { credentials: 'include' })
       ]);
 
       if (usuariosRes.ok && criteriosRes.ok) {
@@ -53,7 +63,7 @@ const EvaluacionPanel = () => {
     
     // Recargar evaluaciones del usuario desde el servidor
     try {
-      const response = await fetch(`/api/admin/evaluaciones/${usuario.id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/evaluaciones/${usuario.id}`, {
         credentials: 'include'
       });
       
@@ -72,7 +82,7 @@ const EvaluacionPanel = () => {
 
   const guardarEvaluacion = async (criterioId, puntaje, observaciones) => {
     try {
-      const response = await fetch('/api/admin/evaluaciones', {
+      const response = await fetch(`${API_BASE_URL}/admin/evaluaciones`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

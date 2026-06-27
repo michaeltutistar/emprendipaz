@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,11 +11,12 @@ import { Eye, EyeOff, ArrowLeft, Upload, FileText, X, ChevronLeft, ChevronRight,
 import { toast } from 'sonner'
 import logoGobernacion from '../assets/logo-gobernacion.png'
 import { MUNICIPIOS_POR_SUBREGION } from '@/constants/municipios'
-
-const RegisterPageMultiStep = () => {
+import API_BASE_URL from '@/config/api'
+const RegisterPageMultiStep = ({ embedded = false, forceAdminMode = false }) => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isDemoMode = searchParams.get('demo') === 'true'
+  const isAdminMode = forceAdminMode || searchParams.get('admin') === 'true' // Modo admin para habilitar edici?n
   const [currentStep, setCurrentStep] = useState(1)
   const [userId, setUserId] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -24,10 +25,10 @@ const RegisterPageMultiStep = () => {
   const [successMessage, setSuccessMessage] = useState('')
   const [resumeDocument, setResumeDocument] = useState('')
   const [isExistingUser, setIsExistingUser] = useState(false) // Nuevo estado para rastrear usuarios existentes
-  const [showFinalizeConfirmation, setShowFinalizeConfirmation] = useState(false) // Modal de confirmación final
-  const [showValidationError, setShowValidationError] = useState(false) // Modal de error de validación
-  const [validationErrorMessage, setValidationErrorMessage] = useState('') // Mensaje de error de validación
-  const [isStep1Complete, setIsStep1Complete] = useState(false) // Control para habilitar navegación libre después del Paso 1
+  const [showFinalizeConfirmation, setShowFinalizeConfirmation] = useState(false) // Modal de confirmaci?n final
+  const [showValidationError, setShowValidationError] = useState(false) // Modal de error de validaci?n
+  const [validationErrorMessage, setValidationErrorMessage] = useState('') // Mensaje de error de validaci?n
+  const [isStep1Complete, setIsStep1Complete] = useState(false) // Control para habilitar navegaci?n libre despu?s del Paso 1
   // Rastrear archivos ya subidos usando sessionStorage para persistencia
   const [uploadedFiles, setUploadedFiles] = useState(() => {
     try {
@@ -40,7 +41,7 @@ const RegisterPageMultiStep = () => {
   const [uploadingStatuses, setUploadingStatuses] = useState({})
   const [pendingUploads, setPendingUploads] = useState({})
 
-  // Función para limpiar archivos subidos
+  // Funci?n para limpiar archivos subidos
   const clearUploadedFiles = () => {
     setUploadedFiles(new Set())
     setUploadingStatuses({})
@@ -82,21 +83,21 @@ const RegisterPageMultiStep = () => {
     password: '',
     confirm_password: '',
     convocatoria: '', // Convocatoria a seleccionar
-    
-    // Campos de población diferencial (TDR)
+
+    // Campos de poblaci?n diferencial (TDR)
     mujer_cabeza_familia: false,
     victima_conflicto: false,
     persona_discapacidad: false,
     pertenencia_etnica: false,
     sisben_grupo: '',
     persona_reincorporacion: false,
-    
+
     // Campos de emprendimiento (TDR)
     tiempo_funcionamiento: '',
     empleos_generados: '',
     acceso_mercados: '',
-    
-    // Video de presentación
+
+    // Video de presentaci?n
     video_presentacion: null
   })
 
@@ -136,26 +137,38 @@ const RegisterPageMultiStep = () => {
   const [comprobantesVentasPdf, setComprobantesVentasPdf] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  
-  // Estado para video de presentación
+
+  // Estado para video de presentacion
   const [videoPresentacion, setVideoPresentacion] = useState(null)
 
-  // Definición de pasos
+  // Definicion de pasos
   const steps = [
-    { number: 1, title: 'Datos Generales', description: 'Información personal y del emprendimiento' },
+    { number: 1, title: 'Datos Generales', description: 'Informacion personal y del emprendimiento' },
     { number: 2, title: 'Población Diferencial', description: 'Condiciones especiales y vulnerabilidad' },
     { number: 3, title: 'Emprendimiento', description: 'Tiempo funcionamiento, empleos y mercados' },
-    { number: 4, title: 'Video Presentación', description: 'Video de presentación del emprendimiento' },
+    { number: 4, title: 'Video Presentacion', description: 'Video de presentacion del emprendimiento' },
     { number: 5, title: 'Documentos Obligatorios', description: 'TDR, Uso de imagen, Plan de negocio, Vecindad' },
     { number: 6, title: 'Documentos por Tipo', description: 'Según persona natural o jurídica' },
-    { number: 7, title: 'Documentos Diferenciales', description: 'RUV, SISBEN, Grupo étnico (opcionales)' },
+    { number: 7, title: 'Documentos Diferenciales', description: 'RUV, SISBEN, Grupo etnico (opcionales)' },
     { number: 8, title: 'Documentos de Control', description: 'Antecedentes y certificados subsanables' },
-    { number: 9, title: 'Funcionamiento', description: 'Certificación de funcionamiento del emprendimiento' },
+    { number: 9, title: 'Funcionamiento', description: 'Certificacion de funcionamiento del emprendimiento' },
     { number: 10, title: 'Financiación', description: 'Financiación de otras fuentes estatales' },
     { number: 11, title: 'Declaraciones', description: 'Declaraciones y aceptación de términos' }
   ]
 
   const progressPercentage = (currentStep / steps.length) * 100
+  const hasUploadedVideo = Boolean(
+    videoPresentacion ||
+    videoUrl ||
+    formData.video_url ||
+    formData.video_presentacion ||
+    uploadedFiles.has('video_presentacion') ||
+    uploadedFiles.has('video_url')
+  )
+
+  const hasUploadedDocument = (fileState, fieldName) => {
+    return Boolean(fileState || uploadedFiles.has(fieldName) || formData[fieldName])
+  }
 
   // Funciones de utilidad (copiadas del original)
   const validateEmail = (email) => {
@@ -194,40 +207,41 @@ const RegisterPageMultiStep = () => {
     }
   }
 
-  // Función para retomar proceso existente
+  // Funci?n para retomar proceso existente
   const handleResumeProcess = async () => {
     if (!resumeDocument.trim()) return
 
     try {
       setIsLoading(true)
       setErrors({})
-      
-      const apiUrl = import.meta.env.MODE === 'production' 
-        ? 'https://by89bq27g7.execute-api.us-east-1.amazonaws.com/dev/api/resume-process'
-        : '/api/resume-process'
-      
+
+      const apiUrl = import.meta.env.MODE === 'production'
+        ? `${API_BASE_URL}/resume-process`
+        : `${API_BASE_URL}/resume-process`
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          numero_documento: resumeDocument.trim()
+        body: JSON.stringify({
+          numero_documento: resumeDocument.trim(),
+          admin_mode: isAdminMode // Enviar flag de modo admin
         }),
         credentials: 'include'
       })
 
       const result = await response.json()
-      
+
       if (response.ok) {
         // Cargar datos existentes
         setFormData({
           ...result.formData,
-          password: '**********', // Mostrar asteriscos en lugar de la contraseña real
+          password: '**********', // mostrar asteriscos en lugar de la contrase?a real
           confirm_password: '**********'
         })
         setCurrentStep(result.currentStep || 1)
         setUserId(result.user_id)
         setIsExistingUser(true) // Marcar como usuario existente
-        
+
         // Cargar archivos ya subidos
         const uploadedFilesSet = new Set()
         const fileFields = [
@@ -242,13 +256,29 @@ const RegisterPageMultiStep = () => {
           'publicaciones_redes_pdf', 'redes_sociales_pdf', 'registro_ventas_pdf',
           'comprobantes_ventas_pdf', 'video_presentacion'
         ]
-        
+
+        // Mapeo inverso: nombres de BD -> nombres de frontend
+        const dbToFrontendMapping = {
+          'publicaciones_redes_pdf': 'redes_sociales_pdf',
+          'registro_ventas_pdf': 'comprobantes_ventas_pdf'
+        }
+
         fileFields.forEach(field => {
+          if (result.formData[field]) {
+            // Usar el nombre mapeado si existe, de lo contrario usar el campo original
+            const frontendField = dbToFrontendMapping[field] || field
+            uploadedFilesSet.add(frontendField)
+          }
+        })
+
+        // Tambi?n verificar campos que el backend puede devolver directamente
+        const directFields = ['comprobantes_ventas_pdf', 'redes_sociales_pdf']
+        directFields.forEach(field => {
           if (result.formData[field]) {
             uploadedFilesSet.add(field)
           }
         })
-        
+
         setUploadedFiles(uploadedFilesSet)
         // Guardar en sessionStorage para persistencia
         try {
@@ -256,15 +286,15 @@ const RegisterPageMultiStep = () => {
         } catch (e) {
           console.warn('No se pudo guardar en sessionStorage:', e)
         }
-        
+
         // Cargar video_url si existe
         if (result.formData.video_url || result.formData.video_presentacion) {
           const videoUrlValue = result.formData.video_url || result.formData.video_presentacion
           setVideoUrl(videoUrlValue)
         }
-        
-        setIsStep1Complete(true) // ✅ Habilitar navegación libre al retomar proceso
-        setSuccessMessage('✅ Proceso cargado exitosamente. Puede continuar donde lo dejó.')
+
+        setIsStep1Complete(true) // ? Habilitar navegaci?n libre al retomar proceso
+        setSuccessMessage('✓ Proceso cargado exitosamente. Puede continuar donde lo dejó.')
         setTimeout(() => setSuccessMessage(''), 5000)
       } else {
         setErrors({ resume: result.error || 'No se encontró un proceso iniciado con este documento' })
@@ -276,30 +306,73 @@ const RegisterPageMultiStep = () => {
     }
   }
 
-  const handleFileChange = async (file, setter, fieldName, allowedTypes = ['application/pdf'], maxSize = 20 * 1024 * 1024) => {
+  // Flujo específico para comprobantes de ventas usando el mismo endpoint estable del resto de documentos.
+  const handleComprobantesVentasChange = async (file, setter, fieldName) => {
     try {
-    if (!file) return
-    
-    if (!allowedTypes.includes(file.type)) {
-      setErrors(prev => ({ ...prev, [fieldName]: `Tipo de archivo no válido. Se requiere: ${allowedTypes.join(', ')}` }))
+      if (!file) return
+
+      if (file.type !== 'application/pdf') {
+        setErrors(prev => ({ ...prev, [fieldName]: 'Solo se permiten archivos PDF' }))
         setter(null)
-      return
-    }
-    
-    if (file.size > maxSize) {
-      setErrors(prev => ({ ...prev, [fieldName]: `El archivo no puede superar ${Math.round(maxSize / (1024 * 1024))}MB` }))
+        return
+      }
+
+      // L?mite de 10MB para comprobantes de ventas (l?mite de API Gateway)
+      const maxSize = 10 * 1024 * 1024
+      if (file.size > maxSize) {
+        setErrors(prev => ({ ...prev, [fieldName]: `El archivo no puede superar 10MB. Tamaño actual: ${(file.size / (1024 * 1024)).toFixed(2)}MB` }))
         setter(null)
-      return
-    }
-    
+        return
+      }
+
       // Limpiar errores previos
-    if (errors[fieldName]) {
-      setErrors(prev => ({ ...prev, [fieldName]: '' }))
+      if (errors[fieldName]) {
+        setErrors(prev => ({ ...prev, [fieldName]: '' }))
       }
 
       setter(file)
 
-      // Subir archivo inmediatamente sólo si ya tenemos usuario creado
+      // Reusar el flujo estándar evita depender de endpoints no disponibles para este campo.
+      if (!formData.numero_documento || !userId) {
+        setPendingUploads(prev => ({ ...prev, [fieldName]: file }))
+        return
+      }
+
+      await uploadSingleFileInternal(file, fieldName, setter)
+
+    } catch (error) {
+      console.error(`Error subiendo archivo ${fieldName}:`, error)
+      setErrors(prev => ({ ...prev, [fieldName]: `Error al subir archivo: ${error.message}` }))
+      setter(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleFileChange = async (file, setter, fieldName, allowedTypes = ['application/pdf'], maxSize = 10 * 1024 * 1024) => {
+    try {
+      if (!file) return
+
+      if (!allowedTypes.includes(file.type)) {
+        setErrors(prev => ({ ...prev, [fieldName]: `Tipo de archivo no válido. Se requiere: ${allowedTypes.join(', ')}` }))
+        setter(null)
+        return
+      }
+
+      if (file.size > maxSize) {
+        setErrors(prev => ({ ...prev, [fieldName]: `El archivo no puede superar ${Math.round(maxSize / (1024 * 1024))}MB. Tamaño actual: ${(file.size / (1024 * 1024)).toFixed(2)}MB` }))
+        setter(null)
+        return
+      }
+
+      // Limpiar errores previos
+      if (errors[fieldName]) {
+        setErrors(prev => ({ ...prev, [fieldName]: '' }))
+      }
+
+      setter(file)
+
+      // Subir archivo inmediatamente s?lo si ya tenemos usuario creado
       if (!formData.numero_documento || !userId) {
         setPendingUploads(prev => ({ ...prev, [fieldName]: file }))
         return
@@ -326,9 +399,9 @@ const RegisterPageMultiStep = () => {
   }
 
   const uploadSingleFileInternal = async (file, fieldName, setter, options = {}) => {
-    const apiUrl = import.meta.env.MODE === 'production' 
-      ? 'https://by89bq27g7.execute-api.us-east-1.amazonaws.com/dev/api/upload-file'
-      : '/api/upload-file'
+    const apiUrl = import.meta.env.MODE === 'production'
+      ? `${API_BASE_URL}/upload-file`
+      : `${API_BASE_URL}/upload-file`
 
     setUploadingStatuses(prev => ({
       ...prev,
@@ -395,7 +468,7 @@ const RegisterPageMultiStep = () => {
     }
   }
 
-  // Función especial para subir videos usando Pre-signed URLs (solo para Paso 4)
+  // Funci?n especial para subir videos usando Pre-signed URLs (solo para Paso 4)
   const uploadVideoDirectToS3 = async (file) => {
     try {
       // Actualizar estado de subida
@@ -404,8 +477,8 @@ const RegisterPageMultiStep = () => {
         video_presentacion: { status: 'uploading', message: 'Preparando subida...' }
       }))
 
-      const apiUrl = import.meta.env.MODE === 'production' 
-        ? 'https://by89bq27g7.execute-api.us-east-1.amazonaws.com/dev/api'
+      const apiUrl = import.meta.env.MODE === 'production'
+        ? '/api'
         : '/api'
 
       // Paso 1: Solicitar URL pre-firmada
@@ -416,7 +489,8 @@ const RegisterPageMultiStep = () => {
           numero_documento: formData.numero_documento,
           filename: file.name,
           content_type: file.type,
-          file_size: file.size
+          file_size: file.size,
+          admin_mode: isAdminMode // Enviar flag de modo admin
         }),
         credentials: 'include'
       })
@@ -428,16 +502,16 @@ const RegisterPageMultiStep = () => {
 
       const { upload_url, file_key } = await urlResponse.json()
 
-      // 🔍 DEBUG: Verificar content-type
-      console.log('🔍 DEBUG - File type del frontend:', file.type)
-      console.log('🔍 DEBUG - URL pre-firmada:', upload_url)
-      
+      // ?? DEBUG: Verificar content-type
+      console.log('?? DEBUG - File type del frontend:', file.type)
+      console.log('?? DEBUG - URL pre-firmada:', upload_url)
+
       // Verificar si la URL contiene content-type como query parameter
       const urlObj = new URL(upload_url)
       const contentTypeParam = urlObj.searchParams.get('content-type')
-      console.log('🔍 DEBUG - Content-Type en URL:', contentTypeParam)
-      console.log('🔍 DEBUG - Content-Type que enviaremos:', file.type)
-      console.log('🔍 DEBUG - ¿Coinciden?', file.type === contentTypeParam)
+      console.log('?? DEBUG - Content-Type en URL:', contentTypeParam)
+      console.log('?? DEBUG - Content-Type que enviaremos:', file.type)
+      console.log('?? DEBUG - ?Coinciden?', file.type === contentTypeParam)
 
       // Paso 2: Subir archivo directo a S3 usando PUT
       setUploadingStatuses(prev => ({
@@ -445,18 +519,17 @@ const RegisterPageMultiStep = () => {
         video_presentacion: { status: 'uploading', message: 'Subiendo video a S3...' }
       }))
 
-      // 🔍 DEBUG: Log de la petición que vamos a enviar
-      console.log('🔍 DEBUG - Enviando PUT a S3 con:')
+      // ?? DEBUG: Log de la petici?n que vamos a enviar
+      console.log('?? DEBUG - Enviando PUT a S3 con:')
       console.log('  - URL:', upload_url.substring(0, 100) + '...')
       console.log('  - Method: PUT')
       console.log('  - Content-Type:', file.type)
       console.log('  - File size:', file.size, 'bytes')
       console.log('  - File name:', file.name)
 
-      // 🔧 SOLUCIÓN DEFINITIVA: Usar XMLHttpRequest para evitar interceptor de fetch
+      // ?? SOLUCI?N DEFINITIVA: Usar XMLHttpRequest para evitar interceptor de fetch
       const uploadResponse = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        
         xhr.addEventListener('load', () => {
           if (xhr.status === 200) {
             resolve({ ok: true, status: 200 });
@@ -464,27 +537,27 @@ const RegisterPageMultiStep = () => {
             reject(new Error(`Error ${xhr.status}`));
           }
         });
-        
+
         xhr.addEventListener('error', () => reject(new Error('Network error')));
-        
+
         xhr.open('PUT', upload_url);
         xhr.setRequestHeader('Content-Type', file.type);
         xhr.send(file);
       })
 
-      console.log('🔍 DEBUG - Respuesta de S3:')
+      console.log('?? DEBUG - Respuesta de S3:')
       console.log('  - Status:', uploadResponse.status)
       console.log('  - Status Text:', uploadResponse.statusText || 'OK')
       console.log('  - Headers:', 'XMLHttpRequest no expone headers de respuesta')
 
       if (!uploadResponse.ok) {
-        // 🔍 DEBUG: Obtener el cuerpo de la respuesta XML para ver el error específico
+        // ?? DEBUG: Obtener el cuerpo de la respuesta XML para ver el error espec?fico
         try {
           const errorText = await uploadResponse.text()
-          console.log('🔍 DEBUG - Error XML de S3:')
+          console.log('?? DEBUG - Error XML de S3:')
           console.log(errorText)
         } catch (e) {
-          console.log('🔍 DEBUG - No se pudo leer el error XML:', e)
+          console.log('?? DEBUG - No se pudo leer el error XML:', e)
         }
         throw new Error('Error subiendo archivo a S3')
       }
@@ -517,9 +590,9 @@ const RegisterPageMultiStep = () => {
       setVideoUrl(result.video_url)
       setUploadingStatuses(prev => ({
         ...prev,
-        video_presentacion: { 
-          status: 'success', 
-          message: `Video subido correctamente (${result.size_mb} MB)` 
+        video_presentacion: {
+          status: 'success',
+          message: `Video subido correctamente (${result.size_mb} MB)`
         }
       }))
 
@@ -530,15 +603,15 @@ const RegisterPageMultiStep = () => {
         return newErrors
       })
 
-      console.log('✅ Video subido exitosamente:', result.video_url)
+      console.log('? Video subido exitosamente:', result.video_url)
 
     } catch (error) {
-      console.error('❌ Error subiendo video:', error)
+      console.error('? Error subiendo video:', error)
       setUploadingStatuses(prev => ({
         ...prev,
-        video_presentacion: { 
-          status: 'error', 
-          message: error.message || 'Error al subir el video' 
+        video_presentacion: {
+          status: 'error',
+          message: error.message || 'Error al subir el video'
         }
       }))
       setErrors(prev => ({ ...prev, video_presentacion: error.message }))
@@ -554,7 +627,7 @@ const RegisterPageMultiStep = () => {
       'Certificado de vecindad con anexos': '5.Certificado de Vecindad.pdf',
       'Declaración Juramentada de Capacidad Legal': '7. DECLARACIÓN JURAMENTADA DE CAPACIDAD LEGAL.pdf'
     }
-    
+
     const fileName = documentMappings[documentName]
     if (fileName) {
       const link = document.createElement('a')
@@ -580,7 +653,7 @@ const RegisterPageMultiStep = () => {
     return (
       <div className="space-y-2">
         <Label htmlFor={fieldName}>{label} {!isOptional && '*'}</Label>
-        
+
         {/* Botón de descarga del formato - solo para Paso 5 */}
         {showDownloadButton && (
           <div className="mb-3">
@@ -596,7 +669,7 @@ const RegisterPageMultiStep = () => {
             </Button>
           </div>
         )}
-        
+
         {/* Enlace de ayuda - para Paso 6 */}
         {helpLink && (
           <div className="mb-3">
@@ -606,19 +679,18 @@ const RegisterPageMultiStep = () => {
               rel="noopener noreferrer"
               className="text-blue-600 hover:text-blue-800 text-sm underline flex items-center space-x-1"
             >
-              <span>🔗</span>
               <span>Obtener documento aquí</span>
             </a>
           </div>
         )}
-        
+
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
           {file ? (
             <div className="flex items-center justify-between bg-green-50 p-2 rounded">
               <div className="flex items-center">
                 <FileText className="h-5 w-5 text-green-600 mr-2" />
                 <span className="text-sm text-green-700 font-medium">
-                  {isUploading ? 'Subiendo...' : `📄 ${file.name}`}
+                  {isUploading ? 'Subiendo...' : file.name}
                 </span>
               </div>
               <Button
@@ -646,14 +718,21 @@ const RegisterPageMultiStep = () => {
                     type="file"
                     className="sr-only"
                     accept={allowedTypes.join(',')}
-                    onChange={(e) => handleFileChange(e.target.files[0], setter, validationName, allowedTypes)}
+                    onChange={(e) => {
+                      const file = e.target.files[0]
+                      if (validationName === 'comprobantes_ventas_pdf') {
+                        handleComprobantesVentasChange(file, setter, validationName)
+                      } else {
+                        handleFileChange(file, setter, validationName, allowedTypes)
+                      }
+                    }}
                   />
                 </label>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {allowedTypes.includes('application/pdf') && 'PDF'} 
-                {allowedTypes.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') && ' Excel'} 
-                (máx. 20MB)
+                {allowedTypes.includes('application/pdf') && 'PDF'}
+                {allowedTypes.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') && ' Excel'}
+                (máx. 10MB)
               </p>
               {isUploading && (
                 <p className="text-sm text-blue-600 mt-1 flex items-center gap-2">
@@ -661,27 +740,27 @@ const RegisterPageMultiStep = () => {
                 </p>
               )}
               {isSuccess && (
-                <p className="text-sm text-green-600 mt-1">✅ Documento subido correctamente</p>
+                <p className="text-sm text-green-600 mt-1">Documento subido correctamente</p>
               )}
               {alreadyUploaded && !isUploading && !isSuccess && (
                 <div className="mt-1">
-                  <p className="text-sm text-green-600 font-medium">✅ Documento ya cargado anteriormente</p>
+                  <p className="text-sm text-green-600 font-medium">Documento ya cargado anteriormente</p>
                   {existingFileName && (
                     <p className="text-xs text-gray-600 mt-1 bg-gray-50 p-2 rounded border border-gray-200">
-                      📄 {existingFileName}
+                      {existingFileName}
                     </p>
                   )}
                   <p className="text-xs text-gray-500 mt-1">Puedes subir un nuevo archivo para reemplazarlo</p>
                 </div>
               )}
               {hasError && (
-                <p className="text-sm text-red-600 mt-1">❌ {uploadStatus?.error || 'Error al subir el documento'}</p>
+                <p className="text-sm text-red-600 mt-1">{uploadStatus?.error || 'Error al subir el documento'}</p>
               )}
               {!file && !isOptional && !alreadyUploaded && !isUploading && errors[validationName] && (
-                <p className="text-sm text-red-600 mt-1">❌ Falta documento obligatorio</p>
+                <p className="text-sm text-red-600 mt-1">Falta documento obligatorio</p>
               )}
               {!file && isOptional && !alreadyUploaded && !isUploading && (
-                <p className="text-sm text-yellow-600 mt-1">⚠️ Documento no cargado (subsanable)</p>
+                <p className="text-sm text-yellow-600 mt-1">Documento no cargado (subsanable)</p>
               )}
             </div>
           )}
@@ -696,13 +775,13 @@ const RegisterPageMultiStep = () => {
     )
   }
 
-  // Validación por pasos
+  // Validaci?n por pasos
   const validateCurrentStep = () => {
     const newErrors = {}
 
-    // En modo demo, ser más permisivo con las validaciones
+    // En modo demo, ser m?s permisivo con las validaciones
     if (isDemoMode) {
-      // Solo validar campos básicos en modo demo
+      // Solo validar campos b?sicos en modo demo
       if (currentStep === 1) {
         if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio'
         if (!formData.email.trim()) {
@@ -710,12 +789,12 @@ const RegisterPageMultiStep = () => {
         } else if (!validateEmail(formData.email)) {
           newErrors.email = 'El formato del correo electrónico no es válido'
         }
-        // Solo validar contraseña si NO es un usuario existente
+        // Solo validar contrase?a si NO es un usuario existente
         if (!isExistingUser && !formData.password) {
           newErrors.password = 'La contraseña es obligatoria'
         }
       }
-      // Para los demás pasos en demo, no validar documentos
+      // Para los dem?s pasos en demo, no validar documentos
       setErrors(newErrors)
       return Object.keys(newErrors).length === 0
     }
@@ -750,7 +829,7 @@ const RegisterPageMultiStep = () => {
         if (!formData.emprendimiento_sector) newErrors.emprendimiento_sector = 'El sector económico es obligatorio'
         if (!formData.tipo_persona) newErrors.tipo_persona = 'El tipo de persona es obligatorio'
         if (!formData.convocatoria) newErrors.convocatoria = 'La convocatoria es obligatoria'
-        // Solo validar contraseña si NO es un usuario existente
+        // Solo validar contrase?a si NO es un usuario existente
         if (!isExistingUser) {
           if (!formData.password) {
             newErrors.password = 'La contraseña es obligatoria'
@@ -776,15 +855,15 @@ const RegisterPageMultiStep = () => {
         break
 
       case 4: // Video Presentación
-        if (!videoPresentacion) newErrors.video_presentacion = 'El video de presentación es obligatorio'
+        if (!hasUploadedVideo) newErrors.video_presentacion = 'El video de presentación es obligatorio'
         break
 
       case 5: // Documentos Obligatorios
-        if (!docTerminosPdf) newErrors.doc_terminos_pdf = 'El documento TDR es obligatorio'
-        if (!docUsoImagenPdf) newErrors.doc_uso_imagen_pdf = 'La autorización de uso de imagen es obligatoria'
-        if (!docPlanNegocioXls) newErrors.doc_plan_negocio_xls = 'El plan de negocio es obligatorio'
-        if (!docVecindadPdf) newErrors.doc_vecindad_pdf = 'El certificado de vecindad es obligatorio'
-        if (!declaracionCapacidadPdf) newErrors.declaracion_capacidad_legal_pdf = 'La declaración juramentada de capacidad legal es obligatoria'
+        if (!hasUploadedDocument(docTerminosPdf, 'doc_terminos_pdf')) newErrors.doc_terminos_pdf = 'El documento TDR es obligatorio'
+        if (!hasUploadedDocument(docUsoImagenPdf, 'doc_uso_imagen_pdf')) newErrors.doc_uso_imagen_pdf = 'La autorización de uso de imagen es obligatoria'
+        if (!hasUploadedDocument(docPlanNegocioXls, 'doc_plan_negocio_xls')) newErrors.doc_plan_negocio_xls = 'El plan de negocio es obligatorio'
+        if (!hasUploadedDocument(docVecindadPdf, 'doc_vecindad_pdf')) newErrors.doc_vecindad_pdf = 'El certificado de vecindad es obligatorio'
+        if (!hasUploadedDocument(declaracionCapacidadPdf, 'declaracion_capacidad_legal_pdf')) newErrors.declaracion_capacidad_legal_pdf = 'La declaración juramentada de capacidad legal es obligatoria'
         break
 
       case 6: // Documentos por Tipo
@@ -812,7 +891,7 @@ const RegisterPageMultiStep = () => {
         break
 
       case 10: // Financiación
-        // Solo validar el texto de "otro" si está marcado
+        // Solo validar el texto de "otro" si est? marcado
         if (formData.financiado_otro && !formData.financiado_otro_texto.trim()) {
           newErrors.financiado_otro_texto = 'Si selecciona "Otro" como fuente de financiación, debe especificar cuál'
         }
@@ -838,24 +917,25 @@ const RegisterPageMultiStep = () => {
 
     try {
       setIsSaving(true)
-      
+
       // Modo demo: simular guardado de progreso
       if (isDemoMode) {
         await new Promise(resolve => setTimeout(resolve, 500)) // Simular delay
         return true
       }
-      
-      const apiUrl = import.meta.env.MODE === 'production' 
-        ? 'https://by89bq27g7.execute-api.us-east-1.amazonaws.com/dev/api/save-partial'
-        : '/api/save-partial'
-      
+
+      const apiUrl = import.meta.env.MODE === 'production'
+        ? `${API_BASE_URL}/save-partial`
+        : `${API_BASE_URL}/save-partial`
+
       // Preparar datos SIN archivos (solo datos del formulario)
-      const submitData = { 
+      const submitData = {
         numero_documento: formData.numero_documento,
         paso: currentStep,
+        admin_mode: isAdminMode, // Enviar flag de modo admin
         ...formData
       }
-      
+
       // Remover campos de archivos del submitData para evitar payload grande
       const fileFields = [
         'doc_terminos_pdf', 'doc_uso_imagen_pdf', 'doc_plan_negocio_xls', 'doc_vecindad_pdf', 'declaracion_juramentada_pdf',
@@ -868,15 +948,15 @@ const RegisterPageMultiStep = () => {
         'publicaciones_redes_pdf', 'redes_sociales_pdf', 'registro_ventas_pdf',
         'comprobantes_ventas_pdf', 'video_presentacion'
       ]
-      
+
       // Limpiar campos de archivos del submitData
       fileFields.forEach(field => {
         delete submitData[field]
         delete submitData[`${field}_nombre`]
       })
-      
+
       console.log('Guardando datos del formulario:', submitData)
-      
+
       // Guardar los datos del formulario (sin archivos)
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -911,7 +991,7 @@ const RegisterPageMultiStep = () => {
         await Promise.all(uploads)
         setPendingUploads({})
       }
-      
+
       return true
     } catch (err) {
       console.error('Error en savePartialProgress:', err)
@@ -922,7 +1002,7 @@ const RegisterPageMultiStep = () => {
     }
   }
 
-  // Navegación entre pasos
+  // Navegaci?n entre pasos
   const nextStep = async () => {
     if (!validateCurrentStep()) {
       return
@@ -933,13 +1013,13 @@ const RegisterPageMultiStep = () => {
       // Guardar datos del formulario (sin archivos)
       const saved = await savePartialProgress()
       if (!saved) return
-      
-      // Mostrar mensaje de éxito solo si se guardó correctamente
-      setSuccessMessage('✅ Progreso guardado exitosamente')
+
+      // mostrar mensaje de ?xito solo si se guard? correctamente
+      setSuccessMessage('✓ Progreso guardado exitosamente')
       setTimeout(() => setSuccessMessage(''), 3000)
     }
 
-    // ✅ CRÍTICO: Si estamos en el Paso 1, habilitar navegación libre
+    // ? CR?TICO: Si estamos en el Paso 1, habilitar navegaci?n libre
     if (currentStep === 1) {
       setIsStep1Complete(true)
     }
@@ -957,10 +1037,10 @@ const RegisterPageMultiStep = () => {
     }
   }
 
-  // Navegación directa a cualquier paso
+  // Navegaci?n directa a cualquier paso
   const goToStep = (stepNumber) => {
     if (stepNumber >= 1 && stepNumber <= steps.length) {
-      // Validar que pasos previos estén completos si se navega hacia adelante manualmente
+      // Validar que pasos previos est?n completos si se navega hacia adelante manualmente
       if (stepNumber > currentStep) {
         for (let i = currentStep; i < stepNumber; i++) {
           if (!validateStep(i)) {
@@ -984,20 +1064,20 @@ const RegisterPageMultiStep = () => {
 
     try {
       setIsLoading(true)
-      
-      // Modo demo: simular creación de usuario
+
+      // Modo demo: simular creaci?n de usuario
       if (isDemoMode) {
         await new Promise(resolve => setTimeout(resolve, 1000)) // Simular delay
         setUserId('demo-user-123')
-        setSuccessMessage('✅ Usuario creado. Puede continuar completando el formulario.')
+        setSuccessMessage('✓ Usuario creado. Puede continuar completando el formulario.')
         setTimeout(() => setSuccessMessage(''), 3000)
         return true
       }
-      
-      const apiUrl = import.meta.env.MODE === 'production' 
-        ? 'https://by89bq27g7.execute-api.us-east-1.amazonaws.com/dev/api/register-initial'
-        : '/api/register-initial'
-      
+
+      const apiUrl = import.meta.env.MODE === 'production'
+        ? `${API_BASE_URL}/register-initial`
+        : `${API_BASE_URL}/register-initial`
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1011,7 +1091,7 @@ const RegisterPageMultiStep = () => {
       const result = await response.json()
       if (response.ok) {
         setUserId(result.user_id)
-        setSuccessMessage('✅ Usuario creado. Puede continuar completando el formulario.')
+        setSuccessMessage('✓ Usuario creado. Puede continuar completando el formulario.')
         setTimeout(() => setSuccessMessage(''), 3000)
         return true
       } else {
@@ -1026,20 +1106,20 @@ const RegisterPageMultiStep = () => {
     }
   }
 
-  // Función para confirmar y enviar el formulario
+  // Funci?n para confirmar y enviar el formulario
   const handleFinalize = () => {
     setShowFinalizeConfirmation(true)
   }
 
-  // Función para guardar avance sin finalizar
+  // Funci?n para guardar avance sin finalizar
   const handleSaveProgress = async () => {
     setShowFinalizeConfirmation(false)
     await savePartialProgress()
   }
 
-  // Envío final del formulario - Solo finalizar proceso
+  // Env?o final del formulario - Solo finalizar proceso
   const submitCompleteForm = async () => {
-    // 🔍 DEBUG: Ver estado de documentos antes de validar
+    // ?? DEBUG: Ver estado de documentos antes de validar
     console.log('=== DEBUG VALIDACIÓN DE DOCUMENTOS ===')
     console.log('videoUrl:', videoUrl)
     console.log('uploadedFiles tiene video_presentacion:', uploadedFiles.has('video_presentacion'))
@@ -1059,34 +1139,34 @@ const RegisterPageMultiStep = () => {
     console.log('formData.doc_uso_imagen_pdf:', formData.doc_uso_imagen_pdf)
     console.log('uploadedFiles completo:', [...uploadedFiles])
     console.log('======================================')
-    
-    // Validación de documentos obligatorios de Pasos 4 y 5 (para todos los tipos de persona)
+
+    // Validaci?n de documentos obligatorios de Pasos 4 y 5 (para todos los tipos de persona)
     const mandatoryErrors = {}
-    
-    // Paso 4: Video de presentación (obligatorio para todos)
-    // Verificar tanto el estado como si está en uploadedFiles o formData (con OR para aceptar cualquiera)
-    if (!videoUrl && !uploadedFiles.has('video_presentacion') && !formData.video_url && !uploadedFiles.has('video_url')) {
+
+    // Paso 4: Video de presentaci?n (obligatorio para todos)
+    // Verificar tanto el estado como si est? en uploadedFiles o formData (con OR para aceptar cualquiera)
+    if (!hasUploadedVideo) {
       mandatoryErrors.video_presentacion = 'El video de presentación es obligatorio'
     }
-    
+
     // Paso 5: Documentos obligatorios (para todos los tipos de persona)
-    // Verificar tanto el estado como si está en uploadedFiles o formData (con OR para aceptar cualquiera)
-    if (!docVecindadPdf && !uploadedFiles.has('doc_vecindad_pdf') && !formData.doc_vecindad_pdf) {
+    // Verificar tanto el estado como si est? en uploadedFiles o formData (con OR para aceptar cualquiera)
+    if (!hasUploadedDocument(docVecindadPdf, 'doc_vecindad_pdf')) {
       mandatoryErrors.doc_vecindad_pdf = 'El certificado de vecindad con anexos es obligatorio'
     }
-    if (!docTerminosPdf && !uploadedFiles.has('doc_terminos_pdf') && !formData.doc_terminos_pdf) {
+    if (!hasUploadedDocument(docTerminosPdf, 'doc_terminos_pdf')) {
       mandatoryErrors.doc_terminos_pdf = 'El certificado de compromiso es obligatorio'
     }
-    if (!docPlanNegocioXls && !uploadedFiles.has('doc_plan_negocio_xls') && !formData.doc_plan_negocio_xls) {
+    if (!hasUploadedDocument(docPlanNegocioXls, 'doc_plan_negocio_xls')) {
       mandatoryErrors.doc_plan_negocio_xls = 'El formato de plan de negocio (Excel) es obligatorio'
     }
-    if (!docUsoImagenPdf && !uploadedFiles.has('doc_uso_imagen_pdf') && !formData.doc_uso_imagen_pdf) {
+    if (!hasUploadedDocument(docUsoImagenPdf, 'doc_uso_imagen_pdf')) {
       mandatoryErrors.doc_uso_imagen_pdf = 'El formato de autorización de datos es obligatorio'
     }
-    if (!declaracionCapacidadPdf && !uploadedFiles.has('declaracion_capacidad_legal_pdf') && !formData.declaracion_capacidad_legal_pdf) {
+    if (!hasUploadedDocument(declaracionCapacidadPdf, 'declaracion_capacidad_legal_pdf')) {
       mandatoryErrors.declaracion_capacidad_legal_pdf = 'La declaración juramentada de capacidad legal es obligatoria'
     }
-    
+
     if (Object.keys(mandatoryErrors).length > 0) {
       setErrors(mandatoryErrors)
       setShowFinalizeConfirmation(false)
@@ -1095,11 +1175,11 @@ const RegisterPageMultiStep = () => {
       return
     }
 
-    // Validación específica para Persona Jurídica - documentos obligatorios del paso 6
+    // Validaci?n espec?fica para Persona Jur?dica - documentos obligatorios del paso 6
     if (formData.tipo_persona === 'juridica') {
       const juridicaErrors = {}
-      
-      // Verificar tanto el estado como si está en uploadedFiles o formData
+
+      // Verificar tanto el estado como si est? en uploadedFiles o formData
       if (!rutPdf && !uploadedFiles.has('rut_pdf') && !formData.rut_pdf) {
         juridicaErrors.rut_pdf = 'El RUT actualizado 2025 es obligatorio para Persona Jurídica'
       }
@@ -1109,7 +1189,7 @@ const RegisterPageMultiStep = () => {
       if (!certExistenciaPdf && !uploadedFiles.has('cert_existencia_pdf') && !formData.cert_existencia_pdf) {
         juridicaErrors.cert_existencia_pdf = 'El certificado de existencia o matrícula mercantil es obligatorio para Persona Jurídica'
       }
-      
+
       if (Object.keys(juridicaErrors).length > 0) {
         setErrors(juridicaErrors)
         setShowFinalizeConfirmation(false)
@@ -1119,18 +1199,18 @@ const RegisterPageMultiStep = () => {
       }
     }
 
-    // Validación específica para Persona Natural - documentos obligatorios del paso 6
+    // Validaci?n espec?fica para Persona Natural - documentos obligatorios del paso 6
     if (formData.tipo_persona === 'natural') {
       const naturalErrors = {}
-      
-      // Verificar tanto el estado como si está en uploadedFiles o formData
+
+      // Verificar tanto el estado como si est? en uploadedFiles o formData
       if (!rutPdf && !uploadedFiles.has('rut_pdf') && !formData.rut_pdf) {
         naturalErrors.rut_pdf = 'El RUT actualizado 2025 es obligatorio para Persona Natural'
       }
       if (!cedulaPdf && !uploadedFiles.has('cedula_pdf') && !formData.cedula_pdf) {
         naturalErrors.cedula_pdf = 'La cédula de ciudadanía es obligatoria para Persona Natural'
       }
-      
+
       if (Object.keys(naturalErrors).length > 0) {
         setErrors(naturalErrors)
         setShowFinalizeConfirmation(false)
@@ -1140,31 +1220,31 @@ const RegisterPageMultiStep = () => {
       }
     }
 
-    // Si es un usuario existente que está retomando, NO validar (los archivos ya están en S3)
+    // Si es un usuario existente que est? retomando, NO validar (los archivos ya est?n en S3)
     if (!isExistingUser) {
       if (!validateCurrentStep()) return
     }
 
-    // Cerrar el modal de confirmación
+    // Cerrar el modal de confirmaci?n
     setShowFinalizeConfirmation(false)
 
     try {
       setIsLoading(true)
-      
-      // Preparar SOLO datos del formulario (sin archivos - ya están en S3)
-      const submitData = { 
+
+      // Preparar SOLO datos del formulario (sin archivos - ya est?n en S3)
+      const submitData = {
         numero_documento: formData.numero_documento,
         paso: currentStep,
-        ...formData 
+        ...formData
       }
-      
-      // Si es un usuario existente (tiene userId), no enviar contraseña
+
+      // Si es un usuario existente (tiene userId), no enviar contrase?a
       if (userId) {
         delete submitData.password
         delete submitData.confirm_password
       }
-      
-      // Remover campos de archivos del submitData (los archivos ya están en S3)
+
+      // Remover campos de archivos del submitData (los archivos ya est?n en S3)
       const fileFields = [
         'doc_terminos_pdf', 'doc_uso_imagen_pdf', 'doc_plan_negocio_xls', 'doc_vecindad_pdf', 'declaracion_juramentada_pdf',
         'rut_pdf', 'cedula_pdf', 'cedula_representante_pdf', 'cert_existencia_pdf',
@@ -1176,7 +1256,7 @@ const RegisterPageMultiStep = () => {
         'publicaciones_redes_pdf', 'redes_sociales_pdf', 'registro_ventas_pdf',
         'comprobantes_ventas_pdf', 'video_presentacion'
       ]
-      
+
       // Limpiar campos de archivos del submitData
       fileFields.forEach(field => {
         delete submitData[field]
@@ -1185,7 +1265,7 @@ const RegisterPageMultiStep = () => {
 
       submitData.video_url = videoUrl
 
-      // DEBUG: Ver qué datos se están enviando
+      // DEBUG: Ver qu? datos se est?n enviando
       console.log('=== DATOS ENVIADOS AL FINALIZAR ===')
       console.log('Paso 10 - financiado_regalias:', submitData.financiado_regalias)
       console.log('Paso 10 - financiado_camara_comercio:', submitData.financiado_camara_comercio)
@@ -1194,11 +1274,11 @@ const RegisterPageMultiStep = () => {
       console.log('Paso 11 - declara_no_beneficiario:', submitData.declara_no_beneficiario)
       console.log('submitData completo:', submitData)
 
-      // Modo demo: simular envío exitoso
+      // Modo demo: simular env?o exitoso
       if (isDemoMode) {
         await new Promise(resolve => setTimeout(resolve, 1500)) // Simular delay
-        // Mostrar mensaje de éxito y luego redirigir a una página de éxito
-        setSuccessMessage('ðŸŽ‰ Â¡FELICITACIONES! Su inscripción ha sido completada exitosamente. Â¡Bienvenido al programa EmprendiPaz!')
+        // mostrar mensaje de éxito y luego redirigir a una página de éxito
+        setSuccessMessage('¡FELICITACIONES! Su inscripción ha sido completada exitosamente. ¡Bienvenido al programa EmprendiPaz!')
         setTimeout(() => {
           // Crear una página de éxito temporal
           const successPage = `
@@ -1218,15 +1298,15 @@ const RegisterPageMultiStep = () => {
               font-family: system-ui, -apple-system, sans-serif;
             ">
               <div style="text-align: center; max-width: 600px; padding: 40px;">
-                <div style="font-size: 80px; margin-bottom: 20px;">ðŸŽ‰</div>
+                <div style="font-size: 80px; margin-bottom: 20px;">✓</div>
                 <h1 style="font-size: 48px; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
-                  Â¡FELICITACIONES!
+                  ¡FELICITACIONES!
                 </h1>
                 <h2 style="font-size: 24px; margin-bottom: 30px; opacity: 0.9;">
                   Su inscripción ha sido completada exitosamente
                 </h2>
                 <p style="font-size: 18px; margin-bottom: 40px; opacity: 0.8;">
-                  Â¡Bienvenido al programa EmprendiPaz!<br>
+                  ¡Bienvenido al programa EmprendiPaz!<br>
                   Su solicitud ha sido recibida y será procesada.
                 </p>
                 <div style="
@@ -1256,14 +1336,14 @@ const RegisterPageMultiStep = () => {
             </div>
           `;
           document.body.insertAdjacentHTML('beforeend', successPage);
-        }, 2000) // Mostrar mensaje por 2 segundos, luego página de éxito
+        }, 2000) // mostrar mensaje por 2 segundos, luego página de éxito
         return
       }
 
-      const apiUrl = import.meta.env.MODE === 'production' 
-        ? 'https://by89bq27g7.execute-api.us-east-1.amazonaws.com/dev/api/register'
-        : '/api/register'
-      
+      const apiUrl = import.meta.env.MODE === 'production'
+        ? `${API_BASE_URL}/register`
+        : `${API_BASE_URL}/register`
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1276,7 +1356,7 @@ const RegisterPageMultiStep = () => {
 
       const result = await response.json()
       if (response.ok) {
-        // Mostrar popup de éxito
+        // mostrar popup de ?xito
         const successPopup = `
           <div style="
             position: fixed;
@@ -1301,7 +1381,7 @@ const RegisterPageMultiStep = () => {
               box-shadow: 0 20px 40px rgba(0,0,0,0.3);
               animation: fadeInScale 0.5s ease-out;
             ">
-              <div style="font-size: 60px; margin-bottom: 20px;">✅</div>
+              <div style="font-size: 60px; margin-bottom: 20px;">✓</div>
               <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 20px; margin-top: 0;">
                 ¡Inscripción Exitosa!
               </h2>
@@ -1353,19 +1433,19 @@ const RegisterPageMultiStep = () => {
       // Paso 1: Si no hay userId, crear usuario inicial. Si ya existe, solo validar.
       if (!userId) {
         const created = await createInitialUser()
-        if (!created) return // Si falla la creación, no avanzar
+        if (!created) return // Si falla la creaci?n, no avanzar
       } else {
         // Usuario ya existe, solo validar y guardar
         if (!validateCurrentStep()) return
         await savePartialProgress()
       }
-      
-      // ✅ IMPORTANTE: Habilitar navegación libre después de completar Paso 1
+
+      // ? IMPORTANTE: Habilitar navegaci?n libre despu?s de completar Paso 1
       setIsStep1Complete(true)
       setCurrentStep(2)
-      
+
     } else if (currentStep === steps.length) {
-      // Ãšltimo paso: envío final
+      // �ltimo paso: env?o final
       await submitCompleteForm()
     } else {
       // Pasos intermedios: validar y avanzar
@@ -1381,7 +1461,7 @@ const RegisterPageMultiStep = () => {
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Paso 1: Datos Generales</h2>
-              <p className="text-gray-600">Información personal y del emprendimiento</p>
+              <p className="text-gray-600">Informacion personal y del emprendimiento</p>
             </div>
 
             {/* Campo para retomar proceso existente */}
@@ -1394,16 +1474,16 @@ const RegisterPageMultiStep = () => {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-medium text-blue-800 mb-2">
-                    ¿Ya iniciaste tu proceso de registro?
+                    Ya iniciaste tu proceso de registro?
                   </h3>
                   <p className="text-sm text-blue-700 mb-3">
-                    Si ya comenzaste a llenar el formulario anteriormente, ingresa tu número de documento y contraseña para continuar donde lo dejaste.
+                    Si ya comenzaste a llenar el formulario anteriormente, ingresa tu numero de documento y contraseña para continuar donde lo dejaste.
                   </p>
                   <div className="space-y-3">
                     <div className="flex space-x-3">
                       <Input
                         type="text"
-                        placeholder="Número de documento"
+                        placeholder="Numero de documento"
                         className="flex-1"
                         value={resumeDocument}
                         onChange={(e) => setResumeDocument(e.target.value)}
@@ -1426,6 +1506,27 @@ const RegisterPageMultiStep = () => {
               </div>
             </div>
 
+            {/* Mensaje informativo sobre el cierre de registros - solo si NO es modo admin */}
+            {!isAdminMode && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-yellow-800 mb-1">
+                      Periodo de inscripcion cerrado
+                    </h3>
+                    <p className="text-sm text-yellow-700">
+                      El periodo de inscripcion ha finalizado. Solo puedes acceder para subsanar documentos si ya iniciaste tu proceso de registro.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Nombre */}
               <div className="space-y-2">
@@ -1439,6 +1540,7 @@ const RegisterPageMultiStep = () => {
                   className={errors.nombre ? 'border-red-500' : ''}
                   placeholder="Ingresa tu nombre"
                   autoComplete="given-name"
+                  disabled={!isAdminMode}
                 />
                 {errors.nombre && <p className="text-sm text-red-600">{errors.nombre}</p>}
               </div>
@@ -1455,13 +1557,14 @@ const RegisterPageMultiStep = () => {
                   className={errors.apellido ? 'border-red-500' : ''}
                   placeholder="Ingresa tu apellido"
                   autoComplete="family-name"
+                  disabled={!isAdminMode}
                 />
                 {errors.apellido && <p className="text-sm text-red-600">{errors.apellido}</p>}
               </div>
 
               {/* Email */}
               <div className="space-y-2">
-                <Label htmlFor="email">Correo Electrónico *</Label>
+                <Label htmlFor="email">Correo Electronico *</Label>
                 <Input
                   id="email"
                   name="email"
@@ -1471,6 +1574,7 @@ const RegisterPageMultiStep = () => {
                   className={errors.email ? 'border-red-500' : ''}
                   placeholder="tu@email.com"
                   autoComplete="email"
+                  disabled={!isAdminMode}
                 />
                 {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
               </div>
@@ -1484,21 +1588,22 @@ const RegisterPageMultiStep = () => {
                     setFormData(prev => ({ ...prev, tipo_documento: value }))
                     if (errors.tipo_documento) setErrors(prev => ({ ...prev, tipo_documento: '' }))
                   }}
+                  disabled={!isAdminMode}
                 >
                   <SelectTrigger className={errors.tipo_documento ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Selecciona el tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cedula">Cédula de Ciudadanía</SelectItem>
-                    <SelectItem value="cedula_extranjeria">Cédula de Extranjería</SelectItem>
+                    <SelectItem value="cedula">Cedula de Ciudadania</SelectItem>
+                    <SelectItem value="cedula_extranjeria">Cedula de Extranjeria</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.tipo_documento && <p className="text-sm text-red-600">{errors.tipo_documento}</p>}
               </div>
 
-              {/* Número de documento */}
+              {/* Numero de documento */}
               <div className="space-y-2">
-                <Label htmlFor="numero_documento">Número de Documento *</Label>
+                <Label htmlFor="numero_documento">Numero de Documento *</Label>
                 <Input
                   id="numero_documento"
                   name="numero_documento"
@@ -1508,6 +1613,7 @@ const RegisterPageMultiStep = () => {
                   className={errors.numero_documento ? 'border-red-500' : ''}
                   placeholder="12345678"
                   autoComplete="off"
+                  disabled={!isAdminMode}
                 />
                 {errors.numero_documento && <p className="text-sm text-red-600">{errors.numero_documento}</p>}
               </div>
@@ -1523,6 +1629,7 @@ const RegisterPageMultiStep = () => {
                   onChange={handleInputChange}
                   className={errors.fecha_nacimiento ? 'border-red-500' : ''}
                   autoComplete="bday"
+                  disabled={!isAdminMode}
                 />
                 {errors.fecha_nacimiento && <p className="text-sm text-red-600">{errors.fecha_nacimiento}</p>}
               </div>
@@ -1536,6 +1643,7 @@ const RegisterPageMultiStep = () => {
                     setFormData(prev => ({ ...prev, sexo: value }))
                     if (errors.sexo) setErrors(prev => ({ ...prev, sexo: '' }))
                   }}
+                  disabled={!isAdminMode}
                 >
                   <SelectTrigger className={errors.sexo ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Selecciona el sexo" />
@@ -1558,6 +1666,7 @@ const RegisterPageMultiStep = () => {
                     setFormData(prev => ({ ...prev, estado_civil: value }))
                     if (errors.estado_civil) setErrors(prev => ({ ...prev, estado_civil: '' }))
                   }}
+                  disabled={!isAdminMode}
                 >
                   <SelectTrigger className={errors.estado_civil ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Selecciona el estado civil" />
@@ -1574,9 +1683,9 @@ const RegisterPageMultiStep = () => {
                 {errors.estado_civil && <p className="text-sm text-red-600">{errors.estado_civil}</p>}
               </div>
 
-              {/* Teléfono */}
+              {/* Telefono */}
               <div className="space-y-2">
-                <Label htmlFor="telefono">Teléfono Celular *</Label>
+                <Label htmlFor="telefono">Telefono Celular *</Label>
                 <Input
                   id="telefono"
                   name="telefono"
@@ -1586,13 +1695,14 @@ const RegisterPageMultiStep = () => {
                   className={errors.telefono ? 'border-red-500' : ''}
                   placeholder="3001234567"
                   autoComplete="tel"
+                  disabled={!isAdminMode}
                 />
                 {errors.telefono && <p className="text-sm text-red-600">{errors.telefono}</p>}
               </div>
 
-              {/* Dirección */}
+              {/* Direccion */}
               <div className="space-y-2">
-                <Label htmlFor="direccion">Dirección de Residencia *</Label>
+                <Label htmlFor="direccion">Direccion de Residencia *</Label>
                 <Input
                   id="direccion"
                   name="direccion"
@@ -1602,6 +1712,7 @@ const RegisterPageMultiStep = () => {
                   className={errors.direccion ? 'border-red-500' : ''}
                   placeholder="Calle 123 # 45-67"
                   autoComplete="street-address"
+                  disabled={!isAdminMode}
                 />
                 {errors.direccion && <p className="text-sm text-red-600">{errors.direccion}</p>}
               </div>
@@ -1615,6 +1726,7 @@ const RegisterPageMultiStep = () => {
                     setFormData(prev => ({ ...prev, municipio: value }))
                     if (errors.municipio) setErrors(prev => ({ ...prev, municipio: '' }))
                   }}
+                  disabled={!isAdminMode}
                 >
                   <SelectTrigger className={errors.municipio ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Selecciona el municipio" />
@@ -1644,6 +1756,7 @@ const RegisterPageMultiStep = () => {
                   onChange={handleInputChange}
                   className={errors.corregimiento_vereda ? 'border-red-500' : ''}
                   placeholder="Ej: Vereda La Esperanza"
+                  disabled={!isAdminMode}
                 />
                 {errors.corregimiento_vereda && <p className="text-sm text-red-600">{errors.corregimiento_vereda}</p>}
               </div>
@@ -1660,19 +1773,21 @@ const RegisterPageMultiStep = () => {
                   className={errors.emprendimiento_nombre ? 'border-red-500' : ''}
                   placeholder="Ingresa el nombre del emprendimiento"
                   autoComplete="organization"
+                  disabled={!isAdminMode}
                 />
                 {errors.emprendimiento_nombre && <p className="text-sm text-red-600">{errors.emprendimiento_nombre}</p>}
               </div>
 
-              {/* Emprendimiento: Sector Económico */}
+              {/* Emprendimiento: Sector Economico */}
               <div className="space-y-2">
-                <Label>Sector Económico *</Label>
+                <Label>Sector Economico *</Label>
                 <Select
                   value={formData.emprendimiento_sector}
                   onValueChange={(value) => {
                     setFormData(prev => ({ ...prev, emprendimiento_sector: value }))
                     if (errors.emprendimiento_sector) setErrors(prev => ({ ...prev, emprendimiento_sector: '' }))
                   }}
+                  disabled={!isAdminMode}
                 >
                   <SelectTrigger className={errors.emprendimiento_sector ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Selecciona el sector" />
@@ -1696,13 +1811,14 @@ const RegisterPageMultiStep = () => {
                     setFormData(prev => ({ ...prev, tipo_persona: value }))
                     if (errors.tipo_persona) setErrors(prev => ({ ...prev, tipo_persona: '' }))
                   }}
+                  disabled={!isAdminMode}
                 >
                   <SelectTrigger className={errors.tipo_persona ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Selecciona el tipo de persona" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="natural">Natural</SelectItem>
-                    <SelectItem value="juridica">Jurídica</SelectItem>
+                    <SelectItem value="juridica">Juridica</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.tipo_persona && <p className="text-sm text-red-600">{errors.tipo_persona}</p>}
@@ -1717,9 +1833,9 @@ const RegisterPageMultiStep = () => {
                   name="convocatoria"
                   value={formData.convocatoria}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
-                    errors.convocatoria ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  disabled={!isAdminMode}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.convocatoria ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 >
                   <option value="">Selecciona una convocatoria</option>
                   <option value="1">Convocatoria 1 - Proceso Principal</option>
@@ -1727,9 +1843,9 @@ const RegisterPageMultiStep = () => {
                 {errors.convocatoria && <p className="text-sm text-red-600">{errors.convocatoria}</p>}
               </div>
 
-              {/* Contraseña */}
+              {/* Contrasena */}
               <div className="space-y-2">
-                <Label htmlFor="password">Contraseña *</Label>
+                <Label htmlFor="password">Contrasena *</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -1738,7 +1854,7 @@ const RegisterPageMultiStep = () => {
                     value={formData.password}
                     onChange={handleInputChange}
                     className={`${errors.password ? 'border-red-500 pr-10' : 'pr-10'} ${isExistingUser ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                    placeholder="Mínimo 8 caracteres, letras y números"
+                    placeholder="Minimo 8 caracteres, letras y numeros"
                     autoComplete="new-password"
                     disabled={isExistingUser}
                     readOnly={isExistingUser}
@@ -1755,13 +1871,13 @@ const RegisterPageMultiStep = () => {
                 </div>
                 {isExistingUser && (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                    ⚠️ La contraseña no se puede modificar durante el proceso de inscripción. Guárdela en un lugar seguro.
+                    La contraseña no se puede modificar durante el proceso de inscripcion. Guardela en un lugar seguro.
                   </p>
                 )}
                 {errors.password && <p className="text-sm text-red-600">{errors.password}</p>}
               </div>
 
-              {/* Confirmar Contraseña */}
+              {/* Confirmar contraseña */}
               <div className="space-y-2">
                 <Label htmlFor="confirm_password">Confirmar Contraseña *</Label>
                 <div className="relative">
@@ -1789,7 +1905,7 @@ const RegisterPageMultiStep = () => {
                 </div>
                 {isExistingUser && (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                    ⚠️ La contraseña no se puede modificar durante el proceso de inscripción. Guárdela en un lugar seguro.
+                    La contraseña no se puede modificar durante el proceso de inscripcion. Guardela en un lugar seguro.
                   </p>
                 )}
                 {errors.confirm_password && <p className="text-sm text-red-600">{errors.confirm_password}</p>}
@@ -1808,7 +1924,7 @@ const RegisterPageMultiStep = () => {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-700">
-                ℹ️ <strong>Información opcional:</strong> Estos campos son opcionales pero pueden otorgar puntos adicionales en la evaluación.
+                <strong>Información opcional:</strong> Estos campos son opcionales pero pueden otorgar puntos adicionales en la evaluación.
               </p>
             </div>
 
@@ -1946,7 +2062,7 @@ const RegisterPageMultiStep = () => {
                       </p>
                     </div>
                   </div>
-                  
+
                   {formData.sisben_grupo !== '' && (
                     <div className="ml-7">
                       <label htmlFor="sisben_grupo" className="block text-sm font-medium text-gray-700 mb-2">
@@ -1970,15 +2086,15 @@ const RegisterPageMultiStep = () => {
             </div>
 
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">📊 Sistema de Puntuación</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Sistema de Puntuación</h3>
               <p className="text-xs text-gray-600">
-                <strong>Total máximo de puntos por población diferencial:</strong> 38 puntos<br/>
-                • Mujer cabeza de familia: 9 puntos<br/>
-                • Persona en reincorporación: 6 puntos<br/>
-                • Víctima del conflicto: 6 puntos<br/>
-                • Persona con discapacidad: 6 puntos<br/>
-                • Pertenencia étnica: 6 puntos<br/>
-                • SISBEN A, B o C: 2 puntos
+                <strong>Total máximo de puntos por población diferencial:</strong> 38 puntos<br />
+                Mujer cabeza de familia: 9 puntos<br />
+                Persona en reincorporación: 6 puntos<br />
+                Víctima del conflicto: 6 puntos<br />
+                Persona con discapacidad: 6 puntos<br />
+                Pertenencia étnica: 6 puntos<br />
+                SISBEN A, B o C: 2 puntos
               </p>
             </div>
           </div>
@@ -1994,7 +2110,7 @@ const RegisterPageMultiStep = () => {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-700">
-                📊 <strong>Nivel de Madurez del Emprendimiento:</strong> Esta información es obligatoria y determina puntos adicionales en la evaluación.
+                <strong>Nivel de Madurez del Emprendimiento:</strong> Esta información es obligatoria y determina puntos adicionales en la evaluación.
               </p>
             </div>
 
@@ -2007,9 +2123,8 @@ const RegisterPageMultiStep = () => {
                   name="tiempo_funcionamiento"
                   value={formData.tiempo_funcionamiento}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
-                    errors.tiempo_funcionamiento ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.tiempo_funcionamiento ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 >
                   <option value="">Selecciona el tiempo de funcionamiento</option>
                   <option value="6-12">6 - 12 meses de operación</option>
@@ -2028,9 +2143,8 @@ const RegisterPageMultiStep = () => {
                   name="empleos_generados"
                   value={formData.empleos_generados}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
-                    errors.empleos_generados ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.empleos_generados ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 >
                   <option value="">Selecciona el número de empleos</option>
                   <option value="0">No genera empleos (solo autoempleo)</option>
@@ -2049,9 +2163,8 @@ const RegisterPageMultiStep = () => {
                   name="acceso_mercados"
                   value={formData.acceso_mercados}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
-                    errors.acceso_mercados ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.acceso_mercados ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 >
                   <option value="">Selecciona el nivel de acceso a mercados</option>
                   <option value="informales">Solo ventas informales y ocasionales</option>
@@ -2064,16 +2177,16 @@ const RegisterPageMultiStep = () => {
             </div>
 
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">📊 Sistema de Puntuación - Nivel de Madurez</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Sistema de Puntuación - Nivel de Madurez</h3>
               <p className="text-xs text-gray-600">
-                <strong>Total máximo de puntos por nivel de madurez:</strong> 18 puntos<br/>
-                • 6-12 meses: 5 puntos<br/>
-                • 13-24 meses: 10 puntos<br/>
-                • Más de 24 meses: 18 puntos<br/>
-                <br/>
-                <strong>Documentos requeridos:</strong><br/>
-                • Emprendimientos recientes: Publicaciones de redes sociales + comprobantes de ventas<br/>
-                • Emprendimientos consolidados: Registro de ventas, facturas o certificación de Cámara de Comercio
+                <strong>Total máximo de puntos por nivel de madurez:</strong> 18 puntos<br />
+                6-12 meses: 5 puntos<br />
+                13-24 meses: 10 puntos<br />
+                Más de 24 meses: 18 puntos<br />
+                <br />
+                <strong>Documentos requeridos:</strong><br />
+                Emprendimientos recientes: Publicaciones de redes sociales + comprobantes de ventas<br />
+                Emprendimientos consolidados: Registro de ventas, facturas o certificación de Cámara de Comercio
               </p>
             </div>
           </div>
@@ -2089,7 +2202,7 @@ const RegisterPageMultiStep = () => {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-700">
-                📹 <strong>Requisitos del video:</strong> Máximo 5 minutos, orientación horizontal, formato MP4, MOV o AVI.
+                <strong>Requisitos del video:</strong> Máximo 5 minutos, orientación horizontal, formato MP4, MOV o AVI.
               </p>
             </div>
 
@@ -2110,7 +2223,7 @@ const RegisterPageMultiStep = () => {
                           setErrors(prev => ({ ...prev, video_presentacion: 'El archivo es demasiado grande. Máximo 100MB.' }))
                           return
                         }
-                        // Usar nueva función para subir video con pre-signed URL
+                        // Usar nueva funci?n para subir video con pre-signed URL
                         uploadVideoDirectToS3(file)
                       }
                     }}
@@ -2127,7 +2240,7 @@ const RegisterPageMultiStep = () => {
                         </div>
                       ) : uploadingStatuses.video_presentacion?.status === 'success' ? (
                         <div>
-                          <p className="text-green-600 font-medium">✅ Video subido correctamente</p>
+                          <p className="text-green-600 font-medium">Video subido correctamente</p>
                           <p className="text-sm">{videoPresentacion?.name}</p>
                           <p className="text-xs text-gray-500">
                             Tamaño: {videoPresentacion ? (videoPresentacion.size / (1024 * 1024)).toFixed(2) : '0'} MB
@@ -2135,20 +2248,20 @@ const RegisterPageMultiStep = () => {
                         </div>
                       ) : uploadingStatuses.video_presentacion?.status === 'error' ? (
                         <div>
-                          <p className="text-red-600 font-medium">❌ Error al subir video</p>
+                          <p className="text-red-600 font-medium">Error al subir video</p>
                           <p className="text-xs text-red-500">{uploadingStatuses.video_presentacion.message}</p>
                         </div>
                       ) : videoUrl ? (
                         <div>
-                          <p className="text-green-600 font-medium">✅ Video ya cargado anteriormente</p>
+                          <p className="text-green-600 font-medium">Video ya cargado anteriormente</p>
                           <p className="text-xs text-gray-600 mt-1 bg-gray-50 p-2 rounded border border-gray-200">
-                            📹 {videoUrl.split('/').pop()}
+                            {videoUrl.split('/').pop()}
                           </p>
                           <p className="text-xs text-gray-500 mt-1">Puedes subir un nuevo video para reemplazarlo</p>
                         </div>
                       ) : videoPresentacion ? (
                         <div>
-                          <p className="text-green-600 font-medium">✓ Video seleccionado</p>
+                          <p className="text-green-600 font-medium">Video seleccionado</p>
                           <p className="text-sm">{videoPresentacion.name}</p>
                           <p className="text-xs text-gray-500">
                             Tamaño: {(videoPresentacion.size / (1024 * 1024)).toFixed(2)} MB
@@ -2156,7 +2269,6 @@ const RegisterPageMultiStep = () => {
                         </div>
                       ) : (
                         <div>
-                          <p className="text-lg">📹</p>
                           <p className="font-medium">Haz clic para subir tu video</p>
                           <p className="text-sm text-gray-500">MP4, MOV o AVI - Máximo 100MB</p>
                         </div>
@@ -2166,7 +2278,7 @@ const RegisterPageMultiStep = () => {
                 </div>
                 {errors.video_presentacion && <p className="text-sm text-red-600">{errors.video_presentacion}</p>}
                 <p className="text-xs text-gray-500">
-                  El video debe incluir: presentación personal, descripción del emprendimiento, 
+                  El video debe incluir: presentación personal, descripción del emprendimiento,
                   motivación para participar y proyección a futuro.
                 </p>
               </div>
@@ -2184,7 +2296,7 @@ const RegisterPageMultiStep = () => {
 
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-red-700 font-medium">
-                ⚠️ <strong>Documentos obligatorios:</strong> Estos documentos son requeridos para todos los participantes y bloquean el envío si no se suben.
+                <strong>Documentos obligatorios:</strong> Estos documentos son requeridos para todos los participantes y bloquean el envío si no se suben.
               </p>
             </div>
 
@@ -2262,7 +2374,7 @@ const RegisterPageMultiStep = () => {
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-yellow-700 font-medium">
-                📋 <strong>Documentos condicionales:</strong> Los documentos requeridos dependen del tipo de persona seleccionado en el Paso 1.
+                <strong>Documentos condicionales:</strong> Los documentos requeridos dependen del tipo de persona seleccionado en el Paso 1.
               </p>
             </div>
 
@@ -2315,7 +2427,7 @@ const RegisterPageMultiStep = () => {
                     'https://ccpasto.org.co/2024/servicios-virtuales/'
                   )}
 
-                  {/* TEMPORAL: Comentado hasta resolver migración de BD
+                  {/* TEMPORAL: Comentado hasta resolver migraci?n de BD
                   {renderDocumentUpload(
                     'camara_comercio_pdf',
                     'Certificado de Cámara de Comercio (no mayor a 30 días)',
@@ -2348,7 +2460,7 @@ const RegisterPageMultiStep = () => {
 
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-green-700 font-medium">
-                ℹ️ <strong>Estos documentos son opcionales.</strong> Si no los tiene ahora, puede subirlos después (subsanables).
+                <strong>📌 Estos documentos son opcionales.</strong> Si no los tiene ahora, puede subirlos después (subsanables).
                 No bloquean el envío de su inscripción.
               </p>
             </div>
@@ -2380,7 +2492,7 @@ const RegisterPageMultiStep = () => {
                 'https://www.sisben.gov.co/paginas/consulta-tu-grupo.html'
               )}
 
-              {/* Grupo Ã‰tnico */}
+              {/* Grupo �tnico */}
               {renderDocumentUpload(
                 'grupo_etnico_pdf',
                 'Certificado de pertenencia a grupo étnico',
@@ -2415,7 +2527,7 @@ const RegisterPageMultiStep = () => {
                 false
               )}
 
-              {/* Persona en Situación de Discapacidad */}
+              {/* Persona en Situaci?n de Discapacidad */}
               {renderDocumentUpload(
                 'persona_discapacidad_pdf',
                 'Persona en situación de discapacidad - Certificado médico o del Registro de Localización y Caracterización',
@@ -2448,7 +2560,7 @@ const RegisterPageMultiStep = () => {
                 </div>
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-green-800">
-                    ℹ️ INFORMACIÓN IMPORTANTE
+                    INFORMACIÓN IMPORTANTE
                   </h3>
                   <div className="mt-2 text-sm text-green-700">
                     <p>
@@ -2463,7 +2575,7 @@ const RegisterPageMultiStep = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
+
               {/* Antecedentes Judiciales */}
               {renderDocumentUpload(
                 'antecedentes_judiciales_pdf',
@@ -2481,12 +2593,12 @@ const RegisterPageMultiStep = () => {
               {/* Antecedentes Contraloría */}
               {renderDocumentUpload(
                 'antecedentes_contraloria_pdf',
-               <>
-                Antecedentes Contraloría General de la República
-                <div className="text-blue-600 text-xs mt-1">
-                  Descárgalo desde: <a href="https://www.contraloria.gov.co/es/web/guest/control-fiscal/responsabilidad-fiscal/certificado-de-antecedentes-fiscales" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.contraloria.gov.co/es/web/guest/control-fiscal/responsabilidad-fiscal/certificado-de-antecedentes-fiscales</a>
-                </div>
-              </>,
+                <>
+                  Antecedentes Contraloría General de la República
+                  <div className="text-blue-600 text-xs mt-1">
+                    Descárgalo desde: <a href="https://www.contraloria.gov.co/es/web/guest/control-fiscal/responsabilidad-fiscal/certificado-de-antecedentes-fiscales" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.contraloria.gov.co/es/web/guest/control-fiscal/responsabilidad-fiscal/certificado-de-antecedentes-fiscales</a>
+                  </div>
+                </>,
                 antecedentesContraloriaPdf,
                 setAntecedentesContraloriaPdf,
                 'antecedentes_contraloria_pdf'
@@ -2495,12 +2607,12 @@ const RegisterPageMultiStep = () => {
               {/* Antecedentes Procuraduría */}
               {renderDocumentUpload(
                 'antecedentes_procuraduria_pdf',
-              <>
-                Antecedentes Procuraduría General de la Nación
-                <div className="text-blue-600 text-xs mt-1">
-                  Descárgalo desde: <a href="https://www.procuraduria.gov.co/Pages/Generacion-de-antecedentes.aspx" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.procuraduria.gov.co/Pages/Generacion-de-antecedentes.aspx</a>
-                </div>
-              </>,
+                <>
+                  Antecedentes Procuraduría General de la Nación
+                  <div className="text-blue-600 text-xs mt-1">
+                    Descárgalo desde: <a href="https://www.procuraduria.gov.co/Pages/Generacion-de-antecedentes.aspx" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.procuraduria.gov.co/Pages/Generacion-de-antecedentes.aspx</a>
+                  </div>
+                </>,
                 antecedentesProcuraduriaPdf,
                 setAntecedentesProcuraduriaPdf,
                 'antecedentes_procuraduria_pdf'
@@ -2509,12 +2621,12 @@ const RegisterPageMultiStep = () => {
               {/* Registro Nacional de Medidas Correctivas (RNMC) */}
               {renderDocumentUpload(
                 'rnmc_pdf',
-              <>
-                Registro Nacional de Medidas Correctivas (RNMC)
-                <div className="text-blue-600 text-xs mt-1">
-                  Descárgalo desde: <a href="https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx" target="_blank" rel="noopener noreferrer" className="underline break-all">https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx</a>
-                </div>
-              </>,
+                <>
+                  Registro Nacional de Medidas Correctivas (RNMC)
+                  <div className="text-blue-600 text-xs mt-1">
+                    Descárgalo desde: <a href="https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx" target="_blank" rel="noopener noreferrer" className="underline break-all">https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx</a>
+                  </div>
+                </>,
                 rnmcPdf,
                 setRnmcPdf,
                 'rnmc_pdf'
@@ -2523,12 +2635,12 @@ const RegisterPageMultiStep = () => {
               {/* REDAM */}
               {renderDocumentUpload(
                 'redam_pdf',
-               <>
-                Certificado del Registro de Deudores Alimentarios Morosos (REDAM)
-                <div className="text-blue-600 text-xs mt-1">
-                  Descárgalo desde: <a href="https://www.redam.gov.co/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.redam.gov.co/</a>
-                </div>
-              </>,
+                <>
+                  Certificado del Registro de Deudores Alimentarios Morosos (REDAM)
+                  <div className="text-blue-600 text-xs mt-1">
+                    Descárgalo desde: <a href="https://www.redam.gov.co/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://www.redam.gov.co/</a>
+                  </div>
+                </>,
                 redamPdf,
                 setRedamPdf,
                 'redam_pdf'
@@ -2538,18 +2650,18 @@ const RegisterPageMultiStep = () => {
               <div>
                 {renderDocumentUpload(
                   'inhabilidades_sexuales_pdf',
-        
+
                   <>
-                Consulta de Inhabilidades por Delitos Sexuales
-                <div className="text-blue-600 text-xs mt-1">
-                  Descárgalo desde: <a href="https://inhabilidades.policia.gov.co:8080/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://inhabilidades.policia.gov.co:8080/</a>
-                </div>
-              </>,
+                    Consulta de Inhabilidades por Delitos Sexuales
+                    <div className="text-blue-600 text-xs mt-1">
+                      Descárgalo desde: <a href="https://inhabilidades.policia.gov.co:8080/" target="_blank" rel="noopener noreferrer" className="underline break-all">https://inhabilidades.policia.gov.co:8080/</a>
+                    </div>
+                  </>,
                   inhabSexualesPdf,
                   setInhabSexualesPdf,
                   'inhabilidades_sexuales_pdf'
                 )}
-                
+
               </div>
             </div>
           </div>
@@ -2566,14 +2678,14 @@ const RegisterPageMultiStep = () => {
             {/* Nota informativa sobre documentos subsanables */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-700">
-                ℹ️ <strong>Nota:</strong> Todos los documentos de funcionamiento son <strong>subsanables</strong> (opcionales). 
+                <strong>Nota:</strong> Todos los documentos de funcionamiento son <strong>subsanables</strong> (opcionales).
                 Puede avanzar sin subirlos y completarlos posteriormente.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Redes Sociales */}
-                  {renderDocumentUpload(
+              {renderDocumentUpload(
                 'redes_sociales_pdf',
                 'Publicaciones de Redes Sociales (Subsanable)',
                 redesSocialesPdf,
@@ -2582,7 +2694,7 @@ const RegisterPageMultiStep = () => {
               )}
 
               {/* Comprobantes de Ventas */}
-                  {renderDocumentUpload(
+              {renderDocumentUpload(
                 'comprobantes_ventas_pdf',
                 'Comprobantes de Ventas (Subsanable)',
                 comprobantesVentasPdf,
@@ -2603,7 +2715,7 @@ const RegisterPageMultiStep = () => {
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-yellow-700 font-medium">
-                ⚠️ <strong>Importante:</strong> Debe declarar si ha recibido recursos del Fondo Emprender SENA o de otras fuentes estatales.
+                <strong>Importante:</strong> Debe declarar si ha recibido recursos del Fondo Emprender SENA o de otras fuentes estatales.
               </p>
             </div>
 
@@ -2611,7 +2723,7 @@ const RegisterPageMultiStep = () => {
               <p className="text-sm font-medium text-gray-700 mb-4">
                 Marque las fuentes de financiación estatal que ha recibido (opcional):
               </p>
-              
+
               <div className="flex items-center space-x-3">
                 <input
                   type="checkbox"
@@ -2627,60 +2739,60 @@ const RegisterPageMultiStep = () => {
 
 
               <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      id="financiado_camara_comercio"
-                      checked={formData.financiado_camara_comercio}
+                <input
+                  type="checkbox"
+                  id="financiado_camara_comercio"
+                  checked={formData.financiado_camara_comercio}
                   onChange={(e) => setFormData({ ...formData, financiado_camara_comercio: e.target.checked })}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="financiado_camara_comercio" className="text-sm font-medium text-gray-700">
                   He recibido financiación de Cámara de Comercio
-                    </label>
-                  </div>
+                </label>
+              </div>
 
               <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      id="financiado_incubadoras"
-                      checked={formData.financiado_incubadoras}
+                <input
+                  type="checkbox"
+                  id="financiado_incubadoras"
+                  checked={formData.financiado_incubadoras}
                   onChange={(e) => setFormData({ ...formData, financiado_incubadoras: e.target.checked })}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="financiado_incubadoras" className="text-sm font-medium text-gray-700">
                   He recibido financiación de incubadoras
-                    </label>
-                  </div>
+                </label>
+              </div>
 
               <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      id="financiado_otro"
-                      checked={formData.financiado_otro}
+                <input
+                  type="checkbox"
+                  id="financiado_otro"
+                  checked={formData.financiado_otro}
                   onChange={(e) => setFormData({ ...formData, financiado_otro: e.target.checked })}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="financiado_otro" className="text-sm font-medium text-gray-700">
                   He recibido financiación de otra fuente estatal
-                    </label>
-                  </div>
+                </label>
+              </div>
 
-                  {formData.financiado_otro && (
+              {formData.financiado_otro && (
                 <div className="mt-4">
                   <label htmlFor="financiado_otro_texto" className="block text-sm font-medium text-gray-700 mb-2">
                     Especifique la fuente:
                   </label>
                   <input
-                        type="text"
+                    type="text"
                     id="financiado_otro_texto"
-                        value={formData.financiado_otro_texto}
+                    value={formData.financiado_otro_texto}
                     onChange={(e) => setFormData({ ...formData, financiado_otro_texto: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Ej: Fondo de Ciencia, Tecnología e Innovación"
                   />
-                    </div>
-                  )}
                 </div>
+              )}
+            </div>
           </div>
         )
 
@@ -2695,74 +2807,101 @@ const RegisterPageMultiStep = () => {
             <div className="space-y-6">
               {/* Declaración de Veracidad */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <input
-                  type="checkbox"
-                  id="declara_veraz"
-                  checked={formData.declara_veraz}
+                <div className="flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    id="declara_veraz"
+                    checked={formData.declara_veraz}
                     onChange={(e) => setFormData({ ...formData, declara_veraz: e.target.checked })}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1"
                   />
                   <div>
                     <label htmlFor="declara_veraz" className="text-sm font-medium text-gray-700">
                       Declaro bajo la gravedad del juramento que la información suministrada es veraz y completa
-                </label>
+                    </label>
                     <p className="text-xs text-gray-500 mt-1">
                       Esta declaración es obligatoria para continuar con el proceso
                     </p>
-              </div>
+                  </div>
                 </div>
               </div>
 
               {/* Declaración de Financiación */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <input
-                  type="checkbox"
-                  id="declara_no_beneficiario"
-                  checked={formData.declara_no_beneficiario}
+                <div className="flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    id="declara_no_beneficiario"
+                    checked={formData.declara_no_beneficiario}
                     onChange={(e) => setFormData({ ...formData, declara_no_beneficiario: e.target.checked })}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1"
                   />
                   <div>
                     <label htmlFor="declara_no_beneficiario" className="text-sm font-medium text-gray-700">
                       Declaro que la información sobre financiación estatal declarada en el paso anterior es correcta y completa
-                </label>
+                    </label>
                     <p className="text-xs text-gray-500 mt-1">
                       Si no he recibido financiación estatal, confirmo que no he sido beneficiario de otros programas de financiación estatal para este emprendimiento
                     </p>
-              </div>
+                  </div>
                 </div>
               </div>
 
               {/* Aceptación de Términos */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <input
-                  type="checkbox"
-                  id="acepta_terminos"
-                  checked={formData.acepta_terminos}
+                <div className="flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    id="acepta_terminos"
+                    checked={formData.acepta_terminos}
                     onChange={(e) => setFormData({ ...formData, acepta_terminos: e.target.checked })}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1"
                   />
                   <div>
                     <label htmlFor="acepta_terminos" className="text-sm font-medium text-gray-700">
                       Acepto los términos y condiciones de la convocatoria
-                </label>
+                    </label>
                     <p className="text-xs text-gray-500 mt-1">
                       He leído y acepto los términos de referencia de la convocatoria
                     </p>
-              </div>
+                  </div>
                 </div>
-            </div>
+              </div>
 
               {/* Información de Contacto */}
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Información de Contacto</h3>
                 <p className="text-xs text-gray-500">
-                  Una vez enviada su inscripción, recibirá un correo de confirmación. 
+                  Una vez enviada su inscripción, recibirá un correo de confirmación.
                   Mantenga su información de contacto actualizada para recibir notificaciones sobre el proceso.
                 </p>
+              </div>
+
+              {/* Mensaje de Felicitaciones */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-6 shadow-lg">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full">
+                      <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-green-800 mb-3">
+                    ¡Felicidades, Joven Emprendedor!
+                  </h3>
+                  <div className="text-green-700 space-y-2">
+                    <p className="text-lg font-medium">
+                      Has subsanado con éxito todos los documentos necesarios.
+                    </p>
+                    <p className="text-base">
+                      Tu proceso de registro ha finalizado y tus documentos han sido cargados correctamente.
+                    </p>
+                    <p className="text-base font-semibold">
+                      No necesitas realizar ninguna acción adicional. Tu postulación está completa.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2828,297 +2967,293 @@ const RegisterPageMultiStep = () => {
     uploadPendingFiles()
   }, [pendingUploads, formData.numero_documento, userId])
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header de la Landing Page */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center py-4 space-y-4 lg:space-y-0">
-            <div className="flex items-center space-x-2 sm:space-x-4 flex-wrap justify-center lg:justify-start min-h-[3rem] header-logos">
-              <img src="/emprendipaz.png" alt="EmprendiPaz" className="h-10 sm:h-12 object-contain" />
-              <img src="/logo-gobernacion.png" alt="Gobernación de Nariño" className="h-10 sm:h-12 object-contain" />
-              <img src="/fundacion.png" alt="Fundación" className="h-10 sm:h-12 object-contain" />
-              <img src="/consorcio.png" alt="Consorcio" className="h-10 sm:h-12 object-contain" />
-            </div>
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-4 w-full sm:w-auto">
-              <Button 
-                onClick={() => navigate('/')}
-                className="bg-gray-600 hover:bg-gray-700 text-white w-full sm:w-auto text-sm"
-              >
-                Volver al Inicio
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+  useEffect(() => {
+    if (!hasUploadedVideo || !errors.video_presentacion) return
 
-      <div className="py-8">
-        <div className="max-w-4xl mx-auto px-4">
+    setErrors(prev => {
+      if (!prev.video_presentacion) return prev
+      const nextErrors = { ...prev }
+      delete nextErrors.video_presentacion
+      return nextErrors
+    })
+  }, [hasUploadedVideo, errors.video_presentacion])
+
+  return (
+    <div className={embedded ? '' : 'min-h-screen bg-gray-50'}>
+      {!embedded && (
+        <>
+          {/* Header de la Landing Page */}
+          <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col lg:flex-row justify-between items-center py-4 space-y-4 lg:space-y-0">
+                <div className="flex items-center space-x-2 sm:space-x-4 flex-wrap justify-center lg:justify-start min-h-[3rem] header-logos">
+                  <img src="/emprendipaz.png" alt="EmprendiPaz" className="h-10 sm:h-12 object-contain" />
+                  <img src="/logo-gobernacion.png" alt="Gobernación de Nariño" className="h-10 sm:h-12 object-contain" />
+                  <img src="/fundacion.png" alt="Fundación" className="h-10 sm:h-12 object-contain" />
+                  <img src="/consorcio.png" alt="Consorcio" className="h-10 sm:h-12 object-contain" />
+                </div>
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-4 w-full sm:w-auto">
+                  <Button
+                    onClick={() => navigate('/')}
+                    className="bg-gray-600 hover:bg-gray-700 text-white w-full sm:w-auto text-sm"
+                  >
+                    Volver al Inicio
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </header>
+        </>
+      )}
+
+      <div className={embedded ? '' : 'py-8'}>
+        <div className={embedded ? '' : 'max-w-4xl mx-auto px-4'}>
           {/* Header del formulario */}
           <div className="bg-white rounded-lg shadow-md mb-6 p-6">
             <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
               Formulario de Registro - EmprendiPaz
             </h1>
             <p className="text-center text-gray-600">
-              Complete todos los pasos para enviar su inscripción
+              Complete todos los pasos para enviar su inscripcion
             </p>
           </div>
 
-        {/* Mensaje de Advertencia Legal */}
-        <div className="bg-green-50 border-l-4 border-green-500 p-6 mb-6 rounded-lg shadow-sm">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-lg font-bold text-green-800 mb-3">
-                IMPORTANTE - PROCESO DE VERIFICACIÓN
-              </h3>
-              <div className="text-sm text-green-900 space-y-2">
-                <p>
-                  <strong>Su inscripción será sometida a reserva y verificación exhaustiva.</strong> 
-                  Se validará toda la información y documentación proporcionada.
-                </p>
-                <p>
-                  <strong>Si se encuentra cualquier inconsistencia o falsedad</strong> en los datos 
-                  o documentos presentados, <strong>quedará automáticamente excluido del programa 
-                  sin derecho a apelación.</strong>
-                </p>
-                <p className="font-medium">
-                  Las declaraciones legales correspondientes se encuentran en el paso final del formulario.
-                </p>
+          {/* Mensaje de Advertencia Legal */}
+          <div className="bg-green-50 border-l-4 border-green-500 p-6 mb-6 rounded-lg shadow-sm">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-bold text-green-800 mb-3">
+                  IMPORTANTE - PROCESO DE VERIFICACIÓN
+                </h3>
+                <div className="text-sm text-green-900 space-y-2">
+                  <p>
+                    <strong>Su inscripción será sometida a reserva y verificación exhaustiva.</strong>
+                    Se validará toda la información y documentación proporcionada.
+                  </p>
+                  <p>
+                    <strong>Si se encuentra cualquier inconsistencia o falsedad</strong> en los datos
+                    o documentos presentados, <strong>quedará automáticamente excluido del programa
+                      sin derecho a apelación.</strong>
+                  </p>
+                  <p className="font-medium">
+                    Las declaraciones legales correspondientes se encuentran en el paso final del formulario.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Indicador de progreso */}
-        <div className="bg-white rounded-lg shadow-md mb-6 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-sm font-medium text-gray-700">
-              Paso {currentStep} de {steps.length}
-            </span>
-            <span className="text-sm font-medium text-gray-700">
-              {Math.round(progressPercentage)}% Completado
-            </span>
+          {/* Indicador de progreso */}
+          <div className="bg-white rounded-lg shadow-md mb-6 p-6">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-medium text-gray-700">
+                Paso {currentStep} de {steps.length}
+              </span>
+              <span className="text-sm font-medium text-gray-700">
+                {Math.round(progressPercentage)}% Completado
+              </span>
+            </div>
+
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div
+                className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progressPercentage}%` }}
+              ></div>
+            </div>
+
+            <div className="-mx-1 overflow-x-auto pb-2">
+              <div className="grid min-w-[44rem] grid-cols-11 gap-1 px-1">
+              {steps.map((step) => {
+                // Deshabilitar pasos 2-11 si no se ha completado el Paso 1
+                const isStepDisabled = step.number > 1 && !isStep1Complete
+
+                return (
+                  <div
+                    key={step.number}
+                    className={`text-center p-2 rounded transition-all duration-200 relative group ${step.number === currentStep
+                        ? 'bg-green-600 text-white shadow-lg'
+                        : step.number < currentStep
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
+                          : isStepDisabled
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-2 border-blue-300 cursor-pointer'
+                      }`}
+                    onClick={() => !isStepDisabled && setCurrentStep(step.number)}
+                    title={isStepDisabled ? 'Complete el Paso 1 primero para navegar libremente' : step.title}
+                  >
+                    <div className="text-lg font-bold">{step.number}</div>
+
+                    {/* Tooltip que aparece al hacer hover */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                      {step.title}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                    </div>
+                  </div>
+                )
+              })}
+              </div>
+            </div>
           </div>
-          
-          <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-            <div
-              className="bg-green-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercentage}%` }}
-            ></div>
+
+          {/* Contenido del paso actual */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            {renderStepContent()}
           </div>
 
-          <div className="grid grid-cols-11 gap-1">
-        {steps.map((step) => {
-          // Íconos para cada paso
-          const getStepIcon = (stepNumber) => {
-            switch (stepNumber) {
-              case 1: return '👤' // Datos Generales
-              case 2: return '👥' // Población Diferencial
-              case 3: return '🏢' // Emprendimiento
-              case 4: return '🎥' // Video Presentación
-              case 5: return '📄' // Documentos Obligatorios
-              case 6: return '📋' // Documentos por Tipo
-              case 7: return '📊' // Documentos Diferenciales
-              case 8: return '🔍' // Documentos de Control
-              case 9: return '⚙️' // Funcionamiento
-              case 10: return '💰' // Financiación
-              case 11: return '✅' // Declaraciones
-              default: return '📝'
-            }
-          }
-
-          // Deshabilitar pasos 2-11 si no se ha completado el Paso 1
-          const isStepDisabled = step.number > 1 && !isStep1Complete
-
-          return (
-          <div
-            key={step.number}
-              className={`text-center p-2 rounded transition-all duration-200 relative group ${
-              step.number === currentStep
-                  ? 'bg-green-600 text-white shadow-lg'
-                : step.number < currentStep
-                  ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
-                  : isStepDisabled
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
-                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-2 border-blue-300 cursor-pointer'
-              }`}
-              onClick={() => !isStepDisabled && setCurrentStep(step.number)}
-              title={isStepDisabled ? '⚠️ Complete el Paso 1 primero para navegar libremente' : step.title}
-            >
-              <div className="text-lg font-bold">{step.number}</div>
-              <div className="text-sm">{getStepIcon(step.number)}</div>
-              
-              {/* Tooltip que aparece al hacer hover */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                {step.title}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-      </div>
-    </div>
-  )
-        })}
-      </div>
-    </div>
-
-        {/* Contenido del paso actual */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          {renderStepContent()}
-        </div>
-
-        {/* Botones de navegación */}
-        <div className="flex justify-between items-center">
-          <button
-            type="button"
-        onClick={prevStep}
-            disabled={currentStep === 1}
-            className={`px-6 py-2 rounded-md font-medium ${
-              currentStep === 1
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-gray-600 text-white hover:bg-gray-700'
-            }`}
-          >
-        Anterior
-          </button>
-
-
-          {currentStep === steps.length ? (
+          {/* Botones de navegaci?n */}
+          <div className="flex justify-between items-center">
             <button
               type="button"
-              onClick={handleFinalize}
-            disabled={isSaving}
-              className="px-8 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 disabled:opacity-50"
+              onClick={prevStep}
+              disabled={currentStep === 1}
+              className={`px-6 py-2 rounded-md font-medium ${currentStep === 1
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gray-600 text-white hover:bg-gray-700'
+                }`}
             >
-              {isSaving ? 'Enviando...' : 'Enviar Inscripción'}
+              Anterior
             </button>
-          ) : (
+
             <button
               type="button"
-              onClick={nextStep}
-              disabled={isSaving}
-              className="px-6 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 disabled:opacity-50"
+              onClick={handleNextStep}
+              disabled={isLoading || isSaving}
+              className="px-8 py-3 bg-green-600 text-white rounded-md font-bold hover:bg-green-700 disabled:opacity-50 shadow-lg flex items-center gap-2"
             >
-              {isSaving ? 'Guardando...' : 'Siguiente'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Procesando...
+                </>
+              ) : currentStep === steps.length ? (
+                'Finalizar Inscripción'
+              ) : (
+                <>
+                  Siguiente
+                  <ChevronRight className="h-5 w-5" />
+                </>
+              )}
             </button>
+          </div>
+
+          {/* Mensajes de ?xito y error generales */}
+          {successMessage && (
+            <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-md shadow-lg z-50 flex items-center space-x-2">
+              <span>{successMessage}</span>
+              <button
+                onClick={() => setSuccessMessage('')}
+                className="text-green-700 hover:text-green-900"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           )}
-      </div>
 
-        {/* Mensajes de éxito y error generales */}
-        {successMessage && (
-          <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-md shadow-lg z-50 flex items-center space-x-2">
-            <span>{successMessage}</span>
-            <button
-              onClick={() => setSuccessMessage('')}
-              className="text-green-700 hover:text-green-900"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+          {errors.general && (
+            <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md shadow-lg z-50 flex items-center space-x-2">
+              <span>{errors.general}</span>
+              <button
+                onClick={() => setErrors(prev => ({ ...prev, general: '' }))}
+                className="text-red-700 hover:text-red-900"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
-            {errors.general && (
-          <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md shadow-lg z-50 flex items-center space-x-2">
-            <span>{errors.general}</span>
-            <button
-              onClick={() => setErrors(prev => ({ ...prev, general: '' }))}
-              className="text-red-700 hover:text-red-900"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Modal de confirmación antes de finalizar */}
-        {showFinalizeConfirmation && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <svg className="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
+          {/* Modal de confirmaci?n antes de finalizar */}
+          {showFinalizeConfirmation && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">
+                      ¿Estás seguro de finalizar el proceso de inscripción?
+                    </h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Recuerde que <strong>si finaliza la inscripción, ya no podrá subir documentos ni modificar la información ingresada.</strong>
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Si aún necesita revisar o subir algún documento, seleccione "No, guardar avance".
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    ¿Estás seguro de finalizar el proceso de inscripción?
-                  </h3>
-                  <p className="text-sm text-gray-700 mb-4">
-                    Recuerde que <strong>si finaliza la inscripción, ya no podrá subir documentos ni modificar la información ingresada.</strong>
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    Si aún necesita revisar o subir algún documento, seleccione "No, guardar avance".
-                  </p>
+
+                <div className="flex flex-col space-y-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={submitCompleteForm}
+                    disabled={isLoading}
+                    className="w-full px-4 py-3 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isLoading ? 'Enviando...' : 'Sí, finalizar inscripción'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveProgress}
+                    disabled={isSaving}
+                    className="w-full px-4 py-3 bg-gray-600 text-white rounded-md font-medium hover:bg-gray-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isSaving ? 'Guardando...' : 'No, guardar avance'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFinalizeConfirmation(false)}
+                    disabled={isLoading || isSaving}
+                    className="w-full px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-md font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
                 </div>
-              </div>
-              
-              <div className="flex flex-col space-y-3 mt-6">
-                <button
-                  type="button"
-                  onClick={submitCompleteForm}
-                  disabled={isLoading}
-                  className="w-full px-4 py-3 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
-                >
-                  {isLoading ? 'Enviando...' : 'Sí, finalizar inscripción'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveProgress}
-                  disabled={isSaving}
-                  className="w-full px-4 py-3 bg-gray-600 text-white rounded-md font-medium hover:bg-gray-700 disabled:opacity-50 transition-colors"
-                >
-                  {isSaving ? 'Guardando...' : 'No, guardar avance'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowFinalizeConfirmation(false)}
-                  disabled={isLoading || isSaving}
-                  className="w-full px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-md font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                >
-                  Cancelar
-                </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Modal de error de validación */}
-        {showValidationError && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+          {/* Modal de error de validaci?n */}
+          {showValidationError && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">
+                      Documentos Obligatorios Faltantes
+                    </h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      {validationErrorMessage}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Por favor, complete todos los documentos requeridos antes de finalizar la inscripción.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    Documentos Obligatorios Faltantes
-                  </h3>
-                  <p className="text-sm text-gray-700 mb-4">
-                    {validationErrorMessage}
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    Por favor, complete todos los documentos requeridos antes de finalizar la inscripción.
-                  </p>
+
+                <div className="flex justify-end mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowValidationError(false)}
+                    className="px-6 py-2 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 transition-colors"
+                  >
+                    Entendido
+                  </button>
                 </div>
-              </div>
-              
-              <div className="flex justify-end mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowValidationError(false)}
-                  className="px-6 py-2 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 transition-colors"
-                >
-                  Entendido
-                </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
     </div>

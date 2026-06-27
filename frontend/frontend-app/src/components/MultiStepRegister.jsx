@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
-
+import API_BASE_URL from '@/config/api'
 const MultiStepRegister = () => {
   const [currentStep, setCurrentStep] = useState(1)
   const [userData, setUserData] = useState({})
@@ -30,7 +30,7 @@ const MultiStepRegister = () => {
     
     try {
       setLoading(true)
-      const response = await fetch('/api/save-partial', {
+      const response = await fetch(`${API_BASE_URL}/save-partial`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,7 +57,7 @@ const MultiStepRegister = () => {
 
   const loadUserProgress = async (userId) => {
     try {
-      const response = await fetch(`/api/get-partial/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/get-partial/${userId}`, {
         credentials: 'include'
       })
       

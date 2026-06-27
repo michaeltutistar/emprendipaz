@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -6,14 +6,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Eye, EyeOff, ArrowLeft, Info } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, Info, Check, ShieldCheck } from 'lucide-react'
 import logoGobernacion from '../assets/logo-gobernacion.png'
-import API_BASE_URL from '@/config/api'
 import { useAuth } from '../hooks/useAuth'
+import API_BASE_URL from '@/config/api'
+import { isInstalledPwa } from '@/utils/pwa'
+import { setAuthToken, setPwaCachedUser, getAuthToken, getPwaCachedUser, isForceLoggedOut } from '@/utils/auth-storage'
 
 const LoginPage = () => {
   const navigate = useNavigate()
-  const { isAdmin } = useAuth()
+  const { user, isAuthenticated, loading, isAdmin } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,6 +25,32 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showStudentMessage, setShowStudentMessage] = useState(false)
+  const [showVisualCaptcha, setShowVisualCaptcha] = useState(false)
+  const [visualCaptchaStatus, setVisualCaptchaStatus] = useState('idle')
+
+  useEffect(() => {
+    setShowVisualCaptcha(!isInstalledPwa())
+  }, [])
+
+  // Si la app está instalada como PWA y ya hay sesión, evitar mostrar login.
+  useEffect(() => {
+    if (!isInstalledPwa()) return;
+    if (loading) return;
+    if (isForceLoggedOut()) return;
+    const token = getAuthToken();
+    const cached = getPwaCachedUser();
+    if (!token && !cached) return;
+    if (!isAuthenticated && !cached) return;
+
+    const rol = (user?.rol || cached?.rol || '').toLowerCase();
+    if (rol === 'admin' || rol === 'evaluador') {
+      navigate('/admin');
+    } else if (rol === 'instructor') {
+      navigate('/instructor/dashboard');
+    } else if (rol === 'estudiante' || rol === 'usuario') {
+      navigate('/student/dashboard');
+    }
+  }, [loading, isAuthenticated, user, navigate]);
 
   // Función para verificar si el registro está habilitado
   const isRegistrationEnabled = () => {
@@ -41,8 +69,28 @@ const LoginPage = () => {
       newErrors.password = 'La contraseña es obligatoria'
     }
 
+    if (showVisualCaptcha && visualCaptchaStatus !== 'verified') {
+      newErrors.captcha = 'Confirma que eres humano para continuar'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
+  }
+
+  const handleVisualCaptchaClick = () => {
+    if (!showVisualCaptcha || visualCaptchaStatus === 'verified' || visualCaptchaStatus === 'checking') {
+      return
+    }
+
+    setVisualCaptchaStatus('checking')
+    setErrors(prev => ({
+      ...prev,
+      captcha: ''
+    }))
+
+    window.setTimeout(() => {
+      setVisualCaptchaStatus('verified')
+    }, 650)
   }
 
   const handleInputChange = (e) => {
@@ -89,7 +137,11 @@ const LoginPage = () => {
       if (response.ok) {
         // Guardar token JWT
         if (data.token) {
-          localStorage.setItem('authToken', data.token)
+          setAuthToken(data.token)
+        }
+
+        if (data.user) {
+          setPwaCachedUser(data.user);
         }
         
         // Guardar información de sesión si "Recordarme" está marcado
@@ -110,7 +162,7 @@ const LoginPage = () => {
             // Redirigir al dashboard del estudiante
             navigate('/student/dashboard')
           } else {
-            // Mostrar mensaje informativo para estudiantes sin estado activa
+            // mostrar mensaje informativo para estudiantes sin estado activa
             setShowStudentMessage(true)
             // Limpiar el formulario
             setFormData({
@@ -120,7 +172,7 @@ const LoginPage = () => {
             })
           }
         } else {
-          // Mostrar mensaje informativo para usuarios sin rol específico
+          // mostrar mensaje informativo para usuarios sin rol específico
           setShowStudentMessage(true)
           setFormData({
             email: '',
@@ -266,47 +318,86 @@ const LoginPage = () => {
                     Recordarme
                   </Label>
                 </div>
-                {/* TEMPORALMENTE OCULTO - Link de olvidé contraseña */}
-                {/* 
                 <Link 
                   to="/forgot-password" 
                   className="text-sm text-green-600 hover:text-green-700 font-medium"
                 >
                   ¿Olvidaste tu contraseña?
                 </Link>
-                */}
               </div>
+
+              {showVisualCaptcha && (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleVisualCaptchaClick}
+                    className={`flex w-full items-center justify-between rounded-lg border p-3 text-left transition-all duration-300 ${
+                      visualCaptchaStatus === 'verified'
+                        ? 'border-green-300 bg-green-50 shadow-sm'
+                        : visualCaptchaStatus === 'checking'
+                          ? 'border-blue-300 bg-blue-50 shadow-sm'
+                          : errors.captcha
+                            ? 'border-red-300 bg-red-50 hover:bg-red-100'
+                            : 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50'
+                    }`}
+                    aria-pressed={visualCaptchaStatus === 'verified'}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded border transition-all duration-300 ${
+                          visualCaptchaStatus === 'verified'
+                            ? 'scale-110 border-green-600 bg-green-600 text-white'
+                            : visualCaptchaStatus === 'checking'
+                              ? 'animate-pulse border-blue-500 bg-blue-100'
+                              : 'border-gray-300 bg-white'
+                        }`}
+                      >
+                        {visualCaptchaStatus === 'verified' && <Check className="h-4 w-4" />}
+                        {visualCaptchaStatus === 'checking' && (
+                          <span className="h-3 w-3 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                        )}
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {visualCaptchaStatus === 'verified'
+                            ? 'Verificación visual completada'
+                            : 'Soy humano'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Haz clic en el cuadro para continuar con el ingreso.
+                        </p>
+                      </div>
+                    </div>
+                    <ShieldCheck
+                      className={`h-5 w-5 transition-colors ${
+                        visualCaptchaStatus === 'verified' ? 'text-green-600' : 'text-gray-300'
+                      }`}
+                    />
+                  </button>
+                  {errors.captcha && (
+                    <p className="text-sm text-red-600">{errors.captcha}</p>
+                  )}
+                </div>
+              )}
 
               {/* Botón de login */}
               <Button
                 type="submit"
                 className="w-full bg-green-600 hover:bg-green-700 text-white"
-                disabled={isLoading}
+                disabled={isLoading || (showVisualCaptcha && visualCaptchaStatus !== 'verified')}
               >
                 {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
               </Button>
 
-              {/* Link a registro */}
-              <div className="text-center">
+              {/* Link a registro - Deshabilitado por solicitud del usuario */}
+              {/* <div className="text-center">
                 <p className="text-sm text-gray-600">
                   ¿No tienes una cuenta?{' '}
-                  {(() => {
-                    const disabled = !isRegistrationEnabled();
-                    return disabled ? (
-                      <span 
-                        className="text-gray-400 cursor-not-allowed"
-                        title="Registro temporalmente cerrado. Contacta al administrador para más información."
-                      >
-                        Registro cerrado
-                      </span>
-                    ) : (
-                      <Link to="/register" className="text-green-600 hover:text-green-700 font-medium">
-                        Regístrate aquí (Admin)
-                      </Link>
-                    );
-                  })()}
+                  <Link to="/register" className="text-green-600 hover:text-green-700 font-medium">
+                    Subsanación aquí
+                  </Link>
                 </p>
-              </div>
+              </div> */}
             </form>
           </CardContent>
         </Card>

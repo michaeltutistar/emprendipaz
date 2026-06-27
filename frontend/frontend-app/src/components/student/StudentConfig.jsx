@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Badge } from '../ui/badge';
+
 import { Switch } from '../ui/switch';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
 import { 
   Settings, 
   Bell, 
@@ -14,8 +19,12 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 import { toast } from 'sonner';
+
 import StudentHeader from './StudentHeader';
+import SupportCenterWidget from './SupportCenterWidget';
+import API_BASE_URL from '@/config/api'
 
 const StudentConfig = () => {
   const [configuracion, setConfiguracion] = useState({
@@ -37,7 +46,7 @@ const StudentConfig = () => {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/student/configuracion', {
+      const response = await fetch(`${API_BASE_URL}/student/configuracion`, {
         credentials: 'include'
       });
       
@@ -60,7 +69,7 @@ const StudentConfig = () => {
     try {
       setGuardando(true);
       
-      const response = await fetch('/api/student/configuracion', {
+      const response = await fetch(`${API_BASE_URL}/student/configuracion`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -289,6 +298,7 @@ const StudentConfig = () => {
           </Card>
         </div>
       </div>
+      <SupportCenterWidget screenLabel="student-config" />
     </div>
   );
 };

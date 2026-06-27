@@ -1,13 +1,22 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
+
 import { Input } from '@/components/ui/input';
+
 import { Label } from '@/components/ui/label';
+
 import { Textarea } from '@/components/ui/textarea';
+
 import { Badge } from '@/components/ui/badge';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 import { toast } from 'sonner';
+
 import { Shuffle, Download, Users, Trophy, Calendar, FileText } from 'lucide-react';
+import API_BASE_URL from '@/config/api'
 
 const SorteoPanel = () => {
   const [empates, setEmpates] = useState({});
@@ -25,8 +34,8 @@ const SorteoPanel = () => {
   const cargarDatos = async () => {
     try {
       const [empatesRes, sorteosRes] = await Promise.all([
-        fetch('/api/admin/evaluaciones/empates', { credentials: 'include' }),
-        fetch('/api/admin/evaluaciones/sorteos', { credentials: 'include' })
+        fetch(`${API_BASE_URL}/admin/evaluaciones/empates`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/admin/evaluaciones/sorteos`, { credentials: 'include' })
       ]);
 
       if (empatesRes.ok && sorteosRes.ok) {
@@ -53,7 +62,7 @@ const SorteoPanel = () => {
 
     try {
       setEjecutandoSorteo(true);
-      const response = await fetch('/api/admin/evaluaciones/sorteo', {
+      const response = await fetch(`${API_BASE_URL}/admin/evaluaciones/sorteo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -82,7 +91,7 @@ const SorteoPanel = () => {
 
   const descargarActa = async (sorteoId) => {
     try {
-      const response = await fetch(`/api/admin/evaluaciones/sorteos/${sorteoId}/acta`, {
+      const response = await fetch(`${API_BASE_URL}/admin/evaluaciones/sorteos/${sorteoId}/acta`, {
         credentials: 'include'
       });
 

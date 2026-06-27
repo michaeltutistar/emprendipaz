@@ -1,0 +1,143 @@
+0021|V.58. INFORME DE MANTENIMIENTO
+0022|PERIODO 01-04-2026 A 30-04-2026
+0045|Tabla de contenido
+0048|Página
+0050|Lista de imágenes
+0052|3
+0054|Lista de tablas
+0056|4
+0058|1.Objetivo del mantenimiento
+0060|5
+0062|2.Análisis detallado por componente (antes vs después)
+0064|5
+0066|3.         Evaluación global del mantenimiento
+0068|4. Conclusiones
+0070|13
+0072|14
+0103|Lista de imágenes
+0107|Página
+0109|Imagen 1. Antes distribución de configuración menú principal dashboard
+0111|5
+0113|Imagen 2. Después distribución de configuración menú principal dashboard
+0115|6
+0117|Imagen 3. Antes errores de ortografía en el formulario de registros de emprendedores
+0119|7
+0121|Imagen 4. Después corrección de errores de ortografía en el formulario de registros de emprendedores
+0123|8
+0125|Imagen 5. Antes errores de ortografía en el formulario de registros de emprendedores
+0127|9
+0129|Imagen 6. Después corrección errores de ortografía en el formulario de registros de emprendedores
+0131|10
+0133|Imagen 7. Antes errores de ortografía en el formulario de registros de emprendedores
+0135|11
+0137|Imagen 8. Después corrección errores de ortografía en el formulario de registros de emprendedores
+0139|12
+0159|Lista de tablas
+0162|Página
+0164|Tabla 1. Evaluación global
+0167|13
+0207|Tipo de intervención: Mantenimiento preventivo + mejora de experiencia de usuario (UX/UI)
+0209|OBJETIVO DEL MANTENIMIENTO
+0211|Realizar un proceso integral de mantenimiento sobre la plataforma EmprendiPaz, enfocado en:
+0212|Corrección de errores visuales y ortográficos
+0213|Optimización de la experiencia de usuario (UX)
+0214|Mejora en la organización estructural del dashboard
+0215|Fortalecimiento de la calidad percibida de la plataforma
+0216|Alineación con estándares institucionales de presentación
+0218|ANÁLISIS DETALLADO POR COMPONENTE (ANTES vs DESPUÉS)
+0220|DASHBOARD – CONFIGURACIÓN MENÚ PRINCIPAL
+0221|Distribución desorganizada de los elementos del menú
+0222|Baja jerarquía visual (no hay claridad en prioridades)
+0223|Posible saturación de opciones sin agrupación lógica
+0224|Falta de alineación visual consistente
+0225|Experiencia de navegación poco intuitiva
+0227|Imagen 1. Antes distribución de configuración menú principal dashboard
+0233|Imagen 2. Después distribución de configuración menú principal dashboard
+0236|Reorganización estructural del menú principal
+0237|Agrupación lógica de funcionalidades
+0238|Mejora en la jerarquía visual (orden, espaciado, alineación)
+0239|Navegación más clara e intuitiva
+0240|Mayor coherencia visual con el resto del sistema
+0242|FORMUALARIO DE REGISTO – CORRECCIÓN ORTOGRÁFICA
+0244|Se realizaron correcciones ortográficas en el formulario de registro de emprendimientos, con el objetivo de mejorar la claridad, coherencia y presentación de la información. Estas mejoras permiten una mejor comprensión por parte de los usuarios y contribuyen a una experiencia más profesional y amigable durante el proceso de registro.
+0245|Imagen 3. Antes errores de ortografía en el formulario de registros de emprendedores
+0247|Errores ortográficos visibles
+0248|Inconsistencia en redacción
+0249|Posible pérdida de credibilidad institucional
+0250|Baja calidad percibida del sistema
+0262|Imagen 4. Después corrección de errores de ortografía en el formulario de registros de emprendedores
+0266|Corrección completa de errores ortográficos
+0267|Unificación del lenguaje
+0268|Mejora en la claridad de los campos
+0276|Imagen 5. Antes errores de ortografía en el formulario de registros de emprendedores
+0278|Hallazgos:
+0280|Persistencia de errores ortográficos
+0281|Redacción poco clara
+0282|Posibles ambigüedades en campos
+0287|Imagen 6. Después corrección errores de ortografía en el formulario de registros de emprendedores
+0291|Logros:
+0293|Corrección textual completa
+0294|Mejora en coherencia semántica
+0295|Estandarización de lenguaje
+0298|Esto facilita su comprensión y fortalece la experiencia del usuario durante el proceso de registro.
+0305|Imagen 7. Antes errores de ortografía en el formulario de registros de emprendedores
+0308|Hallazgos:
+0310|Redacción inconsistente
+0311|Falta de revisión lingüística integral
+0312|Posible confusión del usuario
+0321|Imagen 8. Después corrección errores de ortografía en el formulario de registros de emprendedores
+0324|Logros:
+0326|Corrección total de contenido textual
+0327|Ajuste de términos técnicos y administrativos
+0328|Mejora en comprensión de instrucciones
+0330|Análisis técnico:
+0331|Se logra:
+0332|Homogeneización del lenguaje
+0333|Mayor claridad operativa
+0334|Mejor interacción usuario-sistema
+0335|Impacto:
+0336|Mejora en experiencia del usuario
+0337|Mayor eficiencia en el registro
+0339|EVALUACIÓN GLOBAL DEL MANTENIMIENTO
+0341|Tabla 1. Evaluación global
+0342|Categoría
+0343|Antes
+0344|Después
+0345|Mejora
+0346|UX (Experiencia usuario)
+0347|Media
+0348|Alta
+0349|⬆
+0350|UI (Interfaz visual)
+0351|Media
+0352|Alta
+0353|⬆
+0354|Calidad textual
+0355|Baja
+0356|Alta
+0357|⬆
+0358|Navegación
+0359|Media
+0360|Alta
+0361|⬆
+0362|Profesionalismo percibido
+0363|Medio
+0364|Alto
+0365|⬆
+0368|IMPACTO DEL MANTENIMIENTO
+0369|🔹 A nivel técnico:
+0370|Mejora en estructura del sistema
+0371|Reducción de errores operativos
+0372|Mayor coherencia en frontend
+0373|🔹 A nivel usuario:
+0374|Navegación más intuitiva
+0375|Menor confusión en formularios
+0376|Mayor confianza en la plataforma
+0377|🔹 A nivel institucional:
+0378|Imagen más profesional
+0379|Alineación con estándares de calidad
+0380|Mayor legitimidad del sistema
+0392|CONCLUSIONES
+0395|El proceso de mantenimiento realizado en la plataforma EmprendiPaz durante el periodo evaluado:
+0396|✔ Fue efectivo y pertinente✔ Generó mejoras visibles e inmediatas✔ Elevó el nivel de calidad del sistema
+0399|Se implementaron correcciones ortográficas en el formulario de registro de emprendimientos, enfocadas en garantizar la adecuada escritura y uniformidad del contenido. Estas acciones mejoran la legibilidad, reducen posibles confusiones en el diligenciamiento y aportan a una experiencia de usuario más clara, ordenada y profesional.
