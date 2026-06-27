@@ -14,6 +14,10 @@ import { Badge } from '../ui/badge'
 import { Textarea } from '../ui/textarea'
 import { nestForumReplies } from '@/utils/forumReplyTree'
 
+const STUDENT_ROLES = new Set(['estudiante', 'usuario'])
+
+const isStudentAuthor = (author) => STUDENT_ROLES.has(author?.rol)
+
 const InstructorNodeForumPage = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
@@ -150,17 +154,22 @@ const InstructorNodeForumPage = () => {
       return
     }
 
+    if (replyTarget?.mode !== 'nested' || !replyTarget?.id) {
+      toast.error('Selecciona una respuesta de emprendedor con «Dar retroalimentación».')
+      return
+    }
+
     const body = replyDraft.trim()
     if (!body) {
-      toast.error('Escribe una respuesta antes de enviarla.')
+      toast.error('Escribe la retroalimentación antes de enviarla.')
       return
     }
 
     try {
       setReplying(true)
-      const payload = { body }
-      if (replyTarget?.mode === 'nested') {
-        payload.parent_reply_id = replyTarget.id
+      const payload = {
+        body,
+        parent_reply_id: replyTarget.id,
       }
 
       const response = await fetch(`${API_BASE_URL}/instructor/forum/threads/${selectedThread.id}/replies`, {
@@ -182,7 +191,7 @@ const InstructorNodeForumPage = () => {
 
       setReplyDraft('')
       setReplyTarget(null)
-      toast.success('Respuesta publicada en el foro.')
+      toast.success('Retroalimentación publicada correctamente.')
       await loadThreads(selectedNodeSlug)
       await loadThreadDetail(selectedThread.id)
       await loadNodes()
@@ -497,12 +506,20 @@ const InstructorNodeForumPage = () => {
     [selectedThread?.replies],
   )
 
-  const renderReplyBranch = (node, depth) => (
+  const renderReplyBranch = (node, depth) => {
+    const isStudentReply = isStudentAuthor(node.author)
+    const isFeedbackTarget = replyTarget?.mode === 'nested' && replyTarget?.id === node.id
+
+    return (
     <div
       key={node.id}
       className={depth > 0 ? 'mt-3 ml-3 sm:ml-5 pl-3 border-l-2 border-blue-300' : ''}
     >
-      <div className="rounded-xl border bg-gray-50 p-4">
+      <div
+        className={`rounded-xl border p-4 ${
+          isFeedbackTarget ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'bg-gray-50'
+        }`}
+      >
         {node.parent_reply_preview && (
           <div className="mb-2 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-600">
             <span className="font-medium text-gray-700">En respuesta a {node.parent_reply_preview.author_nombre}:</span>{' '}
@@ -518,23 +535,25 @@ const InstructorNodeForumPage = () => {
             <span className="text-xs text-gray-500">{new Date(node.created_at).toLocaleString('es-CO')}</span>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() =>
-                setReplyTarget({
-                  mode: 'nested',
-                  id: node.id,
-                  authorLabel: node.author?.nombre || 'Usuario',
-                  snippet: (node.body || '').slice(0, 100),
-                })
-              }
-            >
-              <Reply className="mr-1 h-3.5 w-3.5" />
-              Responder
-            </Button>
+            {isStudentReply && (
+              <Button
+                type="button"
+                variant={isFeedbackTarget ? 'default' : 'outline'}
+                size="sm"
+                className="h-8"
+                onClick={() =>
+                  setReplyTarget({
+                    mode: 'nested',
+                    id: node.id,
+                    authorLabel: node.author?.nombre || 'Usuario',
+                    snippet: (node.body || '').slice(0, 100),
+                  })
+                }
+              >
+                <Reply className="mr-1 h-3.5 w-3.5" />
+                Dar retroalimentación
+              </Button>
+            )}
             <Button
               type="button"
               variant="ghost"
@@ -554,7 +573,8 @@ const InstructorNodeForumPage = () => {
         <div className="space-y-0">{node.children.map((child) => renderReplyBranch(child, depth + 1))}</div>
       )}
     </div>
-  )
+    )
+  }
 
   if (loading) {
     return (
@@ -568,7 +588,7 @@ const InstructorNodeForumPage = () => {
     <div className="min-h-screen bg-gray-50">
       <InstructorHeader
         title="Foros por nodo"
-        subtitle="Consulta y responde preguntas de todos los territorios"
+        subtitle="Publica preguntas y da retroalimentación directa a cada emprendedor"
         showBackButton={true}
         backUrl="/instructor/dashboard"
       />
@@ -729,7 +749,7 @@ const InstructorNodeForumPage = () => {
                 </CardTitle>
                 <CardDescription>
                   {selectedThread
-                    ? 'Responde como instructor para orientar al nodo.'
+                    ? 'Usa «Dar retroalimentación» en la respuesta de cada emprendedor.'
                     : 'Debes seleccionar un hilo para ver su contenido.'}
                 </CardDescription>
               </CardHeader>
@@ -749,18 +769,6 @@ const InstructorNodeForumPage = () => {
                           <Badge variant="outline">{selectedThread.status}</Badge>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setReplyTarget(null)
-                              setReplyDraft('')
-                            }}
-                          >
-                            <Reply className="mr-1 h-4 w-4" />
-                            Responder
-                          </Button>
                           <Button
                             type="button"
                             variant="outline"
@@ -798,19 +806,27 @@ const InstructorNodeForumPage = () => {
                           <span>
                             {replyTarget?.mode === 'nested' ? (
                               <>
-                                Respondiendo a <strong>{replyTarget.authorLabel}</strong>
+                                Retroalimentando a <strong>{replyTarget.authorLabel}</strong>
                                 {replyTarget.snippet
                                   ? ` «${replyTarget.snippet}${replyTarget.snippet.length >= 100 ? '…' : ''}»`
                                   : ''}
                                 .
                               </>
                             ) : (
-                              <>Tu mensaje se publicará como respuesta a la pregunta del hilo.</>
+                              <>Selecciona una respuesta de emprendedor con «Dar retroalimentación» para continuar.</>
                             )}
                           </span>
                           {replyTarget?.mode === 'nested' && (
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setReplyTarget(null)}>
-                              Volver a responder al hilo
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setReplyTarget(null)
+                                setReplyDraft('')
+                              }}
+                            >
+                              Cancelar
                             </Button>
                           )}
                         </div>
@@ -818,12 +834,20 @@ const InstructorNodeForumPage = () => {
                       <Textarea
                         value={replyDraft}
                         onChange={(event) => setReplyDraft(event.target.value)}
-                        placeholder="Responde como instructor para orientar o aclarar la conversación del nodo."
+                        placeholder={
+                          replyTarget?.mode === 'nested'
+                            ? 'Escribe la retroalimentación para este emprendedor. Quedará visible debajo de su respuesta.'
+                            : 'Primero elige la respuesta del emprendedor a la que vas a retroalimentar.'
+                        }
                         rows={4}
+                        disabled={replyTarget?.mode !== 'nested'}
                       />
-                      <Button type="submit" disabled={replying}>
+                      <Button
+                        type="submit"
+                        disabled={replying || replyTarget?.mode !== 'nested'}
+                      >
                         <Send className="h-4 w-4" />
-                        {replying ? 'Enviando...' : 'Enviar respuesta'}
+                        {replying ? 'Enviando...' : 'Enviar retroalimentación'}
                       </Button>
                     </form>
                   </>

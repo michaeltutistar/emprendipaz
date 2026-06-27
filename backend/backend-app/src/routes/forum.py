@@ -128,6 +128,47 @@ def _validated_parent_reply_id(thread, parent_reply_id_raw):
     return pid, None
 
 
+def _validated_instructor_feedback_parent(thread, parent_reply_id_raw):
+    """Retroalimentación del instructor: debe anclarse a una respuesta de emprendedor."""
+    if parent_reply_id_raw is None or parent_reply_id_raw == '':
+        return None, (
+            jsonify({
+                'success': False,
+                'error': 'Debes seleccionar la respuesta del emprendedor a la que vas a retroalimentar.',
+            }),
+            400,
+        )
+
+    pid, perr = _validated_parent_reply_id(thread, parent_reply_id_raw)
+    if perr:
+        return None, perr
+
+    parent = (
+        NodeForumReply.query.options(selectinload(NodeForumReply.author))
+        .filter_by(id=pid, thread_id=thread.id)
+        .first()
+    )
+    if not parent or not parent.author:
+        return None, (
+            jsonify({
+                'success': False,
+                'error': 'El mensaje seleccionado no existe en este hilo.',
+            }),
+            404,
+        )
+
+    if parent.author.rol not in ('estudiante', 'usuario'):
+        return None, (
+            jsonify({
+                'success': False,
+                'error': 'La retroalimentación del instructor debe ir dirigida a una respuesta de emprendedor.',
+            }),
+            400,
+        )
+
+    return pid, None
+
+
 def _thread_query_with_replies():
     return NodeForumThread.query.options(
         selectinload(NodeForumThread.replies).selectinload(NodeForumReply.author),
@@ -561,7 +602,7 @@ def create_instructor_forum_reply(current_user, thread_id):
             'error': 'La respuesta es obligatoria.',
         }), 400
 
-    parent_reply_id, perr = _validated_parent_reply_id(thread, data.get('parent_reply_id'))
+    parent_reply_id, perr = _validated_instructor_feedback_parent(thread, data.get('parent_reply_id'))
     if perr:
         return perr
 
@@ -585,7 +626,7 @@ def create_instructor_forum_reply(current_user, thread_id):
 
     return jsonify({
         'success': True,
-        'message': 'Respuesta del instructor publicada exitosamente.',
+        'message': 'Retroalimentación publicada exitosamente.',
         'data': _serialize_reply(reply),
     }), 201
 

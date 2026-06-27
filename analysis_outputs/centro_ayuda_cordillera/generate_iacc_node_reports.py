@@ -484,7 +484,50 @@ def investigation_paragraphs(node_cfg, summary, records):
     return paragraphs
 
 
-def write_docx(node_cfg, records, summary, charts):
+SENDER_LABEL = {
+    "user": "Estudiante",
+    "assistant": "Asistente IA",
+    "system": "Sistema",
+}
+
+
+def add_conversation_annex(doc, records, messages):
+    """Transcripción literal de los mensajes del widget Centro de ayuda."""
+    if not messages:
+        return
+    add_heading(doc, "9.1 Transcripción de conversaciones (Centro de ayuda)", 2)
+    doc.add_paragraph(
+        "A continuación se reproduce textualmente el intercambio registrado en la plataforma "
+        "entre el emprendedor y el asistente del Contact Center, ticket por ticket."
+    )
+    by_ticket = collections.defaultdict(list)
+    for m in messages:
+        by_ticket[m.get("ticket_id")].append(m)
+    for rec in sorted(records, key=lambda r: r.get("created_at") or ""):
+        tid = rec.get("ticket_id")
+        ticket_msgs = sorted(by_ticket.get(tid, []), key=lambda x: x.get("created_at") or "")
+        if not ticket_msgs:
+            continue
+        student = rec.get("student_name") or f"Usuario ID {rec.get('user_id')}"
+        add_heading(
+            doc,
+            f"Ticket #{tid} — {student} ({rec.get('municipio', '')})",
+            3,
+        )
+        if rec.get("summary"):
+            doc.add_paragraph(f"Consulta inicial: «{safe_text(rec['summary'])}»")
+        rows = []
+        for msg in ticket_msgs:
+            sender = SENDER_LABEL.get(msg.get("sender"), msg.get("sender") or "Desconocido")
+            rows.append([
+                fmt_dt(msg.get("created_at")),
+                sender,
+                safe_text(msg.get("message")),
+            ])
+        add_table(doc, ["Fecha", "Emisor", "Mensaje"], rows, font_size=8)
+
+
+def write_docx(node_cfg, records, summary, charts, messages=None):
     doc = Document()
     section = doc.sections[0]
     section.top_margin = Inches(0.55)
@@ -510,7 +553,7 @@ def write_docx(node_cfg, records, summary, charts):
 
     period = doc.add_paragraph()
     period.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    period.add_run(f"PERIODO: {PERIOD_LABEL}").italic = True
+    period.add_run(f"PERIODO: {node_cfg.get('period_label', PERIOD_LABEL)}").italic = True
 
     add_heading(doc, "1. Propósito y alcance", 1)
     doc.add_paragraph(
@@ -522,6 +565,8 @@ def write_docx(node_cfg, records, summary, charts):
         f"Fuente: snapshots JSON en s3://{BUCKET}/support/conversations/latest/ cruzados con el padrón operativo municipios.csv "
         "(campo ID = user_id)."
     )
+    if node_cfg.get("exclusion_note"):
+        doc.add_paragraph(node_cfg["exclusion_note"])
 
     add_heading(doc, "2. Resumen ejecutivo", 1)
     add_metric_cards(
@@ -542,7 +587,7 @@ def write_docx(node_cfg, records, summary, charts):
         ["Elemento", "Descripción"],
         [
             ["Fuente S3", f"s3://{BUCKET}/{LATEST_PREFIX}"],
-            ["Snapshots latest (plataforma)", "42 tickets globales"],
+            ["Snapshots latest (plataforma)", str(node_cfg.get("global_tickets_total", "N/D"))],
             ["Tickets filtrados por nodo", summary["tickets_total"]],
             ["Rango fechas nodo", f"{fmt_dt(summary['date_min'])} a {fmt_dt(summary['date_max'])}" if summary["date_min"] else "Sin tickets"],
             ["Criterio territorial", "municipio del user_id en municipios.csv"],
@@ -652,14 +697,22 @@ def write_docx(node_cfg, records, summary, charts):
             rows,
             font_size=7,
         )
+        add_conversation_annex(doc, records, messages)
     else:
         doc.add_paragraph("Sin tickets registrados para este nodo.")
 
     add_heading(doc, "10. Anexo: evidencias WhatsApp", 1)
-    doc.add_paragraph(
-        "No se incluyen capturas de conversaciones de WhatsApp porque el tutor de escalamientos confirmó que no recibió "
-        "mensajes desde este nodo y la evidencia técnica disponible no registra envíos efectivos al chat de soporte."
-    )
+    if messages and summary["tickets_total"] > 0:
+        doc.add_paragraph(
+            "La conversación completa en la plataforma (widget Centro de ayuda) se documenta en la sección 9.1. "
+            "Este anexo se refiere únicamente al canal externo WhatsApp, al cual el estudiante puede ser redirigido "
+            "cuando la IA no resuelve el caso o el usuario solicita atención humana."
+        )
+    else:
+        doc.add_paragraph(
+            "No se incluyen capturas de conversaciones de WhatsApp porque no hubo tickets en el Contact Center "
+            "para este nodo en el periodo analizado."
+        )
     if summary["escalated_whatsapp_total"] == 0:
         doc.add_paragraph(
             "En el Nodo "
@@ -667,13 +720,15 @@ def write_docx(node_cfg, records, summary, charts):
         )
     else:
         doc.add_paragraph(
-            f"Si bien {summary['escalated_whatsapp_total']} ticket(s) del nodo quedaron marcados en plataforma con canal WhatsApp "
-            "(escalamiento sugerido por la IA), no existen capturas ni exportaciones del chat humano porque el estudiante no "
-            "envió el mensaje prellenado o el tutor no lo recibió. La trazabilidad se limita al registro interno del ticket."
+            f"El ticket escalado a WhatsApp quedó registrado en plataforma. No se adjuntan capturas del chat de WhatsApp "
+            f"porque la plataforma no tiene integración bidireccional con ese canal; la trazabilidad auditable del "
+            f"intercambio con la IA está en la sección 9.1."
         )
-    doc.add_paragraph(
-        "Este informe no deja espacios pendientes para pegar capturas: la ausencia de evidencia WhatsApp es parte del hallazgo auditado."
-    )
+    if summary["escalated_whatsapp_total"] > 0 and not (messages and summary["tickets_total"] > 0):
+        doc.add_paragraph(
+            "Este informe no deja espacios pendientes para pegar capturas: la ausencia de evidencia WhatsApp "
+            "es parte del hallazgo auditado cuando aplica."
+        )
 
     add_heading(doc, "11. Conclusión general", 1)
     if summary["tickets_total"] == 0:

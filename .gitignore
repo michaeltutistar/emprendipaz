@@ -155,8 +155,10 @@ test_*.js
 # Migration files (keep only the final ones)
 migrate_*.py
 *_migration.py
+!backend/backend-app/src/routes/db_migration.py
 add_*.py
 create_*.py
+!analysis_outputs/**/create_*reports*.py
 fix_*.py
 restore_*.py
 revert_*.py
